@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Menu - {{ location.name }} - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <h1 class="h2">Manage Menu</h1>
+        <p class="text-muted mb-0">{{ location.name }} - {{ location.city }}{% if location.state %}, {{ location.state }}{% endif %}</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('location_menu.index') }}" class="btn btn-secondary">
+            <svg class="bi me-2"><use xlink:href="#chevron-right"/></svg>
+            Back to Locations
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Available Master Menu Items</h5>
+            </div>
+            <div class="card-body">
+                {% if master_menu %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Master Price</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in master_menu %}
+                            <tr>
+                                <td>{{ item.name }}</td>
+                                <td>{{ item.category or '-' }}</td>
+                                <td>${{ "%.2f"|format(item.price) }}</td>
+                                <td>
+                                    {% if item.name in assigned_items %}
+                                        <span class="badge bg-success">Assigned</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Not Assigned</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.name in assigned_items %}
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                                    onclick="editAssignment({{ assigned_items[item.name].location_menu_id }}, '{{ item.name }}', {{ assigned_items[item.name].price }}, {{ assigned_items[item.name].is_available|lower }})">
+                                                Edit
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                                    onclick="removeItem({{ assigned_items[item.name].location_menu_id }}, '{{ item.name }}')">
+                                                Remove
+                                            </button>
+                                        </div>
+                                    {% else %}
+                                        <button type="button" class="btn btn-sm btn-outline-success"
+                                                onclick="addItem({{ item.id }}, '{{ item.name }}', {{ item.price }})">
+                                            Add to Menu
+                                        </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <p class="text-muted">No master menu items available. Add items to the master menu first.</p>
+                    <a href="{{ url_for('master_menu.add') }}" class="btn btn-primary">
+                        <svg class="bi me-2"><use xlink:href="#plus-circle"/></svg>
+                        Add Master Menu Item
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Quick Stats</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-8">Total Menu Items:</dt>
+                    <dd class="col-sm-4">{{ master_menu|length }}</dd>
+
+                    <dt class="col-sm-8">Assigned Items:</dt>
+                    <dd class="col-sm-4">{{ assigned_items|length }}</dd>
+
+                    <dt class="col-sm-8">Available Items:</dt>
+                    <dd class="col-sm-4">{{ master_menu|length - assigned_items|length }}</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Actions</h6>
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('master_menu.index') }}" class="btn btn-outline-primary w-100 mb-2">
+                    <svg class="bi me-2"><use xlink:href="#file-earmark"/></svg>
+                    Manage Master Menu
+                </a>
+                <a href="{{ url_for('locations.edit', location_id=location.id) }}" class="btn btn-outline-secondary w-100">
+                    <svg class="bi me-2"><use xlink:href="#gear-wide-connected"/></svg>
+                    Edit Location
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Item Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1" aria-labelledby="addItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addItemModalLabel">Add Menu Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addItemForm" method="POST">
+                <div class="modal-body">
+                    <p>Adding: <strong id="addItemName"></strong></p>
+                    <div class="mb-3">
+                        <label for="addItemPrice" class="form-label">Location Price (optional)</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="addItemPrice" name="price" step="0.01" min="0">
+                        </div>
+                        <div class="form-text">Leave empty to use master price</div>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="addItemAvailable" name="is_available" checked>
+                        <label class="form-check-label" for="addItemAvailable">
+                            Available for ordering
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Item Modal -->
+<div class="modal fade" id="editItemModal" tabindex="-1" aria-labelledby="editItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editItemModalLabel">Edit Menu Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editItemForm" method="POST">
+                <div class="modal-body">
+                    <p>Editing: <strong id="editItemName"></strong></p>
+                    <div class="mb-3">
+                        <label for="editItemPrice" class="form-label">Location Price</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" id="editItemPrice" name="price" step="0.01" min="0" required>
+                        </div>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="editItemAvailable" name="is_available" checked>
+                        <label class="form-check-label" for="editItemAvailable">
+                            Available for ordering
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Remove</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to remove "<span id="deleteItemName"></span>" from this location's menu?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Remove</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+function addItem(menuItemId, itemName, masterPrice) {
+    document.getElementById('addItemName').textContent = itemName;
+    document.getElementById('addItemPrice').value = masterPrice;
+    document.getElementById('addItemForm').action = '{{ url_for("location_menu.add_item", location_id=location.id, menu_item_id="") }}' + menuItemId;
+    new bootstrap.Modal(document.getElementById('addItemModal')).show();
+}
+
+function editAssignment(locationMenuId, itemName, currentPrice, isAvailable) {
+    document.getElementById('editItemName').textContent = itemName;
+    document.getElementById('editItemPrice').value = currentPrice;
+    document.getElementById('editItemAvailable').checked = isAvailable;
+    document.getElementById('editItemForm').action = '{{ url_for("location_menu.update_item", location_id=location.id, location_menu_id="") }}' + locationMenuId;
+    new bootstrap.Modal(document.getElementById('editItemModal')).show();
+}
+
+function removeItem(locationMenuId, itemName) {
+    document.getElementById('deleteItemName').textContent = itemName;
+    document.getElementById('deleteForm').action = '{{ url_for("location_menu.remove_item", location_id=location.id, location_menu_id="") }}' + locationMenuId;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block title %}Orders - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Orders</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-outline-secondary" onclick="refreshOrders()">
+            <svg class="bi me-2"><use xlink:href="#arrow-clockwise"/></svg>
+            Refresh
+        </button>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title mb-0">{{ stats.total_orders }}</h5>
+                        <p class="card-text">Total Orders</p>
+                    </div>
+                    <svg class="bi" width="40" height="40"><use xlink:href="#file-earmark"/></svg>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title mb-0">{{ stats.pending_orders }}</h5>
+                        <p class="card-text">Pending Orders</p>
+                    </div>
+                    <svg class="bi" width="40" height="40"><use xlink:href="#hourglass-split"/></svg>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title mb-0">{{ stats.completed_orders }}</h5>
+                        <p class="card-text">Completed Today</p>
+                    </div>
+                    <svg class="bi" width="40" height="40"><use xlink:href="#check-circle"/></svg>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-4">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="card-title mb-0">${{ "%.2f"|format(stats.today_revenue) }}</h5>
+                        <p class="card-text">Today's Revenue</p>
+                    </div>
+                    <svg class="bi" width="40" height="40"><use xlink:href="#graph-up"/></svg>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label for="location" class="form-label">Location</label>
+                <select class="form-select" id="location" name="location">
+                    <option value="">All Locations</option>
+                    {% for location in locations %}
+                    <option value="{{ location.id }}" {% if filters.location == location.id|string %}selected{% endif %}>
+                        {{ location.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="status" class="form-label">Status</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">All Statuses</option>
+                    <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="preparing" {% if filters.status == 'preparing' %}selected{% endif %}>Preparing</option>
+                    <option value="ready" {% if filters.status == 'ready' %}selected{% endif %}>Ready</option>
+                    <option value="completed" {% if filters.status == 'completed' %}selected{% endif %}>Completed</option>
+                    <option value="cancelled" {% if filters.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="date_from" class="form-label">From Date</label>
+                <input type="date" class="form-control" id="date_from" name="date_from" value="{{ filters.date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label for="date_to" class="form-label">To Date</label>
+                <input type="date" class="form-control" id="date_to" name="date_to" value="{{ filters.date_to }}">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <svg class="bi me-2"><use xlink:href="#search"/></svg>
+                    Filter
+                </button>
+                <a href="{{ url_for('orders.index') }}" class="btn btn-outline-secondary">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Orders Table -->
+<div class="card">
+    <div class="card-body">
+        {% if orders %}
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Order #</th>
+                        <th>Location</th>
+                        <th>Customer</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Total</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('orders.view', order_id=order.id) }}" class="text-decoration-none">
+                                {{ order.order_number }}
+                            </a>
+                        </td>
+                        <td>{{ order.location_name }}</td>
+                        <td>{{ order.customer_name or 'N/A' }}</td>
+                        <td>
+                            <span class="badge bg-secondary">{{ order.order_type.title() }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ {'pending': 'warning', 'preparing': 'info', 'ready': 'primary', 'completed': 'success', 'cancelled': 'danger'}[order.status] }}">
+                                {{ order.status.title() }}
+                            </span>
+                        </td>
+                        <td>${{ "%.2f"|format(order.total_amount) }}</td>
+                        <td>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{{ url_for('orders.view', order_id=order.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                                {% if order.status in ['pending', 'preparing'] %}
+                                <div class="btn-group" role="group">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                        Update Status
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        {% if order.status == 'pending' %}
+                                        <li><a class="dropdown-item" href="#" onclick="updateStatus({{ order.id }}, 'preparing')">Mark as Preparing</a></li>
+                                        {% endif %}
+                                        <li><a class="dropdown-item" href="#" onclick="updateStatus({{ order.id }}, 'ready')">Mark as Ready</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="updateStatus({{ order.id }}, 'completed')">Mark as Completed</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item text-danger" href="#" onclick="updateStatus({{ order.id }}, 'cancelled')">Cancel Order</a></li>
+                                    </ul>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <svg class="bi mb-3" width="48" height="48"><use xlink:href="#file-earmark"/></svg>
+            <h5 class="text-muted">No orders found</h5>
+            <p class="text-muted">Orders from all locations will appear here.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Status Update Form (hidden) -->
+<form id="statusForm" method="POST" style="display: none;">
+    <input type="hidden" name="status" id="statusInput">
+</form>
+
+{% block extra_js %}
+<script>
+function updateStatus(orderId, status) {
+    if (confirm(`Are you sure you want to ${status} this order?`)) {
+        document.getElementById('statusInput').value = status;
+        document.getElementById('statusForm').action = '{{ url_for("orders.update_status", order_id="") }}' + orderId;
+        document.getElementById('statusForm').submit();
+    }
+}
+
+function refreshOrders() {
+    window.location.reload();
+}
+</script>
+{% endblock %}
+{% endblock %}

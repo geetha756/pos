@@ -64,6 +64,60 @@ db.sqlite3-journal
 # Flask stuff:
 instance/
 .webassets-cache
+*.log
+logs/
+tmp/
+temp/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+sipnsnack_dev.db
+sipnsnack.db
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Application specific
+uploads/
+cache/
+sessions/
+*.pid
+*.bak
+*.backup
+*.old
+
+# PostgreSQL
+postgresql.conf
+pg_hba.conf
+recovery.conf
+
+# Development files
+debug.log
+access.log
+error.log
+
+# Web application files
+*.sqlite-journal
+*.db-journal
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Scrapy stuff:
 .scrapy
@@ -137,12 +191,16 @@ celerybeat.pid
 # Environments
 .env
 .envrc
+dev.env
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+sipnsnack_env/
+sipnsnack/
+
 
 # Spyder project settings
 .spyderproject

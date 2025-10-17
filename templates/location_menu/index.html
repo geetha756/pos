@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Location Menu Management - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Location Menu Management</h1>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if locations %}
+        <p class="text-muted">Select a location to manage its menu items:</p>
+        <div class="row">
+            {% for location in locations %}
+            <div class="col-md-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">{{ location.name }}</h5>
+                        <p class="card-text text-muted">
+                            {{ location.city }}{% if location.state %}, {{ location.state }}{% endif %}
+                        </p>
+                        <div class="mt-auto">
+                            <a href="{{ url_for('location_menu.manage', location_id=location.id) }}" class="btn btn-primary w-100">
+                                <svg class="bi me-2"><use xlink:href="#cart"/></svg>
+                                Manage Menu
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <svg class="bi mb-3" width="48" height="48"><use xlink:href="#people"/></svg>
+            <h5 class="text-muted">No locations found</h5>
+            <p class="text-muted">Add locations first before managing their menus.</p>
+            <a href="{{ url_for('locations.add') }}" class="btn btn-primary">
+                <svg class="bi me-2"><use xlink:href="#plus-circle"/></svg>
+                Add Location
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

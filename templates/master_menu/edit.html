@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Menu Item - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Edit Menu Item</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('master_menu.index') }}" class="btn btn-secondary">
+            <svg class="bi me-2"><use xlink:href="#chevron-right"/></svg>
+            Back to Menu
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Item Name *</label>
+                        <input type="text" class="form-control" id="name" name="name" value="{{ item.name }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{{ item.description or '' }}</textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="price" class="form-label">Price *</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="price" name="price" step="0.01" min="0" value="{{ item.price }}" required>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="category" class="form-label">Category</label>
+                            <select class="form-select" id="category" name="category">
+                                <option value="">Select Category</option>
+                                <option value="Appetizers" {% if item.category == 'Appetizers' %}selected{% endif %}>Appetizers</option>
+                                <option value="Main Course" {% if item.category == 'Main Course' %}selected{% endif %}>Main Course</option>
+                                <option value="Desserts" {% if item.category == 'Desserts' %}selected{% endif %}>Desserts</option>
+                                <option value="Beverages" {% if item.category == 'Beverages' %}selected{% endif %}>Beverages</option>
+                                <option value="Snacks" {% if item.category == 'Snacks' %}selected{% endif %}>Snacks</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="is_active" name="is_active" {% if item.is_active %}checked{% endif %}>
+                        <label class="form-check-label" for="is_active">
+                            Active (available for ordering)
+                        </label>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <svg class="bi me-2"><use xlink:href="#check-circle"/></svg>
+                            Update Menu Item
+                        </button>
+                        <a href="{{ url_for('master_menu.index') }}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Item Information</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-6">Created:</dt>
+                    <dd class="col-sm-6">{{ item.created_at.strftime('%Y-%m-%d') }}</dd>
+
+                    <dt class="col-sm-6">Last Updated:</dt>
+                    <dd class="col-sm-6">{{ item.updated_at.strftime('%Y-%m-%d') }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

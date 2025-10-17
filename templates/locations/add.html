@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Add Location - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Add Location</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('locations.index') }}" class="btn btn-secondary">
+            <svg class="bi me-2"><use xlink:href="#chevron-right"/></svg>
+            Back to Locations
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Location Name *</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                        <div class="form-text">e.g., Downtown Branch, Mall Location</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="address" class="form-label">Address</label>
+                        <textarea class="form-control" id="address" name="address" rows="3"></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="city" class="form-label">City</label>
+                            <input type="text" class="form-control" id="city" name="city">
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label for="state" class="form-label">State</label>
+                            <input type="text" class="form-control" id="state" name="state">
+                        </div>
+
+                        <div class="col-md-4 mb-3">
+                            <label for="zip_code" class="form-label">ZIP Code</label>
+                            <input type="text" class="form-control" id="zip_code" name="zip_code">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="phone" class="form-label">Phone</label>
+                            <input type="tel" class="form-control" id="phone" name="phone">
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email">
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <svg class="bi me-2"><use xlink:href="#plus-circle"/></svg>
+                            Add Location
+                        </button>
+                        <a href="{{ url_for('locations.index') }}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Tips</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <svg class="bi text-primary me-2"><use xlink:href="#info-circle"/></svg>
+                        Use descriptive names for easy identification
+                    </li>
+                    <li class="mb-2">
+                        <svg class="bi text-primary me-2"><use xlink:href="#info-circle"/></svg>
+                        Include complete address for delivery services
+                    </li>
+                    <li class="mb-2">
+                        <svg class="bi text-primary me-2"><use xlink:href="#info-circle"/></svg>
+                        Contact information helps with order coordination
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Order {{ order.order_number }} - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <h1 class="h2">Order {{ order.order_number }}</h1>
+        <p class="text-muted mb-0">{{ order.location_name }} - {{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('orders.index') }}" class="btn btn-secondary">
+            <svg class="bi me-2"><use xlink:href="#chevron-right"/></svg>
+            Back to Orders
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Order Details -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Order Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">Order Number:</dt>
+                            <dd class="col-sm-8">{{ order.order_number }}</dd>
+
+                            <dt class="col-sm-4">Status:</dt>
+                            <dd class="col-sm-8">
+                                <span class="badge bg-{{ {'pending': 'warning', 'preparing': 'info', 'ready': 'primary', 'completed': 'success', 'cancelled': 'danger'}[order.status] }}">
+                                    {{ order.status.title() }}
+                                </span>
+                            </dd>
+
+                            <dt class="col-sm-4">Order Type:</dt>
+                            <dd class="col-sm-8">{{ order.order_type.title() }}</dd>
+
+                            <dt class="col-sm-4">Total Amount:</dt>
+                            <dd class="col-sm-8"><strong>${{ "%.2f"|format(order.total_amount) }}</strong></dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">Location:</dt>
+                            <dd class="col-sm-8">{{ order.location_name }}</dd>
+
+                            <dt class="col-sm-4">Created:</dt>
+                            <dd class="col-sm-8">{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+
+                            <dt class="col-sm-4">Last Updated:</dt>
+                            <dd class="col-sm-8">{{ order.updated_at.strftime('%Y-%m-%d %H:%M') }}</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Customer Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Customer Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">Name:</dt>
+                            <dd class="col-sm-8">{{ order.customer_name or 'N/A' }}</dd>
+
+                            <dt class="col-sm-4">Phone:</dt>
+                            <dd class="col-sm-8">{{ order.customer_phone or 'N/A' }}</dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">Email:</dt>
+                            <dd class="col-sm-8">{{ order.customer_email or 'N/A' }}</dd>
+                        </dl>
+                    </div>
+                </div>
+                {% if order.notes %}
+                <div class="mt-3">
+                    <strong>Notes:</strong>
+                    <p class="mb-0">{{ order.notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Order Items -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Order Items</h5>
+            </div>
+            <div class="card-body">
+                {% if order_items %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Quantity</th>
+                                <th>Unit Price</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in order_items %}
+                            <tr>
+                                <td>{{ item.item_name }}</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>${{ "%.2f"|format(item.unit_price) }}</td>
+                                <td>${{ "%.2f"|format(item.total_price) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="3" class="text-end">Total:</th>
+                                <th>${{ "%.2f"|format(order.total_amount) }}</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No order items found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- Quick Actions -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                {% if order.status in ['pending', 'preparing'] %}
+                <form method="POST" class="mb-3">
+                    <label for="status" class="form-label">Update Status</label>
+                    <select class="form-select mb-2" id="status" name="status">
+                        {% if order.status == 'pending' %}
+                        <option value="preparing">Preparing</option>
+                        {% endif %}
+                        <option value="ready">Ready</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary w-100">Update Status</button>
+                </form>
+                {% endif %}
+
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+                        <svg class="bi me-2"><use xlink:href="#printer"/></svg>
+                        Print Order
+                    </button>
+                    <a href="mailto:{{ order.customer_email }}" class="btn btn-outline-info" {% if not order.customer_email %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
+                        <svg class="bi me-2"><use xlink:href="#envelope"/></svg>
+                        Email Customer
+                    </a>
+                    <a href="tel:{{ order.customer_phone }}" class="btn btn-outline-success" {% if not order.customer_phone %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
+                        <svg class="bi me-2"><use xlink:href="#telephone"/></svg>
+                        Call Customer
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Location Info -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Location Details</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-4">Name:</dt>
+                    <dd class="col-sm-8">{{ order.location_name }}</dd>
+
+                    <dt class="col-sm-12">Address:</dt>
+                    <dd class="col-sm-12">{{ order.location_address or 'N/A' }}</dd>
+                </dl>
+
+                <div class="mt-3">
+                    <a href="{{ url_for('location_menu.manage', location_id=order.location_id) }}" class="btn btn-outline-primary w-100">
+                        <svg class="bi me-2"><use xlink:href="#cart"/></svg>
+                        View Location Menu
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
