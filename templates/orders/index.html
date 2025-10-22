@@ -7,7 +7,7 @@
     <h1 class="h2">Orders</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <button type="button" class="btn btn-outline-secondary" onclick="refreshOrders()">
-            <svg class="bi me-2"><use xlink:href="#arrow-clockwise"/></svg>
+<i class="material-icons me-2">refresh</i>
             Refresh
         </button>
     </div>
@@ -23,7 +23,7 @@
                         <h5 class="card-title mb-0">{{ stats.total_orders }}</h5>
                         <p class="card-text">Total Orders</p>
                     </div>
-                    <svg class="bi" width="40" height="40"><use xlink:href="#file-earmark"/></svg>
+<i class="material-icons" style="font-size: 40px;">description</i>
                 </div>
             </div>
         </div>
@@ -36,7 +36,7 @@
                         <h5 class="card-title mb-0">{{ stats.pending_orders }}</h5>
                         <p class="card-text">Pending Orders</p>
                     </div>
-                    <svg class="bi" width="40" height="40"><use xlink:href="#hourglass-split"/></svg>
+<i class="material-icons" style="font-size: 40px;">hourglass_empty</i>
                 </div>
             </div>
         </div>
@@ -49,7 +49,7 @@
                         <h5 class="card-title mb-0">{{ stats.completed_orders }}</h5>
                         <p class="card-text">Completed Today</p>
                     </div>
-                    <svg class="bi" width="40" height="40"><use xlink:href="#check-circle"/></svg>
+<i class="material-icons" style="font-size: 40px;">check_circle</i>
                 </div>
             </div>
         </div>
@@ -62,7 +62,7 @@
                         <h5 class="card-title mb-0">${{ "%.2f"|format(stats.today_revenue) }}</h5>
                         <p class="card-text">Today's Revenue</p>
                     </div>
-                    <svg class="bi" width="40" height="40"><use xlink:href="#graph-up"/></svg>
+<i class="material-icons" style="font-size: 40px;">trending_up</i>
                 </div>
             </div>
         </div>
@@ -105,7 +105,7 @@
             </div>
             <div class="col-md-2 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary me-2">
-                    <svg class="bi me-2"><use xlink:href="#search"/></svg>
+<i class="material-icons me-2">search</i>
                     Filter
                 </button>
                 <a href="{{ url_for('orders.index') }}" class="btn btn-outline-secondary">Clear</a>
@@ -180,7 +180,7 @@
         </div>
         {% else %}
         <div class="text-center py-5">
-            <svg class="bi mb-3" width="48" height="48"><use xlink:href="#file-earmark"/></svg>
+<i class="material-icons mb-3" style="font-size: 48px;">description</i>
             <h5 class="text-muted">No orders found</h5>
             <p class="text-muted">Orders from all locations will appear here.</p>
         </div>

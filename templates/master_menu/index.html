@@ -7,7 +7,7 @@
     <h1 class="h2">Master Menu</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('master_menu.add') }}" class="btn btn-primary">
-            <svg class="bi me-2"><use xlink:href="#plus-circle"/></svg>
+            <i class="material-icons me-2">add</i>
             Add Menu Item
         </a>
     </div>
@@ -41,15 +41,25 @@
                             </span>
                         </td>
                         <td>
-                            <div class="btn-group" role="group">
-                                <a href="{{ url_for('master_menu.edit', item_id=item.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
-                                <button type="button" class="btn btn-sm btn-outline-secondary"
-                                        onclick="toggleStatus({{ item.id }}, {{ item.is_active|lower }})">
-                                    {{ 'Deactivate' if item.is_active else 'Activate' }}
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('master_menu.edit', item_id=item.id) }}" class="btn btn-sm btn-light text-primary"
+                                   data-bs-toggle="tooltip" data-bs-placement="top" title="Edit">
+<i class="material-icons">edit</i> Edit
+                                </a>
+                                <button type="button" class="btn btn-sm btn-light text-secondary toggle-status-btn"
+                                        data-item-id="{{ item.id }}"
+                                        data-item-status="{{ 'true' if item.is_active else 'false' }}"
+                                        data-bs-toggle="tooltip" data-bs-placement="top"
+                                        title="{{ 'Deactivate' if item.is_active else 'Activate' | e }}"
+                                        id="toggle-btn-{{ item.id }}">
+                                    <i class="bi {{ 'bi-toggle-on' if item.is_active else 'bi-toggle-off' }}"></i> {{ 'Deactivate' if item.is_active else 'Activate' | e }}
                                 </button>
-                                <button type="button" class="btn btn-sm btn-outline-danger"
-                                        onclick="deleteItem({{ item.id }}, '{{ item.name }}')">
-                                    Delete
+                                <button type="button" class="btn btn-sm btn-light text-danger delete-item-btn"
+                                        data-item-id="{{ item.id }}"
+                                        data-item-name="{{ item.name|replace("'", "\\'")|replace('"', '\\"')|replace('\n', ' ')|replace('\r', ' ') }}"
+                                        data-bs-toggle="tooltip" data-bs-placement="top" title="Delete"
+                                        id="delete-btn-{{ item.id }}">
+<i class="material-icons">delete</i> Delete
                                 </button>
                             </div>
                         </td>
@@ -60,11 +70,11 @@
         </div>
         {% else %}
         <div class="text-center py-5">
-            <svg class="bi mb-3" width="48" height="48"><use xlink:href="#cart"/></svg>
+<i class="material-icons mb-3" style="font-size: 48px;">restaurant</i>
             <h5 class="text-muted">No menu items found</h5>
             <p class="text-muted">Get started by adding your first menu item.</p>
             <a href="{{ url_for('master_menu.add') }}" class="btn btn-primary">
-                <svg class="bi me-2"><use xlink:href="#plus-circle"/></svg>
+                <i class="material-icons me-2">add</i>
                 Add First Menu Item
             </a>
         </div>
@@ -93,23 +103,122 @@
     </div>
 </div>
 
+<!-- Toggle Status Modal -->
+<div class="modal fade" id="toggleStatusModal" tabindex="-1" aria-labelledby="toggleStatusModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="toggleStatusModalLabel">Confirm Status Change</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to <span id="toggleActionText"></span> this menu item?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmToggleBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% block extra_js %}
 <script>
+// Store base URLs to avoid Jinja2 rendering issues in script
+if (typeof window.masterMenuUrls === 'undefined') {
+    window.masterMenuUrls = {
+        deleteBaseUrl: '{{ url_for("master_menu.delete", item_id="") }}',
+        toggleBaseUrl: '{{ url_for("master_menu.toggle_status", item_id="") }}'
+    };
+}
+
 function deleteItem(itemId, itemName) {
     document.getElementById('deleteItemName').textContent = itemName;
-    document.getElementById('deleteForm').action = '{{ url_for("master_menu.delete", item_id="") }}' + itemId;
+    document.getElementById('deleteForm').action = window.masterMenuUrls.deleteBaseUrl + itemId;
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
 }
 
 function toggleStatus(itemId, currentStatus) {
+    // Store values for the modal confirm button
+    window.pendingToggle = {
+        itemId: itemId,
+        currentStatus: currentStatus
+    };
+
     const action = currentStatus ? 'deactivate' : 'activate';
-    if (confirm(`Are you sure you want to ${action} this menu item?`)) {
+    document.getElementById('toggleActionText').textContent = action;
+    new bootstrap.Modal(document.getElementById('toggleStatusModal')).show();
+}
+
+function confirmToggleStatus() {
+    if (window.pendingToggle) {
+        const { itemId } = window.pendingToggle;
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = '{{ url_for("master_menu.toggle_status", item_id="") }}' + itemId;
+        form.action = window.masterMenuUrls.toggleBaseUrl + itemId;
         document.body.appendChild(form);
         form.submit();
     }
+}
+
+// Initialize tooltips and button event listeners
+if (typeof window.tooltipInitialized === 'undefined') {
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        // Add event listeners for toggle status buttons
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('toggle-status-btn') || e.target.closest('.toggle-status-btn')) {
+                e.preventDefault();
+                var button = e.target.classList.contains('toggle-status-btn') ? e.target : e.target.closest('.toggle-status-btn');
+                var itemId = button.getAttribute('data-item-id');
+                var itemStatus = button.getAttribute('data-item-status') === 'true';
+                toggleStatus(itemId, itemStatus);
+            }
+        });
+
+        // Add event listeners for delete buttons
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('delete-item-btn') || e.target.closest('.delete-item-btn')) {
+                e.preventDefault();
+                var button = e.target.classList.contains('delete-item-btn') ? e.target : e.target.closest('.delete-item-btn');
+                var itemId = button.getAttribute('data-item-id');
+                var itemName = button.getAttribute('data-item-name');
+                deleteItem(itemId, itemName);
+            }
+        });
+
+        // Add event listener for toggle status confirm button
+        document.getElementById('confirmToggleBtn').addEventListener('click', function() {
+            // Hide modal first, then proceed with action
+            const modalElement = document.getElementById('toggleStatusModal');
+            const modal = bootstrap.Modal.getInstance(modalElement);
+
+            // Remove focus from any element inside the modal before hiding
+            const activeElement = document.activeElement;
+            if (modalElement.contains(activeElement)) {
+                activeElement.blur();
+            }
+
+            modal.hide();
+            confirmToggleStatus();
+        });
+
+        // Handle modal hide events to prevent aria-hidden focus issues
+        const toggleModal = document.getElementById('toggleStatusModal');
+        toggleModal.addEventListener('hide.bs.modal', function() {
+            // Remove focus from any element inside the modal before it gets aria-hidden
+            const activeElement = document.activeElement;
+            if (this.contains(activeElement)) {
+                activeElement.blur();
+            }
+        });
+    });
+    window.tooltipInitialized = true;
 }
 </script>
 {% endblock %}

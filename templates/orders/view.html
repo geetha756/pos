@@ -10,7 +10,7 @@
     </div>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('orders.index') }}" class="btn btn-secondary">
-            <svg class="bi me-2"><use xlink:href="#chevron-right"/></svg>
+<i class="material-icons me-2">chevron_right</i>
             Back to Orders
         </a>
     </div>
@@ -158,15 +158,15 @@
 
                 <div class="d-grid gap-2">
                     <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
-                        <svg class="bi me-2"><use xlink:href="#printer"/></svg>
+<i class="material-icons me-2">print</i>
                         Print Order
                     </button>
                     <a href="mailto:{{ order.customer_email }}" class="btn btn-outline-info" {% if not order.customer_email %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
-                        <svg class="bi me-2"><use xlink:href="#envelope"/></svg>
+<i class="material-icons me-2">email</i>
                         Email Customer
                     </a>
                     <a href="tel:{{ order.customer_phone }}" class="btn btn-outline-success" {% if not order.customer_phone %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
-                        <svg class="bi me-2"><use xlink:href="#telephone"/></svg>
+<i class="material-icons me-2">phone</i>
                         Call Customer
                     </a>
                 </div>
@@ -189,7 +189,7 @@
 
                 <div class="mt-3">
                     <a href="{{ url_for('location_menu.manage', location_id=order.location_id) }}" class="btn btn-outline-primary w-100">
-                        <svg class="bi me-2"><use xlink:href="#cart"/></svg>
+<i class="material-icons me-2">shopping_cart</i>
                         View Location Menu
                     </a>
                 </div>

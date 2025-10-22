@@ -7,7 +7,7 @@
     <h1 class="h2">Edit Location</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('locations.index') }}" class="btn btn-secondary">
-            <svg class="bi me-2"><use xlink:href="#chevron-right"/></svg>
+<i class="material-icons me-2">chevron_right</i>
             Back to Locations
         </a>
     </div>
@@ -60,7 +60,7 @@
 
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">
-                            <svg class="bi me-2"><use xlink:href="#check-circle"/></svg>
+<i class="material-icons me-2">check_circle</i>
                             Update Location
                         </button>
                         <a href="{{ url_for('locations.index') }}" class="btn btn-secondary">Cancel</a>
@@ -83,7 +83,7 @@
 
                 <div class="mt-3">
                     <a href="{{ url_for('location_menu.manage', location_id=location.id) }}" class="btn btn-success w-100">
-                        <svg class="bi me-2"><use xlink:href="#cart"/></svg>
+<i class="material-icons me-2">shopping_cart</i>
                         Manage Menu
                     </a>
                 </div>

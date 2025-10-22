@@ -11,7 +11,7 @@
             <button type="button" class="btn btn-sm btn-outline-secondary">Export</button>
         </div>
         <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1">
-            <svg class="bi"><use xlink:href="#calendar3"/></svg>
+<i class="material-icons">calendar_today</i>
             This week
         </button>
     </div>
@@ -27,7 +27,7 @@
                         <h5 class="card-title mb-0">{{ stats.locations }}</h5>
                         <p class="card-text">Locations</p>
                     </div>
-                    <svg class="bi" width="40" height="40"><use xlink:href="#people"/></svg>
+<i class="material-icons" style="font-size: 40px;">location_on</i>
                 </div>
             </div>
         </div>
@@ -40,7 +40,7 @@
                         <h5 class="card-title mb-0">{{ stats.menu_items }}</h5>
                         <p class="card-text">Menu Items</p>
                     </div>
-                    <svg class="bi" width="40" height="40"><use xlink:href="#cart"/></svg>
+<i class="material-icons" style="font-size: 40px;">shopping_cart</i>
                 </div>
             </div>
         </div>
@@ -53,7 +53,7 @@
                         <h5 class="card-title mb-0">{{ stats.pending_orders }}</h5>
                         <p class="card-text">Pending Orders</p>
                     </div>
-                    <svg class="bi" width="40" height="40"><use xlink:href="#file-earmark"/></svg>
+<i class="material-icons" style="font-size: 40px;">description</i>
                 </div>
             </div>
         </div>
@@ -66,7 +66,7 @@
                         <h5 class="card-title mb-0">${{ "%.2f"|format(stats.total_revenue) }}</h5>
                         <p class="card-text">Total Revenue</p>
                     </div>
-                    <svg class="bi" width="40" height="40"><use xlink:href="#graph-up"/></svg>
+<i class="material-icons" style="font-size: 40px;">trending_up</i>
                 </div>
             </div>
         </div>
@@ -84,25 +84,25 @@
                 <div class="row">
                     <div class="col-md-3 mb-3">
                         <a href="{{ url_for('master_menu.add') }}" class="btn btn-primary w-100">
-                            <svg class="bi me-2"><use xlink:href="#plus-circle"/></svg>
+                            <i class="material-icons me-2">add</i>
                             Add Menu Item
                         </a>
                     </div>
                     <div class="col-md-3 mb-3">
                         <a href="{{ url_for('locations.add') }}" class="btn btn-success w-100">
-                            <svg class="bi me-2"><use xlink:href="#plus-circle"/></svg>
+                            <i class="material-icons me-2">add</i>
                             Add Location
                         </a>
                     </div>
                     <div class="col-md-3 mb-3">
                         <a href="{{ url_for('location_menu.index') }}" class="btn btn-warning w-100">
-                            <svg class="bi me-2"><use xlink:href="#cart"/></svg>
+                            <i class="material-icons me-2">shopping_cart</i>
                             Manage Menus
                         </a>
                     </div>
                     <div class="col-md-3 mb-3">
                         <a href="{{ url_for('orders.index') }}" class="btn btn-info w-100">
-                            <svg class="bi me-2"><use xlink:href="#graph-up"/></svg>
+                            <i class="material-icons me-2">bar_chart</i>
                             View Orders
                         </a>
                     </div>
