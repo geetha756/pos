@@ -286,6 +286,11 @@ function showOrderSummary() {
     modal.show();
 }
 
+// Backwards-compatible wrapper for the main Place Order button
+function placeOrder() {
+    showOrderSummary();
+}
+
 
 function placeOrderDirectly() {
     // Close the order summary modal
