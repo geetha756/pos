@@ -1,0 +1,421 @@
+{% extends "base.html" %}
+
+{% block title %}Place Order - {{ location.name }} - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <h1 class="h2">Place Order</h1>
+        <p class="text-muted mb-0">{{ location.name }} - {{ location.city }}{% if location.state %}, {{ location.state }}{% endif %}</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('location_menu.manage', location_id=location.id) }}" class="btn btn-secondary me-2">
+            <i class="material-icons me-2">arrow_back</i>
+            Back to Menu
+        </a>
+        <button type="button" class="btn btn-primary" onclick="showOrderSummary()">
+            <i class="material-icons me-2">shopping_cart</i>
+            View Cart (<span id="cartCount">0</span>)
+        </button>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Menu Items -->
+    <div class="col-lg-8">
+        {% if items_by_category %}
+            {% for category, items in items_by_category.items() %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">{{ category }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for item in items %}
+                        <div class="col-md-6 col-lg-4 mb-3">
+                            <div class="card h-100 border-0 shadow-sm">
+                                <div class="card-body d-flex flex-column">
+                                    <h6 class="card-title">{{ item.name }}</h6>
+                                    {% if item.description %}
+                                    <p class="card-text text-muted small">{{ item.description }}</p>
+                                    {% endif %}
+                                    <div class="mt-auto">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="fw-bold text-primary">${{ "%.2f"|format(item.price) }}</span>
+                                            <button type="button" class="btn btn-outline-primary btn-sm"
+                                                    data-id="{{ item.location_menu_id }}"
+                                                    data-name="{{ item.name }}"
+                                                    data-price="{{ item.price }}"
+                                                    data-masterid="{{ item.master_menu_id }}">
+                                                <i class="material-icons">add</i>
+                                                Add
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="material-icons text-muted" style="font-size: 4rem;">restaurant_menu</i>
+                <h5 class="card-title text-muted mt-3">No Menu Items Available</h5>
+                <p class="card-text text-muted">There are no menu items available for ordering at this location.</p>
+                <a href="{{ url_for('location_menu.manage', location_id=location.id) }}" class="btn btn-primary">
+                    <i class="material-icons me-2">settings</i>
+                    Manage Menu
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Cart Summary -->
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="material-icons me-2">shopping_cart</i>
+                    Your Order (<span id="cartItemCount">0</span> items)
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="cartItems" class="mb-3">
+                    <p class="text-muted text-center mb-0">Your cart is empty</p>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between mb-3">
+                    <strong>Total:</strong>
+                    <strong id="cartTotal">$0.00</strong>
+                </div>
+
+                <!-- Parcel Toggle -->
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" id="isParcel" onchange="toggleParcel()">
+                    <label class="form-check-label" for="isParcel">
+                        Parcel Order
+                    </label>
+                </div>
+
+                <button type="button" class="btn btn-success w-100" id="placeOrderBtn" onclick="placeOrder()" disabled>
+                    <i class="material-icons me-2">send</i>
+                    Place Order
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Order Summary Modal -->
+<div class="modal fade" id="orderSummaryModal" tabindex="-1" aria-labelledby="orderSummaryModalLabel">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="orderSummaryModalLabel">Order Summary</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="orderSummaryContent">
+                    <!-- Order summary will be populated by JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Continue Shopping</button>
+                <button type="button" class="btn btn-success" onclick="showCustomerForm()">Proceed to Checkout</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Customer Details Modal -->
+<div class="modal fade" id="customerModal" tabindex="-1" aria-labelledby="customerModalLabel">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="customerModalLabel">Customer Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="customerForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="customerName" class="form-label">Customer Name</label>
+                        <input type="text" class="form-control" id="customerName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="customerPhone" class="form-label">Phone Number</label>
+                        <input type="tel" class="form-control" id="customerPhone" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="customerEmail" class="form-label">Email (Optional)</label>
+                        <input type="email" class="form-control" id="customerEmail">
+                    </div>
+                    <div class="mb-3">
+                        <label for="orderType" class="form-label">Order Type</label>
+                        <select class="form-select" id="orderType" required>
+                            <option value="dine-in">Dine In</option>
+                            <option value="takeaway">Takeaway</option>
+                            <option value="delivery">Delivery</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="orderNotes" class="form-label">Special Instructions (Optional)</label>
+                        <textarea class="form-control" id="orderNotes" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Place Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Cart management
+let cart = {};
+let isParcel = false;
+
+function addToCart(locationMenuId, itemName, price, masterMenuId) {
+    try {
+        if (!cart[locationMenuId]) {
+            cart[locationMenuId] = {
+                name: itemName,
+                price: price,
+                quantity: 0,
+                masterMenuId: masterMenuId,
+                isParcel: false
+            };
+        }
+        cart[locationMenuId].quantity += 1;
+        updateCartDisplay();
+    } catch (error) {
+        console.error('Error in addToCart:', error);
+        alert('Error adding item to cart: ' + error.message);
+    }
+}
+
+function updateQuantity(locationMenuId, newQuantity) {
+    if (newQuantity <= 0) {
+        delete cart[locationMenuId];
+    } else {
+        cart[locationMenuId].quantity = newQuantity;
+    }
+    updateCartDisplay();
+}
+
+function removeFromCart(locationMenuId) {
+    delete cart[locationMenuId];
+    updateCartDisplay();
+}
+
+function toggleParcel() {
+    isParcel = document.getElementById('isParcel').checked;
+    // Update parcel status for all cart items
+    Object.keys(cart).forEach(locationMenuId => {
+        cart[locationMenuId].isParcel = isParcel;
+    });
+    updateCartDisplay();
+}
+
+function updateCartDisplay() {
+    const cartItemsDiv = document.getElementById('cartItems');
+    const cartCount = document.getElementById('cartCount');
+    const cartItemCount = document.getElementById('cartItemCount');
+    const cartTotal = document.getElementById('cartTotal');
+    const placeOrderBtn = document.getElementById('placeOrderBtn');
+
+    let totalItems = 0;
+    let totalPrice = 0;
+
+    if (Object.keys(cart).length === 0) {
+        cartItemsDiv.innerHTML = '<p class="text-muted text-center mb-0">Your cart is empty</p>';
+        cartCount.textContent = '0';
+        cartItemCount.textContent = '0';
+        cartTotal.textContent = '$0.00';
+        placeOrderBtn.disabled = true;
+        return;
+    }
+
+    let html = '';
+    Object.keys(cart).forEach(locationMenuId => {
+        const item = cart[locationMenuId];
+        const itemTotal = item.price * item.quantity;
+        totalItems += item.quantity;
+        totalPrice += itemTotal;
+
+        html += '<div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">' +
+            '<div class="flex-grow-1">' +
+                '<div class="fw-bold">' + item.name + '</div>' +
+                '<small class="text-muted">$ ' + item.price.toFixed(2) + ' each</small>' +
+            '</div>' +
+            '<div class="d-flex align-items-center">' +
+                '<button type="button" class="btn btn-outline-secondary btn-sm me-1" onclick="updateQuantity(\'' + locationMenuId + '\', ' + (item.quantity - 1) + ')">' +
+                    '<i class="material-icons">remove</i>' +
+                '</button>' +
+                '<span class="mx-2">' + item.quantity + '</span>' +
+                '<button type="button" class="btn btn-outline-secondary btn-sm me-2" onclick="updateQuantity(\'' + locationMenuId + '\', ' + (item.quantity + 1) + ')">' +
+                    '<i class="material-icons">add</i>' +
+                '</button>' +
+                '<button type="button" class="btn btn-outline-danger btn-sm" onclick="removeFromCart(\'' + locationMenuId + '\')">' +
+                    '<i class="material-icons">delete</i>' +
+                '</button>' +
+            '</div>' +
+        '</div>' +
+        '<div class="text-end mb-2">' +
+            '<small class="text-muted">Subtotal: $' + itemTotal.toFixed(2) + '</small>' +
+        '</div>';
+    });
+
+    cartItemsDiv.innerHTML = html;
+    cartCount.textContent = totalItems;
+    cartItemCount.textContent = totalItems;
+    cartTotal.textContent = `$${totalPrice.toFixed(2)}`;
+    placeOrderBtn.disabled = false;
+}
+
+function showOrderSummary() {
+    if (Object.keys(cart).length === 0) {
+        alert('Your cart is empty!');
+        return;
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('orderSummaryModal'));
+    const content = document.getElementById('orderSummaryContent');
+
+    let totalPrice = 0;
+    let html = `
+        <div class="mb-3">
+            <h6>Location: {{ location.name }}</h6>
+            <p class="text-muted mb-0">{{ location.address }}, {{ location.city }}{% if location.state %}, {{ location.state }}{% endif %}</p>
+        </div>
+        <hr>
+        <h6>Order Items:</h6>
+    `;
+
+    Object.keys(cart).forEach(locationMenuId => {
+        const item = cart[locationMenuId];
+        const itemTotal = item.price * item.quantity;
+        totalPrice += itemTotal;
+
+        html += `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div>
+                    <strong>${item.name}</strong> × ${item.quantity}
+                    ${item.isParcel ? '<span class="badge bg-info ms-2">Parcel</span>' : ''}
+                </div>
+                <span>$${itemTotal.toFixed(2)}</span>
+            </div>
+        `;
+    });
+
+    html += `
+        <hr>
+        <div class="d-flex justify-content-between">
+            <strong>Total Amount:</strong>
+            <strong>$${totalPrice.toFixed(2)}</strong>
+        </div>
+    `;
+
+    content.innerHTML = html;
+    modal.show();
+}
+
+function showCustomerForm() {
+    bootstrap.Modal.getInstance(document.getElementById('orderSummaryModal')).hide();
+    const modal = new bootstrap.Modal(document.getElementById('customerModal'));
+    modal.show();
+}
+
+document.getElementById('customerForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    placeOrder();
+});
+
+function placeOrder() {
+    const customerName = document.getElementById('customerName').value;
+    const customerPhone = document.getElementById('customerPhone').value;
+    const customerEmail = document.getElementById('customerEmail').value;
+    const orderType = document.getElementById('orderType').value;
+    const orderNotes = document.getElementById('orderNotes').value;
+
+    if (!customerName || !customerPhone) {
+        alert('Please fill in customer name and phone number');
+        return;
+    }
+
+    // Prepare order data
+    const orderData = {
+        location_id: '{{ location.id }}',
+        customer_name: customerName,
+        customer_phone: customerPhone,
+        customer_email: customerEmail,
+        order_type: orderType,
+        notes: orderNotes,
+        items: Object.keys(cart).map(locationMenuId => ({
+            location_menu_id: locationMenuId,
+            master_menu_id: cart[locationMenuId].masterMenuId,
+            item_name: cart[locationMenuId].name,
+            quantity: cart[locationMenuId].quantity,
+            unit_price: cart[locationMenuId].price,
+            total_price: cart[locationMenuId].price * cart[locationMenuId].quantity,
+            is_parcel: cart[locationMenuId].isParcel
+        }))
+    };
+
+    // Send order to server
+    fetch('/api/orders/create', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(orderData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close modals
+            bootstrap.Modal.getInstance(document.getElementById('customerModal')).hide();
+            // Show success message and redirect
+            alert('Order placed successfully! Order #' + data.order_number);
+            window.location.href = `/orders/${data.order_id}`;
+        } else {
+            alert('Error placing order: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error placing order. Please try again.');
+    });
+}
+
+// Initialize parcel toggle
+document.addEventListener('DOMContentLoaded', function() {
+    updateCartDisplay();
+
+    // Add event listeners for add to cart buttons
+    document.querySelectorAll('button[data-id]').forEach(button => {
+        button.addEventListener('click', function() {
+            try {
+                const itemId = this.dataset.id;
+                const itemName = this.dataset.name;
+                const itemPrice = parseFloat(this.dataset.price);
+                const masterId = this.dataset.masterid;
+                addToCart(itemId, itemName, itemPrice, masterId);
+            } catch (error) {
+                console.error('Error adding item to cart:', error);
+                alert('Error adding item to cart: ' + error.message);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

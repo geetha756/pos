@@ -35,12 +35,12 @@ def manage(location_id):
             ORDER BY category, name
         """, fetch=True)
 
-        # Get current location menu items
+        # Get current location menu items (only active ones)
         location_menu = execute_query("""
-            SELECT lm.id, mm.name, mm.description, lm.price, mm.category, lm.is_available, lm.location_menu_id
+            SELECT lm.id, mm.name, mm.description, lm.price, mm.category, lm.is_available, lm.id as location_menu_id
             FROM location_menu lm
             JOIN master_menu mm ON lm.master_menu_id = mm.id
-            WHERE lm.location_id = %s
+            WHERE lm.location_id = %s AND lm.is_available = TRUE
         """, (location_id,), fetch=True)
 
         # Create a dict of assigned items for easy lookup
@@ -59,18 +59,34 @@ def manage(location_id):
 def add_item(location_id, menu_item_id):
     """Add menu item to location"""
     price = request.form.get('price')
-    is_available = request.form.get('is_available') == 'on'
+    is_available = True  # Items are available by default when added
 
     try:
-        # Check if item already exists
+        # Check if item already exists (active or soft deleted)
         existing = execute_query_one("""
-            SELECT id FROM location_menu
+            SELECT id, is_available FROM location_menu
             WHERE location_id = %s AND master_menu_id = %s
         """, (location_id, menu_item_id))
 
         if existing:
-            flash('Menu item already assigned to this location', 'warning')
+            if existing['is_available']:
+                # Item is already active
+                flash('Menu item already assigned to this location', 'warning')
+            else:
+                # Item was soft deleted, reactivate it
+                # Get default price from master menu if not provided
+                if not price:
+                    master_item = execute_query_one("SELECT price FROM master_menu WHERE id = %s", (menu_item_id,))
+                    price = master_item['price'] if master_item else 0
+
+                execute_query("""
+                    UPDATE location_menu
+                    SET price = %s, is_available = %s
+                    WHERE id = %s
+                """, (float(price), is_available, existing['id']))
+                flash('Menu item re-added to location!', 'success')
         else:
+            # Item doesn't exist at all, create new record
             # Get default price from master menu if not provided
             if not price:
                 master_item = execute_query_one("SELECT price FROM master_menu WHERE id = %s", (menu_item_id,))
@@ -91,7 +107,7 @@ def add_item(location_id, menu_item_id):
 def update_item(location_id, location_menu_id):
     """Update location menu item"""
     price = request.form.get('price')
-    is_available = request.form.get('is_available') == 'on'
+    is_available = True  # Items remain available when updated
 
     try:
         execute_query("""
@@ -107,10 +123,11 @@ def update_item(location_id, location_menu_id):
 
 @location_menu_bp.route('/<location_id>/remove/<location_menu_id>', methods=['POST'])
 def remove_item(location_id, location_menu_id):
-    """Remove menu item from location"""
+    """Soft remove menu item from location (mark as unavailable)"""
     try:
         execute_query("""
-            DELETE FROM location_menu
+            UPDATE location_menu
+            SET is_available = FALSE
             WHERE id = %s AND location_id = %s
         """, (location_menu_id, location_id))
         flash('Menu item removed from location!', 'success')
@@ -118,3 +135,39 @@ def remove_item(location_id, location_menu_id):
         flash(f'Error removing menu item: {str(e)}', 'error')
 
     return redirect(url_for('location_menu.manage', location_id=location_id))
+
+@location_menu_bp.route('/<location_id>/place-order')
+def place_order(location_id):
+    """Place order for a specific location"""
+    try:
+        # Get location info
+        location = execute_query_one("SELECT * FROM locations WHERE id = %s", (location_id,))
+        if not location:
+            flash('Location not found', 'error')
+            return redirect(url_for('location_menu.index'))
+
+        # Get available menu items for this location
+        menu_items = execute_query("""
+            SELECT lm.id as location_menu_id, mm.id as master_menu_id, mm.name, mm.description,
+                   lm.price, mm.category, lm.is_available
+            FROM location_menu lm
+            JOIN master_menu mm ON lm.master_menu_id = mm.id
+            WHERE lm.location_id = %s AND lm.is_available = TRUE AND mm.is_active = TRUE
+            ORDER BY mm.category, mm.name
+        """, (location_id,), fetch=True)
+
+        # Group items by category for better display
+        items_by_category = {}
+        for item in menu_items or []:
+            category = item['category'] or 'Other'
+            if category not in items_by_category:
+                items_by_category[category] = []
+            items_by_category[category].append(item)
+
+        return render_template('location_menu/place_order.html',
+                             location=location,
+                             items_by_category=items_by_category)
+
+    except Exception as e:
+        flash(f'Error loading order page: {str(e)}', 'error')
+        return redirect(url_for('location_menu.index'))

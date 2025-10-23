@@ -21,10 +21,16 @@
                             {{ location.city }}{% if location.state %}, {{ location.state }}{% endif %}
                         </p>
                         <div class="mt-auto">
-                            <a href="{{ url_for('location_menu.manage', location_id=location.id) }}" class="btn btn-primary w-100">
-<i class="material-icons me-2">shopping_cart</i>
-                                Manage Menu
-                            </a>
+                            <div class="d-grid gap-2">
+                                <a href="{{ url_for('location_menu.place_order', location_id=location.id) }}" class="btn btn-success">
+<i class="material-icons me-2">restaurant</i>
+                                    Place Order
+                                </a>
+                                <a href="{{ url_for('location_menu.manage', location_id=location.id) }}" class="btn btn-outline-primary">
+<i class="material-icons me-2">settings</i>
+                                    Manage Menu
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>

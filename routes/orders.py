@@ -1,6 +1,8 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from database import execute_query, execute_query_one
 import psycopg2
+import uuid
+import json
 
 orders_bp = Blueprint('orders', __name__)
 
@@ -182,3 +184,73 @@ def get_order_stats():
         print(f"Error getting order stats: {e}")
 
     return stats
+
+@orders_bp.route('/api/create', methods=['POST'])
+def api_create_order():
+    """API endpoint to create a new order"""
+    try:
+        data = request.get_json()
+
+        # Validate required fields
+        required_fields = ['location_id', 'customer_name', 'customer_phone', 'order_type', 'items']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'success': False, 'error': f'Missing required field: {field}'}), 400
+
+        if not data['items']:
+            return jsonify({'success': False, 'error': 'Order must contain at least one item'}), 400
+
+        # Generate order number (simple timestamp-based for now)
+        import time
+        order_number = f"ORD{int(time.time())}"
+
+        # Calculate total amount
+        total_amount = sum(item['total_price'] for item in data['items'])
+
+        # Create order
+        order_id = str(uuid.uuid4())
+        execute_query("""
+            INSERT INTO orders (id, location_id, order_number, customer_name, customer_phone,
+                              customer_email, order_type, total_amount, notes, status)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending')
+        """, (
+            order_id,
+            data['location_id'],
+            order_number,
+            data['customer_name'],
+            data['customer_phone'],
+            data.get('customer_email'),
+            data['order_type'],
+            total_amount,
+            data.get('notes')
+        ))
+
+        # Add order items
+        for item in data['items']:
+            item_id = str(uuid.uuid4())
+            execute_query("""
+                INSERT INTO order_items (id, order_id, location_menu_id, master_menu_id,
+                                       item_name, quantity, unit_price, total_price, notes)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                item_id,
+                order_id,
+                item['location_menu_id'],
+                item['master_menu_id'],
+                item['item_name'],
+                item['quantity'],
+                item['unit_price'],
+                item['total_price'],
+                'Parcel' if item.get('is_parcel') else None
+            ))
+
+        return jsonify({
+            'success': True,
+            'order_id': order_id,
+            'order_number': order_number,
+            'message': 'Order created successfully'
+        })
+
+    except Exception as e:
+        print(f"Error creating order: {e}")
+        return jsonify({'success': False, 'error': 'Failed to create order'}), 500
