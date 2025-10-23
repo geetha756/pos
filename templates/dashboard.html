@@ -19,54 +19,62 @@
 
 <!-- Statistics Cards -->
 <div class="row mb-4">
-    <div class="col-md-3 mb-4">
-        <div class="card text-white bg-primary">
+    <div class="col-md-3 mb-2">
+        <div class="card stats-card stats-card-primary h-100">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="card-title mb-0">{{ stats.locations }}</h5>
-                        <p class="card-text">Locations</p>
+                    <div class="flex-grow-1">
+                        <div class="stats-title">Total Locations</div>
+                        <div class="stats-value">{{ stats.locations }}</div>
                     </div>
-<i class="material-icons" style="font-size: 40px;">location_on</i>
+                    <div class="stats-icon">
+                        <i class="material-icons">location_on</i>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-4">
-        <div class="card text-white bg-success">
+    <div class="col-md-3 mb-2">
+        <div class="card stats-card stats-card-success h-100">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="card-title mb-0">{{ stats.menu_items }}</h5>
-                        <p class="card-text">Menu Items</p>
+                    <div class="flex-grow-1">
+                        <div class="stats-title">Menu Items</div>
+                        <div class="stats-value">{{ stats.menu_items }}</div>
                     </div>
-<i class="material-icons" style="font-size: 40px;">shopping_cart</i>
+                    <div class="stats-icon">
+                        <i class="material-icons">shopping_cart</i>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-4">
-        <div class="card text-white bg-warning">
+    <div class="col-md-3 mb-2">
+        <div class="card stats-card stats-card-warning h-100">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="card-title mb-0">{{ stats.pending_orders }}</h5>
-                        <p class="card-text">Pending Orders</p>
+                    <div class="flex-grow-1">
+                        <div class="stats-title">Pending Orders</div>
+                        <div class="stats-value">{{ stats.pending_orders }}</div>
                     </div>
-<i class="material-icons" style="font-size: 40px;">description</i>
+                    <div class="stats-icon">
+                        <i class="material-icons">schedule</i>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-4">
-        <div class="card text-white bg-info">
+    <div class="col-md-3 mb-2">
+        <div class="card stats-card stats-card-info h-100">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="card-title mb-0">${{ "%.2f"|format(stats.total_revenue) }}</h5>
-                        <p class="card-text">Total Revenue</p>
+                    <div class="flex-grow-1">
+                        <div class="stats-title">Total Revenue</div>
+                        <div class="stats-value">${{ "%.2f"|format(stats.total_revenue) }}</div>
                     </div>
-<i class="material-icons" style="font-size: 40px;">trending_up</i>
+                    <div class="stats-icon">
+                        <i class="material-icons">attach_money</i>
+                    </div>
                 </div>
             </div>
         </div>

@@ -14,55 +14,72 @@
 </div>
 
 <!-- Statistics Cards -->
+
 <div class="row mb-4">
-    <div class="col-md-3 mb-4">
-        <div class="card text-white bg-info">
+    <div class="col-md-3 mb-2">
+        <div class="card stats-card stats-card-info h-100">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="card-title mb-0">{{ stats.total_orders }}</h5>
-                        <p class="card-text">Total Orders</p>
+                <div class="stats-content">
+                    <div class="stats-header">
+                        <div class="stats-text">
+                            <div class="stats-title">Total Orders</div>
+                            <div class="stats-value">{{ stats.total_orders }}</div>
+                        </div>
+                        <div class="stats-icon">
+                            <i class="material-icons">description</i>
+                        </div>
                     </div>
-<i class="material-icons" style="font-size: 40px;">description</i>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-4">
-        <div class="card text-white bg-warning">
+    <div class="col-md-3 mb-2">
+        <div class="card stats-card stats-card-warning h-100">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="card-title mb-0">{{ stats.pending_orders }}</h5>
-                        <p class="card-text">Pending Orders</p>
+                <div class="stats-content">
+                    <div class="stats-header">
+                        <div class="stats-text">
+                            <div class="stats-title">Pending Orders</div>
+                            <div class="stats-value">{{ stats.pending_orders }}</div>
+                        </div>
+                        <div class="stats-icon">
+                            <i class="material-icons">schedule</i>
+                        </div>
                     </div>
-<i class="material-icons" style="font-size: 40px;">hourglass_empty</i>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-4">
-        <div class="card text-white bg-success">
+    <div class="col-md-3 mb-2">
+        <div class="card stats-card stats-card-success h-100">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="card-title mb-0">{{ stats.completed_orders }}</h5>
-                        <p class="card-text">Completed Today</p>
+                <div class="stats-content">
+                    <div class="stats-header">
+                        <div class="stats-text">
+                            <div class="stats-title">Completed Today</div>
+                            <div class="stats-value">{{ stats.completed_orders }}</div>
+                        </div>
+                        <div class="stats-icon">
+                            <i class="material-icons">check_circle</i>
+                        </div>
                     </div>
-<i class="material-icons" style="font-size: 40px;">check_circle</i>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-4">
-        <div class="card text-white bg-primary">
+    <div class="col-md-3 mb-2">
+        <div class="card stats-card stats-card-primary h-100">
             <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="card-title mb-0">${{ "%.2f"|format(stats.today_revenue) }}</h5>
-                        <p class="card-text">Today's Revenue</p>
+                <div class="stats-content">
+                    <div class="stats-header">
+                        <div class="stats-text">
+                            <div class="stats-title">Today's Revenue</div>
+                            <div class="stats-value">${{ "%.2f"|format(stats.today_revenue) }}</div>
+                        </div>
+                        <div class="stats-icon">
+                            <i class="material-icons">attach_money</i>
+                        </div>
                     </div>
-<i class="material-icons" style="font-size: 40px;">trending_up</i>
                 </div>
             </div>
         </div>
@@ -213,53 +230,90 @@
     </div>
 </div>
 
-{% block extra_js %}
 <script>
 // Global variables to store pending status update
 let pendingOrderId = null;
 let pendingStatus = null;
 
 function updateStatus(orderId, status) {
-    // Store the pending update
-    pendingOrderId = orderId;
-    pendingStatus = status;
+    if (!orderId || !status) {
+        console.error('Invalid orderId or status provided');
+        return;
+    }
 
-    // Format the status text for display
-    const statusText = status.charAt(0).toUpperCase() + status.slice(1);
-    document.getElementById('statusActionText').textContent = 'mark as ' + statusText;
+    try {
+        // Store the pending update
+        pendingOrderId = orderId;
+        pendingStatus = status;
 
-    // Show the confirmation modal
-    const modal = new bootstrap.Modal(document.getElementById('statusConfirmModal'));
-    modal.show();
+        // Format the status text for display
+        const statusText = status.charAt(0).toUpperCase() + status.slice(1);
+        const statusActionText = document.getElementById('statusActionText');
+        if (statusActionText) {
+            statusActionText.textContent = 'mark as ' + statusText;
+        }
+
+        // Show the confirmation modal
+        const modalElement = document.getElementById('statusConfirmModal');
+        if (modalElement) {
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+        }
+    } catch (error) {
+        console.error('Error showing status update modal:', error);
+    }
 }
 
 function confirmStatusUpdate() {
-    if (pendingOrderId && pendingStatus) {
+    if (!pendingOrderId || !pendingStatus) {
+        console.warn('No pending order status update to confirm');
+        return;
+    }
+
+    try {
+        // Get form elements
+        const statusInput = document.getElementById('statusInput');
+        const statusForm = document.getElementById('statusForm');
+
+        if (!statusInput || !statusForm) {
+            console.error('Required form elements not found');
+            return;
+        }
+
         // Set the form data
-        document.getElementById('statusInput').value = pendingStatus;
-        document.getElementById('statusForm').action = '/orders/' + pendingOrderId + '/status';
+        statusInput.value = pendingStatus;
+        statusForm.action = '/orders/' + pendingOrderId + '/status';
 
         // Close the modal
         const modal = bootstrap.Modal.getInstance(document.getElementById('statusConfirmModal'));
-        modal.hide();
+        if (modal) {
+            modal.hide();
+        }
 
         // Submit the form
-        document.getElementById('statusForm').submit();
+        statusForm.submit();
 
         // Reset pending values
         pendingOrderId = null;
         pendingStatus = null;
+    } catch (error) {
+        console.error('Error confirming status update:', error);
     }
 }
 
 // Initialize modal event listeners
 document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('confirmStatusUpdate').addEventListener('click', confirmStatusUpdate);
+    const confirmButton = document.getElementById('confirmStatusUpdate');
+    if (confirmButton) {
+        confirmButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            confirmStatusUpdate();
+        });
+    }
 });
 
 function refreshOrders() {
     window.location.reload();
 }
 </script>
-{% endblock %}
 {% endblock %}
