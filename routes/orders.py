@@ -29,7 +29,7 @@ def index():
 
         if location_filter:
             query += " AND o.location_id = %s"
-            params.append(int(location_filter))
+            params.append(location_filter)
 
         if status_filter:
             query += " AND o.status = %s"
@@ -66,7 +66,14 @@ def index():
 
     except Exception as e:
         flash(f'Error loading orders: {str(e)}', 'error')
-        return render_template('orders/index.html', orders=[], locations=[], stats={}, filters={})
+        return render_template('orders/index.html', orders=[], locations=[], stats={
+            'total_orders': 0,
+            'total_revenue': 0.0,
+            'pending_orders': 0,
+            'completed_orders': 0,
+            'today_orders': 0,
+            'today_revenue': 0.0
+        }, filters={})
 
 @orders_bp.route('/<order_id>')
 def view(order_id):
