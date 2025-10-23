@@ -37,12 +37,21 @@
                         <td>{{ location.phone or '-' }}</td>
                         <td>{{ location.email or '-' }}</td>
                         <td>
-                            <div class="btn-group" role="group">
-                                <a href="{{ url_for('locations.edit', location_id=location.id) }}" class="btn btn-sm btn-outline-primary">Edit</a>
-                                <a href="{{ url_for('location_menu.manage', location_id=location.id) }}" class="btn btn-sm btn-outline-success">Manage Menu</a>
-                                <button type="button" class="btn btn-sm btn-outline-danger"
-                                        onclick="deleteLocation({{ location.id }}, '{{ location.name }}')">
-                                    Delete
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('locations.edit', location_id=location.id) }}" class="btn btn-sm btn-light text-primary"
+                                   data-bs-toggle="tooltip" data-bs-placement="top" title="Edit">
+                                    <i class="material-icons">edit</i> Edit
+                                </a>
+                                <a href="{{ url_for('location_menu.manage', location_id=location.id) }}" class="btn btn-sm btn-light text-success"
+                                   data-bs-toggle="tooltip" data-bs-placement="top" title="Manage Menu">
+                                    <i class="material-icons">restaurant_menu</i> Manage Menu
+                                </a>
+                                <button type="button" class="btn btn-sm btn-light text-danger delete-location-btn"
+                                        data-location-id="{{ location.id }}"
+                                        data-location-name="{{ (location.name or '')|replace("'", "\\'")|replace('"', '\\"')|replace('\n',' ')|replace('\r',' ') }}"
+                                        data-bs-toggle="tooltip" data-bs-placement="top" title="Delete"
+                                        id="delete-btn-{{ location.id }}">
+                                    <i class="material-icons">delete</i> Delete
                                 </button>
                             </div>
                         </td>
@@ -88,10 +97,40 @@
 
 {% block extra_js %}
 <script>
-function deleteLocation(locationId, locationName) {
+// Store base URL to avoid Jinja2 rendering issues
+if (typeof window.locationsUrls === 'undefined') {
+    window.locationsUrls = {
+        deleteBaseUrl: '{{ url_for("locations.delete", location_id="") }}'
+    };
+}
+
+function openDeleteModal(locationId, locationName) {
     document.getElementById('deleteLocationName').textContent = locationName;
-    document.getElementById('deleteForm').action = '{{ url_for("locations.delete", location_id="") }}' + locationId;
+    document.getElementById('deleteForm').action = window.locationsUrls.deleteBaseUrl + locationId;
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+// Initialize tooltips and button event listeners similar to master_menu
+if (typeof window.tooltipInitializedForLocations === 'undefined') {
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        // Add event listener for delete buttons
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('delete-location-btn') || e.target.closest('.delete-location-btn')) {
+                e.preventDefault();
+                var button = e.target.classList.contains('delete-location-btn') ? e.target : e.target.closest('.delete-location-btn');
+                var locId = button.getAttribute('data-location-id');
+                var locName = button.getAttribute('data-location-name');
+                openDeleteModal(locId, locName);
+            }
+        });
+    });
+    window.tooltipInitializedForLocations = true;
 }
 </script>
 {% endblock %}
