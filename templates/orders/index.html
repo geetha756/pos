@@ -149,22 +149,26 @@
                         <td>
                             <div class="btn-group" role="group">
                                 <a href="{{ url_for('orders.view', order_id=order.id) }}" class="btn btn-sm btn-outline-primary">View</a>
-                                {% if order.status in ['pending', 'preparing'] %}
                                 <div class="btn-group" role="group">
                                     <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                                         Update Status
                                     </button>
                                     <ul class="dropdown-menu">
-                                        {% if order.status == 'pending' %}
-                                        <li><a class="dropdown-item" href="#" onclick="updateStatus({{ order.id }}, 'preparing')">Mark as Preparing</a></li>
+                                        {% if order.status != 'preparing' %}
+                                        <li><a class="dropdown-item" href="#" onclick="updateStatus('{{ order.id }}', 'preparing')">Mark as Preparing</a></li>
                                         {% endif %}
-                                        <li><a class="dropdown-item" href="#" onclick="updateStatus({{ order.id }}, 'ready')">Mark as Ready</a></li>
-                                        <li><a class="dropdown-item" href="#" onclick="updateStatus({{ order.id }}, 'completed')">Mark as Completed</a></li>
+                                        {% if order.status != 'ready' %}
+                                        <li><a class="dropdown-item" href="#" onclick="updateStatus('{{ order.id }}', 'ready')">Mark as Ready</a></li>
+                                        {% endif %}
+                                        {% if order.status != 'completed' %}
+                                        <li><a class="dropdown-item" href="#" onclick="updateStatus('{{ order.id }}', 'completed')">Mark as Completed</a></li>
+                                        {% endif %}
+                                        {% if order.status != 'cancelled' %}
                                         <li><hr class="dropdown-divider"></li>
-                                        <li><a class="dropdown-item text-danger" href="#" onclick="updateStatus({{ order.id }}, 'cancelled')">Cancel Order</a></li>
+                                        <li><a class="dropdown-item text-danger" href="#" onclick="updateStatus('{{ order.id }}', 'cancelled')">Cancel Order</a></li>
+                                        {% endif %}
                                     </ul>
                                 </div>
-                                {% endif %}
                             </div>
                         </td>
                     </tr>
@@ -187,15 +191,71 @@
     <input type="hidden" name="status" id="statusInput">
 </form>
 
+<!-- Status Update Confirmation Modal -->
+<div class="modal fade" id="statusConfirmModal" tabindex="-1" aria-labelledby="statusConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="statusConfirmModalLabel">Confirm Status Update</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to <strong id="statusActionText"></strong> this order?</p>
+                <div class="alert alert-warning" role="alert">
+                    <small>This action will update the order status immediately.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmStatusUpdate">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% block extra_js %}
 <script>
+// Global variables to store pending status update
+let pendingOrderId = null;
+let pendingStatus = null;
+
 function updateStatus(orderId, status) {
-    if (confirm(`Are you sure you want to ${status} this order?`)) {
-        document.getElementById('statusInput').value = status;
-        document.getElementById('statusForm').action = '{{ url_for("orders.update_status", order_id="") }}' + orderId;
+    // Store the pending update
+    pendingOrderId = orderId;
+    pendingStatus = status;
+
+    // Format the status text for display
+    const statusText = status.charAt(0).toUpperCase() + status.slice(1);
+    document.getElementById('statusActionText').textContent = 'mark as ' + statusText;
+
+    // Show the confirmation modal
+    const modal = new bootstrap.Modal(document.getElementById('statusConfirmModal'));
+    modal.show();
+}
+
+function confirmStatusUpdate() {
+    if (pendingOrderId && pendingStatus) {
+        // Set the form data
+        document.getElementById('statusInput').value = pendingStatus;
+        document.getElementById('statusForm').action = '/orders/' + pendingOrderId + '/status';
+
+        // Close the modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('statusConfirmModal'));
+        modal.hide();
+
+        // Submit the form
         document.getElementById('statusForm').submit();
+
+        // Reset pending values
+        pendingOrderId = null;
+        pendingStatus = null;
     }
 }
+
+// Initialize modal event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('confirmStatusUpdate').addEventListener('click', confirmStatusUpdate);
+});
 
 function refreshOrders() {
     window.location.reload();

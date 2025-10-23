@@ -107,20 +107,27 @@
                 <h6 class="card-title mb-0">Quick Actions</h6>
             </div>
             <div class="card-body">
-                {% if order.status in ['pending', 'preparing'] %}
-                <form method="POST" class="mb-3">
-                    <label for="status" class="form-label">Update Status</label>
-                    <select class="form-select mb-2" id="status" name="status">
-                        {% if order.status == 'pending' %}
+                <form id="orderStatusForm" class="mb-3" onsubmit="return handleStatusUpdate(event)">
+                    <label for="orderStatusSelect" class="form-label">Update Status</label>
+                    <select class="form-select mb-2" id="orderStatusSelect" name="status">
+                        {% if order.status != 'pending' %}
+                        <option value="pending">Pending</option>
+                        {% endif %}
+                        {% if order.status != 'preparing' %}
                         <option value="preparing">Preparing</option>
                         {% endif %}
+                        {% if order.status != 'ready' %}
                         <option value="ready">Ready</option>
+                        {% endif %}
+                        {% if order.status != 'completed' %}
                         <option value="completed">Completed</option>
+                        {% endif %}
+                        {% if order.status != 'cancelled' %}
                         <option value="cancelled">Cancelled</option>
+                        {% endif %}
                     </select>
                     <button type="submit" class="btn btn-primary w-100">Update Status</button>
                 </form>
-                {% endif %}
 
                 <div class="d-grid gap-2">
                     <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
@@ -155,4 +162,61 @@
         </div>
     </div>
 </div>
+
+<!-- Status Update Confirmation Modal -->
+<div class="modal fade" id="orderStatusConfirmModal" tabindex="-1" aria-labelledby="orderStatusConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="orderStatusConfirmModalLabel">Confirm Status Update</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to <strong id="orderStatusActionText"></strong> this order?</p>
+                <div class="alert alert-warning" role="alert">
+                    <small>This action will update the order status immediately.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmOrderStatusUpdate">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+function handleStatusUpdate(event) {
+    event.preventDefault();
+
+    const selectElement = document.getElementById('orderStatusSelect');
+    const selectedStatus = selectElement.value;
+
+    // Format the status text for display
+    const statusText = selectedStatus.charAt(0).toUpperCase() + selectedStatus.slice(1);
+    document.getElementById('orderStatusActionText').textContent = 'mark as ' + statusText;
+
+    // Show the confirmation modal
+    const modal = new bootstrap.Modal(document.getElementById('orderStatusConfirmModal'));
+    modal.show();
+
+    return false;
+}
+
+function confirmOrderStatusUpdate() {
+    // Submit the form
+    document.getElementById('orderStatusForm').submit();
+
+    // Close the modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('orderStatusConfirmModal'));
+    modal.hide();
+}
+
+// Initialize modal event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('confirmOrderStatusUpdate').addEventListener('click', confirmOrderStatusUpdate);
+});
+</script>
+{% endblock %}
 {% endblock %}

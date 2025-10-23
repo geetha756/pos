@@ -119,11 +119,20 @@ def update_status(order_id):
         return redirect(url_for('orders.view', order_id=order_id))
 
     try:
+        # Check if order exists
+        existing_order = execute_query_one("SELECT id, status FROM orders WHERE id = %s", (order_id,))
+
+        if not existing_order:
+            flash('Order not found', 'error')
+            return redirect(url_for('orders.index'))
+
+        # Update the order status
         execute_query("""
             UPDATE orders
             SET status = %s, updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
         """, (new_status, order_id))
+
         flash('Order status updated!', 'success')
     except Exception as e:
         flash(f'Error updating order status: {str(e)}', 'error')
