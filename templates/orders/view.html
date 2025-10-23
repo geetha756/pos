@@ -37,9 +37,6 @@
                                 </span>
                             </dd>
 
-                            <dt class="col-sm-4">Order Type:</dt>
-                            <dd class="col-sm-8">{{ order.order_type.title() }}</dd>
-
                             <dt class="col-sm-4">Total Amount:</dt>
                             <dd class="col-sm-8"><strong>${{ "%.2f"|format(order.total_amount) }}</strong></dd>
                         </dl>
@@ -60,37 +57,6 @@
             </div>
         </div>
 
-        <!-- Customer Information -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Customer Information</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <dl class="row">
-                            <dt class="col-sm-4">Name:</dt>
-                            <dd class="col-sm-8">{{ order.customer_name or 'N/A' }}</dd>
-
-                            <dt class="col-sm-4">Phone:</dt>
-                            <dd class="col-sm-8">{{ order.customer_phone or 'N/A' }}</dd>
-                        </dl>
-                    </div>
-                    <div class="col-md-6">
-                        <dl class="row">
-                            <dt class="col-sm-4">Email:</dt>
-                            <dd class="col-sm-8">{{ order.customer_email or 'N/A' }}</dd>
-                        </dl>
-                    </div>
-                </div>
-                {% if order.notes %}
-                <div class="mt-3">
-                    <strong>Notes:</strong>
-                    <p class="mb-0">{{ order.notes }}</p>
-                </div>
-                {% endif %}
-            </div>
-        </div>
 
         <!-- Order Items -->
         <div class="card">
@@ -161,14 +127,6 @@
 <i class="material-icons me-2">print</i>
                         Print Order
                     </button>
-                    <a href="mailto:{{ order.customer_email }}" class="btn btn-outline-info" {% if not order.customer_email %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
-<i class="material-icons me-2">email</i>
-                        Email Customer
-                    </a>
-                    <a href="tel:{{ order.customer_phone }}" class="btn btn-outline-success" {% if not order.customer_phone %}style="pointer-events: none; opacity: 0.5;"{% endif %}>
-<i class="material-icons me-2">phone</i>
-                        Call Customer
-                    </a>
                 </div>
             </div>
         </div>

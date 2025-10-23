@@ -192,7 +192,7 @@ def api_create_order():
         data = request.get_json()
 
         # Validate required fields
-        required_fields = ['location_id', 'customer_name', 'customer_phone', 'order_type', 'items']
+        required_fields = ['location_id', 'items']
         for field in required_fields:
             if field not in data:
                 return jsonify({'success': False, 'error': f'Missing required field: {field}'}), 400
@@ -217,12 +217,12 @@ def api_create_order():
             order_id,
             data['location_id'],
             order_number,
-            data['customer_name'],
-            data['customer_phone'],
-            data.get('customer_email'),
-            data['order_type'],
+            None,  # No customer name
+            None,  # No customer phone
+            None,  # No customer email
+            'dine-in',  # Default order type
             total_amount,
-            data.get('notes')
+            None  # No notes
         ))
 
         # Add order items

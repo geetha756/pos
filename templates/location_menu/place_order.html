@@ -126,55 +126,12 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Continue Shopping</button>
-                <button type="button" class="btn btn-success" onclick="showCustomerForm()">Proceed to Checkout</button>
+                <button type="button" class="btn btn-success" onclick="placeOrderDirectly()">Place Order</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Customer Details Modal -->
-<div class="modal fade" id="customerModal" tabindex="-1" aria-labelledby="customerModalLabel">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="customerModalLabel">Customer Details</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form id="customerForm">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="customerName" class="form-label">Customer Name</label>
-                        <input type="text" class="form-control" id="customerName" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="customerPhone" class="form-label">Phone Number</label>
-                        <input type="tel" class="form-control" id="customerPhone" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="customerEmail" class="form-label">Email (Optional)</label>
-                        <input type="email" class="form-control" id="customerEmail">
-                    </div>
-                    <div class="mb-3">
-                        <label for="orderType" class="form-label">Order Type</label>
-                        <select class="form-select" id="orderType" required>
-                            <option value="dine-in">Dine In</option>
-                            <option value="takeaway">Takeaway</option>
-                            <option value="delivery">Delivery</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="orderNotes" class="form-label">Special Instructions (Optional)</label>
-                        <textarea class="form-control" id="orderNotes" rows="3"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success">Place Order</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 
 {% endblock %}
 
@@ -329,37 +286,20 @@ function showOrderSummary() {
     modal.show();
 }
 
-function showCustomerForm() {
-    bootstrap.Modal.getInstance(document.getElementById('orderSummaryModal')).hide();
-    const modal = new bootstrap.Modal(document.getElementById('customerModal'));
-    modal.show();
-}
 
-document.getElementById('customerForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    placeOrder();
-});
-
-function placeOrder() {
-    const customerName = document.getElementById('customerName').value;
-    const customerPhone = document.getElementById('customerPhone').value;
-    const customerEmail = document.getElementById('customerEmail').value;
-    const orderType = document.getElementById('orderType').value;
-    const orderNotes = document.getElementById('orderNotes').value;
-
-    if (!customerName || !customerPhone) {
-        alert('Please fill in customer name and phone number');
-        return;
+function placeOrderDirectly() {
+    // Close the order summary modal
+    const orderSummaryModal = document.getElementById('orderSummaryModal');
+    if (orderSummaryModal) {
+        const modalInstance = bootstrap.Modal.getInstance(orderSummaryModal);
+        if (modalInstance) {
+            modalInstance.hide();
+        }
     }
 
-    // Prepare order data
+    // Place order
     const orderData = {
-        location_id: '{{ location.id }}',
-        customer_name: customerName,
-        customer_phone: customerPhone,
-        customer_email: customerEmail,
-        order_type: orderType,
-        notes: orderNotes,
+        location_id: "{{ location.id }}",
         items: Object.keys(cart).map(locationMenuId => ({
             location_menu_id: locationMenuId,
             master_menu_id: cart[locationMenuId].masterMenuId,
@@ -372,7 +312,7 @@ function placeOrder() {
     };
 
     // Send order to server
-    fetch('/api/orders/create', {
+    fetch('/orders/api/create', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -382,11 +322,8 @@ function placeOrder() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // Close modals
-            bootstrap.Modal.getInstance(document.getElementById('customerModal')).hide();
-            // Show success message and redirect
             alert('Order placed successfully! Order #' + data.order_number);
-            window.location.href = `/orders/${data.order_id}`;
+            window.location.href = '/orders/' + data.order_id;
         } else {
             alert('Error placing order: ' + data.error);
         }
@@ -396,6 +333,7 @@ function placeOrder() {
         alert('Error placing order. Please try again.');
     });
 }
+
 
 // Initialize parcel toggle
 document.addEventListener('DOMContentLoaded', function() {
