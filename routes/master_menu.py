@@ -1,10 +1,12 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from database import execute_query, execute_query_one
+from .auth import login_required
 import psycopg2
 
 master_menu_bp = Blueprint('master_menu', __name__)
 
 @master_menu_bp.route('/')
+@login_required
 def index():
     """List all master menu items"""
     try:
@@ -19,6 +21,7 @@ def index():
         return render_template('master_menu/index.html', menu_items=[])
 
 @master_menu_bp.route('/add', methods=['GET', 'POST'])
+@login_required
 def add():
     """Add new menu item"""
     if request.method == 'POST':
@@ -45,6 +48,7 @@ def add():
     return render_template('master_menu/add.html')
 
 @master_menu_bp.route('/edit/<item_id>', methods=['GET', 'POST'])
+@login_required
 def edit(item_id):
     """Edit menu item"""
     if request.method == 'POST':
@@ -82,6 +86,7 @@ def edit(item_id):
         return redirect(url_for('master_menu.index'))
 
 @master_menu_bp.route('/delete/<item_id>', methods=['POST'])
+@login_required
 def delete(item_id):
     """Delete menu item"""
     try:
@@ -92,6 +97,7 @@ def delete(item_id):
     return redirect(url_for('master_menu.index'))
 
 @master_menu_bp.route('/toggle/<item_id>', methods=['POST'])
+@login_required
 def toggle_status(item_id):
     """Toggle menu item active status"""
     try:

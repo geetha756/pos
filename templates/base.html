@@ -262,6 +262,24 @@
             </li>
         </ul>
 
+        <div class="navbar-nav ms-auto me-3">
+            <div class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle text-white d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    {% if session.user_picture %}
+                        <img src="{{ session.user_picture }}" alt="Profile" class="rounded-circle me-2" width="32" height="32">
+                    {% else %}
+                        <i class="material-icons me-2">account_circle</i>
+                    {% endif %}
+                    {{ session.user_name or 'User' }}
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
+                        <i class="material-icons me-2">logout</i>Logout
+                    </a></li>
+                </ul>
+            </div>
+        </div>
+
         <div id="navbarSearch" class="navbar-search w-100 collapse">
             <input class="form-control w-100 rounded-0 border-0" type="text" placeholder="Search" aria-label="Search">
         </div>

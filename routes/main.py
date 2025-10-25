@@ -1,10 +1,12 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from database import execute_query, execute_query_one
+from .auth import login_required
 import psycopg2
 
 main_bp = Blueprint('main', __name__)
 
 @main_bp.route('/')
+@login_required
 def dashboard():
     """Main dashboard page"""
     try:

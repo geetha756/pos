@@ -1,9 +1,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from database import execute_query, execute_query_one
+from .auth import login_required
 
 location_menu_bp = Blueprint('location_menu', __name__)
 
 @location_menu_bp.route('/')
+@login_required
 def index():
     """List all locations for menu management"""
     try:
@@ -18,6 +20,7 @@ def index():
         return render_template('location_menu/index.html', locations=[])
 
 @location_menu_bp.route('/<location_id>')
+@login_required
 def manage(location_id):
     """Manage menu for a specific location"""
     try:
@@ -56,6 +59,7 @@ def manage(location_id):
         return redirect(url_for('location_menu.index'))
 
 @location_menu_bp.route('/<location_id>/add/<menu_item_id>', methods=['POST'])
+@login_required
 def add_item(location_id, menu_item_id):
     """Add menu item to location"""
     price = request.form.get('price')
@@ -104,6 +108,7 @@ def add_item(location_id, menu_item_id):
     return redirect(url_for('location_menu.manage', location_id=location_id))
 
 @location_menu_bp.route('/<location_id>/update/<location_menu_id>', methods=['POST'])
+@login_required
 def update_item(location_id, location_menu_id):
     """Update location menu item"""
     price = request.form.get('price')
@@ -122,6 +127,7 @@ def update_item(location_id, location_menu_id):
     return redirect(url_for('location_menu.manage', location_id=location_id))
 
 @location_menu_bp.route('/<location_id>/remove/<location_menu_id>', methods=['POST'])
+@login_required
 def remove_item(location_id, location_menu_id):
     """Soft remove menu item from location (mark as unavailable)"""
     try:
@@ -137,6 +143,7 @@ def remove_item(location_id, location_menu_id):
     return redirect(url_for('location_menu.manage', location_id=location_id))
 
 @location_menu_bp.route('/<location_id>/place-order')
+@login_required
 def place_order(location_id):
     """Place order for a specific location"""
     try:

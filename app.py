@@ -31,12 +31,14 @@ def create_app():
     })
 
     # Register blueprints
+    from routes.auth import auth_bp
     from routes.main import main_bp
     from routes.master_menu import master_menu_bp
     from routes.locations import locations_bp
     from routes.location_menu import location_menu_bp
     from routes.orders import orders_bp
 
+    app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(master_menu_bp, url_prefix='/master-menu')
     app.register_blueprint(locations_bp, url_prefix='/locations')

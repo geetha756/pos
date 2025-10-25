@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from database import execute_query, execute_query_one
+from .auth import login_required
 import psycopg2
 import uuid
 import json
@@ -7,6 +8,7 @@ import json
 orders_bp = Blueprint('orders', __name__)
 
 @orders_bp.route('/')
+@login_required
 def index():
     """List all orders from all locations"""
     try:
@@ -76,6 +78,7 @@ def index():
         }, filters={})
 
 @orders_bp.route('/<order_id>')
+@login_required
 def view(order_id):
     """View order details"""
     try:
@@ -110,6 +113,7 @@ def view(order_id):
         return redirect(url_for('orders.index'))
 
 @orders_bp.route('/<order_id>/status', methods=['POST'])
+@login_required
 def update_status(order_id):
     """Update order status"""
     new_status = request.form.get('status')
@@ -140,6 +144,7 @@ def update_status(order_id):
     return redirect(url_for('orders.view', order_id=order_id))
 
 @orders_bp.route('/stats')
+@login_required
 def stats():
     """Get order statistics via AJAX"""
     try:
@@ -202,6 +207,7 @@ def get_order_stats():
     return stats
 
 @orders_bp.route('/api/create', methods=['POST'])
+@login_required
 def api_create_order():
     """API endpoint to create a new order"""
     try:

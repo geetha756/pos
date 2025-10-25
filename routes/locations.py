@@ -1,9 +1,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from database import execute_query, execute_query_one
+from .auth import login_required
 
 locations_bp = Blueprint('locations', __name__)
 
 @locations_bp.route('/')
+@login_required
 def index():
     """List all locations"""
     try:
@@ -18,6 +20,7 @@ def index():
         return render_template('locations/index.html', locations=[])
 
 @locations_bp.route('/add', methods=['GET', 'POST'])
+@login_required
 def add():
     """Add new location"""
     if request.method == 'POST':
@@ -46,6 +49,7 @@ def add():
     return render_template('locations/add.html')
 
 @locations_bp.route('/edit/<location_id>', methods=['GET', 'POST'])
+@login_required
 def edit(location_id):
     """Edit location"""
     if request.method == 'POST':
@@ -85,6 +89,7 @@ def edit(location_id):
         return redirect(url_for('locations.index'))
 
 @locations_bp.route('/delete/<location_id>', methods=['POST'])
+@login_required
 def delete(location_id):
     """Delete location"""
     try:
