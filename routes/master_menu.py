@@ -42,6 +42,11 @@ def add():
             """, (name, description, float(price), category, is_active))
             flash('Menu item added successfully!', 'success')
             return redirect(url_for('master_menu.index'))
+        except psycopg2.IntegrityError as e:
+            if 'unique constraint' in str(e).lower() or 'duplicate key' in str(e).lower():
+                flash('A menu item with this name already exists. Please choose a different name.', 'error')
+            else:
+                flash(f'Error adding menu item: {str(e)}', 'error')
         except Exception as e:
             flash(f'Error adding menu item: {str(e)}', 'error')
 
@@ -71,6 +76,13 @@ def edit(item_id):
             """, (name, description, float(price), category, is_active, item_id))
             flash('Menu item updated successfully!', 'success')
             return redirect(url_for('master_menu.index'))
+        except psycopg2.IntegrityError as e:
+            if 'unique constraint' in str(e).lower() or 'duplicate key' in str(e).lower():
+                flash('A menu item with this name already exists. Please choose a different name.', 'error')
+                item = execute_query_one("SELECT * FROM master_menu WHERE id = %s", (item_id,))
+                return render_template('master_menu/edit.html', item=item)
+            else:
+                flash(f'Error updating menu item: {str(e)}', 'error')
         except Exception as e:
             flash(f'Error updating menu item: {str(e)}', 'error')
 
@@ -95,6 +107,24 @@ def delete(item_id):
     except Exception as e:
         flash(f'Error deleting menu item: {str(e)}', 'error')
     return redirect(url_for('master_menu.index'))
+
+@master_menu_bp.route('/check-name', methods=['POST'])
+@login_required
+def check_name():
+    """Check if a menu item name already exists"""
+    try:
+        data = request.get_json()
+        name = data.get('name', '').strip()
+
+        if not name:
+            return jsonify({'exists': False})
+
+        # Check if menu item name exists
+        result = execute_query_one("SELECT id FROM master_menu WHERE name = %s", (name,))
+        return jsonify({'exists': result is not None})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @master_menu_bp.route('/toggle/<item_id>', methods=['POST'])
 @login_required

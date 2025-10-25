@@ -132,7 +132,7 @@
 </div>
 
 <!-- Orders Table -->
-<div class="card">
+<div class="card orders-table">
     <div class="card-body">
         {% if orders %}
         <div class="table-responsive">
@@ -164,25 +164,34 @@
                         <td>${{ "%.2f"|format(order.total_amount) }}</td>
                         <td>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                         <td>
-                            <div class="btn-group" role="group">
-                                <a href="{{ url_for('orders.view', order_id=order.id) }}" class="btn btn-sm btn-outline-primary">View</a>
-                                <div class="btn-group" role="group">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                                        Update Status
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('orders.view', order_id=order.id) }}" class="btn btn-sm btn-light text-primary"
+                                   data-bs-toggle="tooltip" data-bs-placement="top" title="View Order Details">
+                                    <i class="bi bi-eye"></i> View
+                                </a>
+                                <div class="dropdown">
+                                    <button type="button" class="btn btn-sm btn-light text-secondary dropdown-toggle"
+                                            data-bs-toggle="dropdown" aria-expanded="false"
+                                            data-bs-toggle="tooltip" data-bs-placement="top" title="Update Order Status">
+                                        <i class="bi bi-arrow-repeat"></i> Update Status
                                     </button>
                                     <ul class="dropdown-menu">
                                         {% if order.status != 'preparing' %}
-                                        <li><a class="dropdown-item" href="#" onclick="updateStatus('{{ order.id }}', 'preparing')">Mark as Preparing</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="updateStatus('{{ order.id }}', 'preparing')">
+                                            <i class="bi bi-play-circle me-2"></i>Mark as Preparing</a></li>
                                         {% endif %}
                                         {% if order.status != 'ready' %}
-                                        <li><a class="dropdown-item" href="#" onclick="updateStatus('{{ order.id }}', 'ready')">Mark as Ready</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="updateStatus('{{ order.id }}', 'ready')">
+                                            <i class="bi bi-check-circle me-2"></i>Mark as Ready</a></li>
                                         {% endif %}
                                         {% if order.status != 'completed' %}
-                                        <li><a class="dropdown-item" href="#" onclick="updateStatus('{{ order.id }}', 'completed')">Mark as Completed</a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="updateStatus('{{ order.id }}', 'completed')">
+                                            <i class="bi bi-check2-all me-2"></i>Mark as Completed</a></li>
                                         {% endif %}
                                         {% if order.status != 'cancelled' %}
                                         <li><hr class="dropdown-divider"></li>
-                                        <li><a class="dropdown-item text-danger" href="#" onclick="updateStatus('{{ order.id }}', 'cancelled')">Cancel Order</a></li>
+                                        <li><a class="dropdown-item text-danger" href="#" onclick="updateStatus('{{ order.id }}', 'cancelled')">
+                                            <i class="bi bi-x-circle me-2"></i>Cancel Order</a></li>
                                         {% endif %}
                                     </ul>
                                 </div>
@@ -301,7 +310,7 @@ function confirmStatusUpdate() {
     }
 }
 
-// Initialize modal event listeners
+// Initialize modal event listeners and tooltips
 document.addEventListener('DOMContentLoaded', function() {
     const confirmButton = document.getElementById('confirmStatusUpdate');
     if (confirmButton) {
@@ -310,6 +319,79 @@ document.addEventListener('DOMContentLoaded', function() {
             confirmStatusUpdate();
         });
     }
+
+    // Initialize tooltips for action buttons
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Fix modal scrollbar issues
+    const statusModal = document.getElementById('statusConfirmModal');
+    let scrollPosition = 0;
+
+    if (statusModal) {
+        statusModal.addEventListener('show.bs.modal', function() {
+            // Capture current scroll position
+            scrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+
+            // Prevent body scrolling
+            document.body.style.overflow = 'hidden';
+            document.body.style.position = 'fixed';
+            document.body.style.top = `-${scrollPosition}px`;
+            document.body.style.width = '100%';
+            document.body.style.paddingRight = '0';
+
+            // Also prevent scrolling on html element
+            document.documentElement.style.overflow = 'hidden';
+
+            // Specifically hide orders table scrollbars
+            const ordersTable = document.querySelector('.orders-table .table-responsive');
+            if (ordersTable) {
+                ordersTable.style.overflow = 'hidden';
+            }
+        });
+
+        statusModal.addEventListener('hidden.bs.modal', function() {
+            // Restore body scroll and position
+            document.body.style.overflow = '';
+            document.body.style.position = '';
+            document.body.style.top = '';
+            document.body.style.width = '';
+            document.body.style.paddingRight = '';
+
+            // Restore html element
+            document.documentElement.style.overflow = '';
+
+            // Restore orders table scrollbars
+            const ordersTable = document.querySelector('.orders-table .table-responsive');
+            if (ordersTable) {
+                ordersTable.style.overflow = '';
+            }
+
+            // Restore scroll position
+            window.scrollTo(0, scrollPosition);
+        });
+    }
+
+    // Also prevent table scrollbars when dropdowns are shown
+    document.addEventListener('show.bs.dropdown', function(event) {
+        if (event.target.closest('.orders-table')) {
+            const tableResponsive = event.target.closest('.orders-table').querySelector('.table-responsive');
+            if (tableResponsive) {
+                tableResponsive.style.overflow = 'visible';
+            }
+        }
+    });
+
+    document.addEventListener('hide.bs.dropdown', function(event) {
+        if (event.target.closest('.orders-table')) {
+            const tableResponsive = event.target.closest('.orders-table').querySelector('.table-responsive');
+            if (tableResponsive) {
+                tableResponsive.style.overflow = '';
+            }
+        }
+    });
 });
 
 function refreshOrders() {

@@ -13,8 +13,15 @@
 -- 1. SETUP USER AND CONNECT TO DATABASE
 -- ============================================
 
--- Create application user
-CREATE USER sipnsnack_user WITH PASSWORD 's!pnsn@ck';
+-- Create application user (with validation)
+DO $$
+BEGIN
+    -- Create user only if it doesn't exist
+    IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'sipnsnack_user') THEN
+        CREATE USER sipnsnack_user WITH PASSWORD 's!pnsn@ck';
+    END IF;
+END
+$$;
 
 -- Grant privileges on the existing database
 -- (Run this script while connected to the sipnsnack database)
@@ -35,7 +42,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- Create locations table
 CREATE TABLE IF NOT EXISTS locations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL UNIQUE,
     address TEXT,
     city VARCHAR(100),
     state VARCHAR(100),
@@ -48,7 +55,7 @@ CREATE TABLE IF NOT EXISTS locations (
 -- Create master_menu table
 CREATE TABLE IF NOT EXISTS master_menu (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL UNIQUE,
     description TEXT,
     price DECIMAL(10,2) NOT NULL,
     category VARCHAR(100),
@@ -98,8 +105,49 @@ CREATE TABLE IF NOT EXISTS order_items (
     notes TEXT
 );
 
+-- Create user_sessions table (for authentication logging)
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id SERIAL PRIMARY KEY,
+    user_email VARCHAR(255) NOT NULL,
+    user_name VARCHAR(255),
+    login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    logout_time TIMESTAMP,
+    ip_address INET,
+    user_agent TEXT,
+    is_active BOOLEAN DEFAULT TRUE
+);
+
 -- ============================================
--- 3. CREATE INDEXES FOR PERFORMANCE
+-- 3. ADD UNIQUE CONSTRAINTS
+-- ============================================
+
+-- Add unique constraints for location and menu names (with error handling)
+DO $$
+BEGIN
+    -- Add unique constraint to locations table if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'locations_name_key'
+        AND table_name = 'locations'
+    ) THEN
+        ALTER TABLE locations ADD CONSTRAINT locations_name_key UNIQUE (name);
+    END IF;
+
+    -- Add unique constraint to master_menu table if it doesn't exist
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'master_menu_name_key'
+        AND table_name = 'master_menu'
+    ) THEN
+        ALTER TABLE master_menu ADD CONSTRAINT master_menu_name_key UNIQUE (name);
+    END IF;
+EXCEPTION
+    WHEN others THEN
+        RAISE NOTICE 'Could not add unique constraints. Please ensure no duplicate names exist in locations or master_menu tables.';
+END $$;
+
+-- ============================================
+-- 4. CREATE INDEXES FOR PERFORMANCE
 -- ============================================
 
 -- Indexes for better query performance
@@ -111,9 +159,11 @@ CREATE INDEX IF NOT EXISTS idx_orders_location ON orders(location_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at);
 CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_email ON user_sessions(user_email);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_active ON user_sessions(is_active);
 
 -- ============================================
--- 4. SAMPLE DATA (OPTIONAL)
+-- 5. SAMPLE DATA (OPTIONAL)
 -- ============================================
 
 -- Insert sample locations (IDs will be auto-generated as UUIDs)
@@ -136,7 +186,7 @@ INSERT INTO master_menu (name, description, price, category, is_active) VALUES
 ON CONFLICT DO NOTHING;
 
 -- ============================================
--- 5. GRANT PERMISSIONS TO APPLICATION USER
+-- 6. GRANT PERMISSIONS TO APPLICATION USER
 -- ============================================
 
 -- Grant all privileges on existing tables
@@ -152,7 +202,8 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO sipnsnack_us
 -- ============================================
 -- Database: sipnsnack
 -- User: sipnsnack_user
--- Tables created: 5
+-- Tables created: 6
+-- Unique constraints added
 -- Sample data inserted
 --
 -- Next steps:

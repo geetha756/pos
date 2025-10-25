@@ -20,7 +20,8 @@
                 <form method="POST">
                     <div class="mb-3">
                         <label for="name" class="form-label">Item Name *</label>
-                        <input type="text" class="form-control" id="name" name="name" required>
+                        <input type="text" class="form-control" id="name" name="name" required onblur="checkMenuItemName()">
+                        <div id="name-feedback" class="invalid-feedback"></div>
                     </div>
 
                     <div class="mb-3">
@@ -93,4 +94,38 @@
         </div>
     </div>
 </div>
+
+<script>
+async function checkMenuItemName() {
+    const nameInput = document.getElementById('name');
+    const feedback = document.getElementById('name-feedback');
+    const name = nameInput.value.trim();
+
+    if (!name) return;
+
+    try {
+        const response = await fetch('/master-menu/check-name', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ name: name })
+        });
+
+        const data = await response.json();
+
+        if (data.exists) {
+            nameInput.classList.add('is-invalid');
+            nameInput.classList.remove('is-valid');
+            feedback.textContent = 'A menu item with this name already exists.';
+        } else {
+            nameInput.classList.remove('is-invalid');
+            nameInput.classList.add('is-valid');
+            feedback.textContent = '';
+        }
+    } catch (error) {
+        console.error('Error checking menu item name:', error);
+    }
+}
+</script>
 {% endblock %}

@@ -1,6 +1,7 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from database import execute_query, execute_query_one
 from .auth import login_required
+import psycopg2
 
 locations_bp = Blueprint('locations', __name__)
 
@@ -43,6 +44,11 @@ def add():
             """, (name, address, city, state, zip_code, phone, email))
             flash('Location added successfully!', 'success')
             return redirect(url_for('locations.index'))
+        except psycopg2.IntegrityError as e:
+            if 'unique constraint' in str(e).lower() or 'duplicate key' in str(e).lower():
+                flash('A location with this name already exists. Please choose a different name.', 'error')
+            else:
+                flash(f'Error adding location: {str(e)}', 'error')
         except Exception as e:
             flash(f'Error adding location: {str(e)}', 'error')
 
@@ -74,6 +80,13 @@ def edit(location_id):
             """, (name, address, city, state, zip_code, phone, email, location_id))
             flash('Location updated successfully!', 'success')
             return redirect(url_for('locations.index'))
+        except psycopg2.IntegrityError as e:
+            if 'unique constraint' in str(e).lower() or 'duplicate key' in str(e).lower():
+                flash('A location with this name already exists. Please choose a different name.', 'error')
+                location = execute_query_one("SELECT * FROM locations WHERE id = %s", (location_id,))
+                return render_template('locations/edit.html', location=location)
+            else:
+                flash(f'Error updating location: {str(e)}', 'error')
         except Exception as e:
             flash(f'Error updating location: {str(e)}', 'error')
 
@@ -87,6 +100,24 @@ def edit(location_id):
     except Exception as e:
         flash(f'Error loading location: {str(e)}', 'error')
         return redirect(url_for('locations.index'))
+
+@locations_bp.route('/check-name', methods=['POST'])
+@login_required
+def check_name():
+    """Check if a location name already exists"""
+    try:
+        data = request.get_json()
+        name = data.get('name', '').strip()
+
+        if not name:
+            return jsonify({'exists': False})
+
+        # Check if location name exists
+        result = execute_query_one("SELECT id FROM locations WHERE name = %s", (name,))
+        return jsonify({'exists': result is not None})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @locations_bp.route('/delete/<location_id>', methods=['POST'])
 @login_required

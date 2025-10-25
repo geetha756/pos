@@ -13,8 +13,9 @@
 
     <!-- Bootstrap CSS -->
     <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
-    <!-- Google Material Icons -->
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!-- Google Material Icons - High Quality Version -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons:wght@400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined:wght@400&display=swap" rel="stylesheet">
     <!-- Dashboard CSS -->
     <link href="{{ url_for('static', filename='css/dashboard.css') }}" rel="stylesheet">
 
@@ -81,33 +82,46 @@
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16), 0 2px 4px rgba(0, 0, 0, 0.12);
     }
 
+    /* Stats card content layout */
+    .stats-content {
+        padding: 8px;
+    }
+
+    .stats-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 4px;
+        min-height: 24px;
+    }
+
+    .stats-text {
+        flex: 1;
+        margin-right: 8px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        height: 24px;
+    }
+
     .stats-card .card-body {
-        padding: 12px;
+        padding: 8px;
         font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
     .stats-card .stats-icon {
-        width: 36px;
-        height: 36px;
         display: flex;
         align-items: center;
         justify-content: center;
-        border-radius: 50%;
-        background: rgba(0, 0, 0, 0.06);
-        transition: background-color 0.2s ease;
-    }
-
-    .stats-card:hover .stats-icon {
-        background: rgba(0, 0, 0, 0.12);
     }
 
     .stats-card .stats-icon i {
-        font-size: 22px;
-        line-height: 28px;
+        font-size: 32px;
+        line-height: 1;
         margin: 0;
         padding: 0;
-        text-align: center;
-        transform: translate(-3px, -6px);
+        display: block;
+        color: currentColor;
     }
 
     .stats-card .stats-title {
@@ -177,6 +191,137 @@
         font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
+    /* Prevent table responsive from causing unwanted scrollbars */
+    .table-responsive {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Specifically prevent orders table from showing scrollbars during dropdown interactions */
+    .orders-table .table-responsive {
+        overflow: visible !important;
+    }
+
+    /* Ensure dropdowns in tables don't cause layout shifts */
+    .table .dropdown-menu {
+        min-width: 160px;
+        position: absolute;
+        z-index: 1030;
+    }
+
+    /* High-quality Material Icons in action buttons */
+    .btn .material-icons {
+        vertical-align: middle;
+        margin-top: -2px;
+        display: inline-block;
+        line-height: 1;
+        font-weight: normal;
+        font-style: normal;
+        font-variant: normal;
+        text-transform: none;
+        letter-spacing: normal;
+        word-wrap: normal;
+        white-space: nowrap;
+        direction: ltr;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+        -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Specific high-quality settings for different button sizes */
+    .btn-sm .material-icons {
+        font-size: 18px;
+        margin-top: -2px;
+        font-weight: 400;
+    }
+
+    .dropdown-item .material-icons {
+        font-size: 20px;
+        margin-top: -2px;
+        font-weight: 400;
+    }
+
+    /* Ensure crisp rendering for all Material Icons */
+    .material-icons {
+        font-family: 'Material Icons';
+        font-weight: normal;
+        font-style: normal;
+        font-size: 20px;
+        line-height: 1;
+        letter-spacing: normal;
+        text-transform: none;
+        display: inline-block;
+        white-space: nowrap;
+        word-wrap: normal;
+        direction: ltr;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+        -moz-osx-font-smoothing: grayscale;
+        speak: none;
+        font-feature-settings: 'liga';
+        font-variant-ligatures: common-ligatures;
+        -webkit-font-feature-settings: 'liga';
+        transform: translateZ(0); /* Force hardware acceleration for crisp rendering */
+        backface-visibility: hidden;
+    }
+
+    /* Bootstrap Icons - High Quality and Crisp */
+    .bi {
+        font-family: bootstrap-icons !important;
+        font-style: normal;
+        font-weight: 400 !important;
+        font-variant: normal;
+        text-transform: none;
+        line-height: 1;
+        vertical-align: -0.125em;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+        font-feature-settings: "liga" 1, "calt" 0;
+        font-variant-ligatures: common-ligatures;
+        -webkit-font-feature-settings: "liga", "calt" 0;
+        transform: translateZ(0);
+        backface-visibility: hidden;
+    }
+
+    /* Specific sizing for action buttons */
+    .btn .bi {
+        font-size: 1.1em;
+        vertical-align: -0.1em;
+    }
+
+    .dropdown-item .bi {
+        font-size: 1.2em;
+        vertical-align: -0.08em;
+    }
+
+    /* Force dropdown menus to not cause parent container overflow */
+    .table-responsive .dropdown-menu {
+        position: fixed !important;
+        z-index: 1030;
+    }
+
+    /* Ensure dropdown toggles don't cause layout shifts */
+    .table-responsive .dropdown-toggle {
+        position: relative;
+    }
+
+    .table-responsive .dropdown-toggle:focus {
+        box-shadow: none;
+    }
+
+    /* Hide scrollbars specifically for orders table when modal/dropdown is active */
+    .modal-open .orders-table .table-responsive::-webkit-scrollbar,
+    .modal-open .orders-table .table-responsive {
+        overflow: hidden !important;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .modal-open .orders-table .table-responsive::-webkit-scrollbar {
+        display: none;
+    }
+
     .table thead th {
         font-weight: 600;
         text-transform: uppercase;
@@ -190,6 +335,68 @@
         border-radius: 6px;
         border: none;
         font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    /* Modal scrollbar fix */
+    .modal-backdrop {
+        z-index: 1040;
+    }
+
+    .modal {
+        z-index: 1050;
+    }
+
+    /* Ensure modal doesn't cause layout shifts */
+    .modal-open {
+        overflow: hidden !important;
+        padding-right: 0 !important;
+    }
+
+    /* Force body to not scroll when modal is open */
+    .modal-open body {
+        overflow: hidden !important;
+        position: fixed !important;
+        width: 100% !important;
+    }
+
+    /* Override Bootstrap's modal padding behavior */
+    body.modal-open {
+        padding-right: 0 !important;
+        overflow: hidden !important;
+    }
+
+    /* Ensure no scrollbar appears */
+    body.modal-open::-webkit-scrollbar {
+        display: none;
+    }
+
+    body.modal-open {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    /* Fix for dropdown menu positioning */
+    .dropdown-menu {
+        z-index: 1030;
+    }
+
+    /* Prevent dropdowns from causing scrollbars */
+    .dropdown.show {
+        position: static;
+    }
+
+    .dropdown-menu.show {
+        position: absolute;
+        z-index: 1030;
+    }
+
+    /* Specific fix for status update modal */
+    #statusConfirmModal.modal {
+        --bs-modal-zindex: 1050;
+    }
+
+    #statusConfirmModal.modal .modal-backdrop {
+        --bs-modal-backdrop-zindex: 1040;
     }
     </style>
 
