@@ -143,23 +143,23 @@
                                         <div class="btn-group" role="group">
                                             <a href="{{ url_for('payroll.view_payroll_cycle', cycle_id=cycle.id) }}"
                                                class="btn btn-sm btn-outline-primary" title="View Details">
-                                                <i class="material-icons">visibility</i>
+                                                View
                                             </a>
                                             {% if cycle.status == 'draft' %}
                                             <button class="btn btn-sm btn-outline-success"
                                                     onclick="startProcessing('{{ cycle.id }}')" title="Start Processing">
-                                                <i class="material-icons">play_arrow</i>
+                                                Start
                                             </button>
                                             {% endif %}
                                             {% if cycle.status == 'processing' %}
                                             <button class="btn btn-sm btn-outline-warning"
                                                     onclick="completeCycle('{{ cycle.id }}')" title="Mark Complete">
-                                                <i class="material-icons">check_circle</i>
+                                                Complete
                                             </button>
                                             {% endif %}
                                             <button class="btn btn-sm btn-outline-danger"
                                                     onclick="deleteCycle('{{ cycle.id }}')" title="Delete">
-                                                <i class="material-icons">delete</i>
+                                                Delete
                                             </button>
                                         </div>
                                     </td>

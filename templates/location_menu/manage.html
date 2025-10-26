@@ -65,13 +65,13 @@
                                                     data-item-price="{{ assigned_items[item.name].price }}"
                                                     data-is-available="{{ assigned_items[item.name].is_available|lower }}"
                                                     data-bs-toggle="tooltip" data-bs-placement="top" title="Edit">
-                                                <i class="material-icons">edit</i> Edit
+                                                Edit
                                             </button>
                                             <button type="button" class="btn btn-sm btn-light text-danger"
                                                     data-location-menu-id="{{ assigned_items[item.name].location_menu_id }}"
                                                     data-item-name="{{ item.name }}"
                                                     data-bs-toggle="tooltip" data-bs-placement="top" title="Remove">
-                                                <i class="material-icons">delete</i> Remove
+                                                Remove
                                             </button>
                                         {% else %}
                                             <button type="button" class="btn btn-sm btn-light text-success"
@@ -79,7 +79,7 @@
                                                     data-item-name="{{ item.name }}"
                                                     data-item-price="{{ item.price }}"
                                                     data-bs-toggle="tooltip" data-bs-placement="top" title="Add to Menu">
-                                                <i class="material-icons">add</i> Add to Menu
+                                                Add to Menu
                                             </button>
                                         {% endif %}
                                     </div>

@@ -179,18 +179,18 @@
                             <div class="d-flex gap-1">
                                 <a href="{{ url_for('positions.view', position_id=position.id) }}" class="btn btn-sm btn-light text-info"
                                    data-bs-toggle="tooltip" data-bs-placement="top" title="View Details">
-                                    <i class="material-icons">visibility</i>
+                                    View
                                 </a>
                                 <a href="{{ url_for('positions.edit', position_id=position.id) }}" class="btn btn-sm btn-light text-primary"
                                    data-bs-toggle="tooltip" data-bs-placement="top" title="Edit">
-                                    <i class="material-icons">edit</i>
+                                    Edit
                                 </a>
                                 <button type="button" class="btn btn-sm btn-light text-danger delete-position-btn"
                                         data-position-id="{{ position.id }}"
                                         data-position-title="{{ position.title|replace("'", "\\'")|replace('"', '\\"')|replace('\n',' ')|replace('\r',' ') }}"
                                         data-bs-toggle="tooltip" data-bs-placement="top" title="Delete"
                                         id="delete-btn-{{ position.id }}">
-                                    <i class="material-icons">delete</i>
+                                    Delete
                                 </button>
                             </div>
                         </td>

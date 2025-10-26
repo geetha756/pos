@@ -40,18 +40,18 @@
                             <div class="d-flex gap-1">
                                 <a href="{{ url_for('locations.edit', location_id=location.id) }}" class="btn btn-sm btn-light text-primary"
                                    data-bs-toggle="tooltip" data-bs-placement="top" title="Edit">
-                                    <i class="material-icons">edit</i> Edit
+                                    Edit
                                 </a>
                                 <a href="{{ url_for('location_menu.manage', location_id=location.id) }}" class="btn btn-sm btn-light text-success"
                                    data-bs-toggle="tooltip" data-bs-placement="top" title="Manage Menu">
-                                    <i class="material-icons">restaurant_menu</i> Manage Menu
+                                    Manage Menu
                                 </a>
                                 <button type="button" class="btn btn-sm btn-light text-danger delete-location-btn"
                                         data-location-id="{{ location.id }}"
                                         data-location-name="{{ (location.name or '')|replace("'", "\\'")|replace('"', '\\"')|replace('\n',' ')|replace('\r',' ') }}"
                                         data-bs-toggle="tooltip" data-bs-placement="top" title="Delete"
                                         id="delete-btn-{{ location.id }}">
-                                    <i class="material-icons">delete</i> Delete
+                                    Delete
                                 </button>
                             </div>
                         </td>

@@ -127,18 +127,18 @@
                             <div class="d-flex gap-1">
                                 <a href="{{ url_for('departments.view', department_id=department.id) }}" class="btn btn-sm btn-light text-info"
                                    data-bs-toggle="tooltip" data-bs-placement="top" title="View Details">
-                                    <i class="material-icons">visibility</i>
+                                    View
                                 </a>
                                 <a href="{{ url_for('departments.edit', department_id=department.id) }}" class="btn btn-sm btn-light text-primary"
                                    data-bs-toggle="tooltip" data-bs-placement="top" title="Edit">
-                                    <i class="material-icons">edit</i>
+                                    Edit
                                 </a>
                                 <button type="button" class="btn btn-sm btn-light text-danger delete-department-btn"
                                         data-department-id="{{ department.id }}"
                                         data-department-name="{{ department.name|replace("'", "\\'")|replace('"', '\\"')|replace('\n',' ')|replace('\r',' ') }}"
                                         data-bs-toggle="tooltip" data-bs-placement="top" title="Delete"
                                         id="delete-btn-{{ department.id }}">
-                                    <i class="material-icons">delete</i>
+                                    Delete
                                 </button>
                             </div>
                         </td>

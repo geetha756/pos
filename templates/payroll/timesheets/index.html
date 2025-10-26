@@ -150,15 +150,15 @@
                                     <td>
                                         <div class="btn-group" role="group">
                                             <button class="btn btn-sm btn-outline-primary" onclick="viewTimesheet('{{ timesheet.id }}')" title="View Details">
-                                                <i class="material-icons">visibility</i>
+                                                View
                                             </button>
                                             {% if timesheet.status in ['draft', 'submitted'] %}
                                             <button class="btn btn-sm btn-outline-success" onclick="approveTimesheet('{{ timesheet.id }}')" title="Approve">
-                                                <i class="material-icons">check</i>
+                                                Approve
                                             </button>
                                             {% endif %}
                                             <button class="btn btn-sm btn-outline-danger" onclick="editTimesheet('{{ timesheet.id }}')" title="Edit">
-                                                <i class="material-icons">edit</i>
+                                                Edit
                                             </button>
                                         </div>
                                     </td>
