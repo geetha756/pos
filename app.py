@@ -37,6 +37,9 @@ def create_app():
     from routes.locations import locations_bp
     from routes.location_menu import location_menu_bp
     from routes.orders import orders_bp
+    from routes.staff import staff_bp
+    from routes.departments import departments_bp
+    from routes.positions import positions_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -44,6 +47,9 @@ def create_app():
     app.register_blueprint(locations_bp, url_prefix='/locations')
     app.register_blueprint(location_menu_bp, url_prefix='/location-menu')
     app.register_blueprint(orders_bp, url_prefix='/orders')
+    app.register_blueprint(staff_bp, url_prefix='/staff')
+    app.register_blueprint(departments_bp, url_prefix='/departments')
+    app.register_blueprint(positions_bp, url_prefix='/positions')
 
     return app
 

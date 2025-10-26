@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block title %}Position Management - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Position Management</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('positions.add') }}" class="btn btn-primary">
+            <i class="material-icons me-2">work</i>
+            Add Position
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="row mb-3">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-title">Filter by Department</h6>
+                <select class="form-select" id="departmentFilter">
+                    <option value="">All Departments</option>
+                    {% for department in departments %}
+                    <option value="{{ department.id }}">{{ department.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-title">Filter by Status</h6>
+                <select class="form-select" id="statusFilter">
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-2">
+        <div class="card stats-card stats-card-primary h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="stats-title">Total Positions</div>
+                        <div class="stats-value">{{ positions|length if positions else 0 }}</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="material-icons">work</i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-2">
+        <div class="card stats-card stats-card-success h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="stats-title">Active Positions</div>
+                        <div class="stats-value">
+                            {% set active_count = 0 %}
+                            {% for pos in positions %}
+                                {% if pos.is_active %}
+                                    {% set active_count = active_count + 1 %}
+                                {% endif %}
+                            {% endfor %}
+                            {{ active_count }}
+                        </div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="material-icons">check_circle</i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-2">
+        <div class="card stats-card stats-card-warning h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="stats-title">Filled Positions</div>
+                        <div class="stats-value">
+                            {% set filled_count = 0 %}
+                            {% for pos in positions %}
+                                {% if pos.staff_count and pos.staff_count > 0 %}
+                                    {% set filled_count = filled_count + 1 %}
+                                {% endif %}
+                            {% endfor %}
+                            {{ filled_count }}
+                        </div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="material-icons">person</i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-2">
+        <div class="card stats-card stats-card-info h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="stats-title">Total Staff</div>
+                        <div class="stats-value">
+                            {% set total_staff = 0 %}
+                            {% for pos in positions %}
+                                {% set total_staff = total_staff + (pos.staff_count or 0) %}
+                            {% endfor %}
+                            {{ total_staff }}
+                        </div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="material-icons">people</i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if positions %}
+        <div class="table-responsive">
+            <table class="table table-striped table-hover" id="positionsTable">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Department</th>
+                        <th>Description</th>
+                        <th>Staff Count</th>
+                        <th>Salary Range</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for position in positions %}
+                    <tr data-department-id="{{ position.department_id }}" data-active="{% if position.is_active %}active{% else %}inactive{% endif %}">
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <i class="material-icons me-2">work</i>
+                                <div>
+                                    <div class="fw-bold">{{ position.title }}</div>
+                                    {% if position.description %}
+                                    <small class="text-muted">{{ position.description[:40] }}{% if position.description|length > 40 %}...{% endif %}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ position.department_name or '-' }}</td>
+                        <td>{{ position.description or '-' }}</td>
+                        <td>
+                            <span class="badge bg-primary">{{ position.staff_count or 0 }}</span>
+                        </td>
+                        <td>
+                            {% if position.salary_min and position.salary_max %}
+                                ${{ "%.0f"|format(position.salary_min) }} - ${{ "%.0f"|format(position.salary_max) }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge {% if position.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                {% if position.is_active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('positions.view', position_id=position.id) }}" class="btn btn-sm btn-light text-info"
+                                   data-bs-toggle="tooltip" data-bs-placement="top" title="View Details">
+                                    <i class="material-icons">visibility</i>
+                                </a>
+                                <a href="{{ url_for('positions.edit', position_id=position.id) }}" class="btn btn-sm btn-light text-primary"
+                                   data-bs-toggle="tooltip" data-bs-placement="top" title="Edit">
+                                    <i class="material-icons">edit</i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-light text-danger delete-position-btn"
+                                        data-position-id="{{ position.id }}"
+                                        data-position-title="{{ position.title|replace("'", "\\'")|replace('"', '\\"')|replace('\n',' ')|replace('\r',' ') }}"
+                                        data-bs-toggle="tooltip" data-bs-placement="top" title="Delete"
+                                        id="delete-btn-{{ position.id }}">
+                                    <i class="material-icons">delete</i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="material-icons mb-3" style="font-size: 48px; color: #6c757d;">work</i>
+            <h5 class="text-muted">No positions found</h5>
+            <p class="text-muted">Get started by adding your first position.</p>
+            <a href="{{ url_for('positions.add') }}" class="btn btn-primary">
+                <i class="material-icons me-2">work</i>
+                Add First Position
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete position "<span id="deletePositionTitle"></span>"? This action cannot be undone and will also remove all associated staff assignments.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+// Store base URL to avoid Jinja2 rendering issues
+if (typeof window.positionsUrls === 'undefined') {
+    window.positionsUrls = {
+        deleteBaseUrl: '{{ url_for("positions.delete", position_id="") }}'
+    };
+}
+
+function openDeleteModal(positionId, positionTitle) {
+    document.getElementById('deletePositionTitle').textContent = positionTitle;
+    document.getElementById('deleteForm').action = window.positionsUrls.deleteBaseUrl + positionId;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+// Filter functionality
+function filterTable() {
+    const departmentFilter = document.getElementById('departmentFilter').value;
+    const statusFilter = document.getElementById('statusFilter').value;
+    const rows = document.querySelectorAll('#positionsTable tbody tr');
+
+    rows.forEach(row => {
+        const departmentId = row.getAttribute('data-department-id') || '';
+        const status = row.getAttribute('data-active') || '';
+
+        const departmentMatch = !departmentFilter || departmentId === departmentFilter;
+        const statusMatch = !statusFilter || status === statusFilter;
+
+        row.style.display = departmentMatch && statusMatch ? '' : 'none';
+    });
+}
+
+// Initialize tooltips and event listeners
+if (typeof window.tooltipInitializedForPositions === 'undefined') {
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        // Add filter event listeners
+        document.getElementById('departmentFilter').addEventListener('change', filterTable);
+        document.getElementById('statusFilter').addEventListener('change', filterTable);
+
+        // Add event listener for delete buttons
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('delete-position-btn') || e.target.closest('.delete-position-btn')) {
+                e.preventDefault();
+                var button = e.target.classList.contains('delete-position-btn') ? e.target : e.target.closest('.delete-position-btn');
+                var positionId = button.getAttribute('data-position-id');
+                var positionTitle = button.getAttribute('data-position-title');
+                openDeleteModal(positionId, positionTitle);
+            }
+        });
+    });
+    window.tooltipInitializedForPositions = true;
+}
+</script>
+{% endblock %}
+{% endblock %}

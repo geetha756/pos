@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Department - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <h1 class="h2">Edit Department</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('departments.index') }}">Department Management</a></li>
+                <li class="breadcrumb-item active">Edit: {{ department.name }}</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('departments.view', department_id=department.id) }}" class="btn btn-outline-info me-2">
+            <i class="material-icons me-2">visibility</i>
+            View Details
+        </a>
+        <a href="{{ url_for('departments.index') }}" class="btn btn-outline-secondary">
+            <i class="material-icons me-2">arrow_back</i>
+            Back to Departments
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Department Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="departmentForm">
+                    <!-- Basic Information -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="name" class="form-label">Department Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="name" name="name" value="{{ department.name }}" required>
+                            <div class="invalid-feedback">Department name is required and must be unique.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="budget" class="form-label">Budget</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="budget" name="budget" step="0.01" min="0" value="{{ department.budget or '' }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{{ department.description or '' }}</textarea>
+                    </div>
+
+                    <!-- Manager Assignment -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="manager_id" class="form-label">Department Manager</label>
+                            <select class="form-select" id="manager_id" name="manager_id">
+                                <option value="">Select Manager (Optional)</option>
+                                {% for manager in managers %}
+                                <option value="{{ manager.id }}" {% if manager.id == department.manager_id %}selected{% endif %}>{{ manager.name }} - {{ manager.title }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Status</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {% if department.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="is_active">
+                                    Active Department
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Department Stats -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Department Statistics</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Created</label>
+                    <p class="form-control-plaintext">
+                        {% if department.created_at %}
+                            {{ department.created_at.strftime('%B %d, %Y') }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Last Updated</label>
+                    <p class="form-control-plaintext">
+                        {% if department.updated_at %}
+                            {{ department.updated_at.strftime('%B %d, %Y') }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('positions.index') }}?department={{ department.id }}" class="btn btn-outline-primary btn-sm">
+                        <i class="material-icons me-1">work</i>
+                        View Positions
+                    </a>
+                    <a href="{{ url_for('staff.index') }}?department={{ department.id }}" class="btn btn-outline-success btn-sm">
+                        <i class="material-icons me-1">people</i>
+                        View Staff
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-end gap-2">
+            <a href="{{ url_for('departments.index') }}" class="btn btn-outline-secondary">
+                <i class="material-icons me-2">cancel</i>
+                Cancel
+            </a>
+            <button type="submit" form="departmentForm" class="btn btn-primary">
+                <i class="material-icons me-2">save</i>
+                Update Department
+            </button>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const nameInput = document.getElementById('name');
+
+    // Department name validation
+    nameInput.addEventListener('blur', function() {
+        const name = this.value.trim();
+        if (name) {
+            fetch('{{ url_for("departments.check_name") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: name,
+                    exclude_id: '{{ department.id }}'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.exists) {
+                    nameInput.classList.add('is-invalid');
+                    nameInput.nextElementSibling.textContent = 'This department name is already in use.';
+                } else {
+                    nameInput.classList.remove('is-invalid');
+                    nameInput.classList.add('is-valid');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    });
+
+    // Form validation
+    document.getElementById('departmentForm').addEventListener('submit', function(e) {
+        if (!this.checkValidity()) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        this.classList.add('was-validated');
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}

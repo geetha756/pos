@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block title %}{{ department.name }} - Department Details{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <h1 class="h2">{{ department.name }}</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('departments.index') }}">Department Management</a></li>
+                <li class="breadcrumb-item active">{{ department.name }}</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('departments.edit', department_id=department.id) }}" class="btn btn-primary me-2">
+            <i class="material-icons me-2">edit</i>
+            Edit Department
+        </a>
+        <a href="{{ url_for('departments.index') }}" class="btn btn-outline-secondary">
+            <i class="material-icons me-2">arrow_back</i>
+            Back to Departments
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Department Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Department Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Department Name</label>
+                            <p class="form-control-plaintext">{{ department.name }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Status</label>
+                            <p class="form-control-plaintext">
+                                <span class="badge {% if department.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                    {% if department.is_active %}Active{% else %}Inactive{% endif %}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Manager</label>
+                            <p class="form-control-plaintext">{{ department.manager_name or '-' }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Budget</label>
+                            <p class="form-control-plaintext">
+                                {% if department.budget %}
+                                    ${{ "%.2f"|format(department.budget) }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                {% if department.description %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Description</label>
+                    <p class="form-control-plaintext">{{ department.description }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Positions in this Department -->
+        {% if positions %}
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Positions in this Department</h5>
+                <a href="{{ url_for('positions.add') }}?department={{ department.id }}" class="btn btn-sm btn-outline-primary">
+                    <i class="material-icons me-1">add</i>
+                    Add Position
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Description</th>
+                                <th>Staff Count</th>
+                                <th>Salary Range</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for position in positions %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">{{ position.title }}</div>
+                                </td>
+                                <td>{{ position.description or '-' }}</td>
+                                <td>
+                                    <span class="badge bg-primary">{{ position.staff_count or 0 }}</span>
+                                </td>
+                                <td>
+                                    {% if position.salary_min and position.salary_max %}
+                                        ${{ "%.0f"|format(position.salary_min) }} - ${{ "%.0f"|format(position.salary_max) }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('positions.view', position_id=position.id) }}" class="btn btn-sm btn-outline-info">
+                                        <i class="material-icons">visibility</i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Staff in this Department -->
+        {% if staff %}
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Staff in this Department</h5>
+                <a href="{{ url_for('staff.add') }}?department={{ department.id }}" class="btn btn-sm btn-outline-success">
+                    <i class="material-icons me-1">person_add</i>
+                    Add Staff
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Employee ID</th>
+                                <th>Name</th>
+                                <th>Position</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for member in staff %}
+                            <tr>
+                                <td>{{ member.employee_id }}</td>
+                                <td>{{ member.name }}</td>
+                                <td>{{ member.position }}</td>
+                                <td>
+                                    <span class="badge {% if member.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                        {% if member.is_active %}Active{% else %}Inactive{% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('staff.view', staff_id=member.id) }}" class="btn btn-sm btn-outline-info">
+                                        <i class="material-icons">visibility</i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Quick Stats -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Department Statistics</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Total Positions</label>
+                    <p class="form-control-plaintext">{{ positions|length if positions else 0 }}</p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Total Staff</label>
+                    <p class="form-control-plaintext">{{ staff|length if staff else 0 }}</p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Active Staff</label>
+                    <p class="form-control-plaintext">
+                        {% set active_count = 0 %}
+                        {% for member in staff %}
+                            {% if member.is_active %}
+                                {% set active_count = active_count + 1 %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ active_count }}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Department Timeline -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Timeline</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Created</label>
+                    <p class="form-control-plaintext small">
+                        {% if department.created_at %}
+                            {{ department.created_at.strftime('%B %d, %Y at %I:%M %p') }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Last Updated</label>
+                    <p class="form-control-plaintext small">
+                        {% if department.updated_at %}
+                            {{ department.updated_at.strftime('%B %d, %Y at %I:%M %p') }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

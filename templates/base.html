@@ -528,6 +528,24 @@
                                     Orders
                                 </a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('staff') %} active{% endif %}" href="{{ url_for('staff.index') }}">
+<i class="material-icons">people</i>
+                                    Staff
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('departments') %} active{% endif %}" href="{{ url_for('departments.index') }}">
+<i class="material-icons">business</i>
+                                    Departments
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('positions') %} active{% endif %}" href="{{ url_for('positions.index') }}">
+<i class="material-icons">work</i>
+                                    Positions
+                                </a>
+                            </li>
                         </ul>
 
                     </div>

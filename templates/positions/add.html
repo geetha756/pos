@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Add Position - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <h1 class="h2">Add Position</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('positions.index') }}">Position Management</a></li>
+                <li class="breadcrumb-item active">Add Position</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('positions.index') }}" class="btn btn-outline-secondary">
+            <i class="material-icons me-2">arrow_back</i>
+            Back to Positions
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Position Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="positionForm">
+                    <!-- Basic Information -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="title" class="form-label">Position Title <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="title" name="title" required>
+                            <div class="invalid-feedback">Position title is required and must be unique.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="department_id" class="form-label">Department <span class="text-danger">*</span></label>
+                            <select class="form-select" id="department_id" name="department_id" required>
+                                <option value="">Select Department</option>
+                                {% for department in departments %}
+                                <option value="{{ department.id }}">{{ department.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" placeholder="Describe the position's responsibilities, requirements, and duties..."></textarea>
+                    </div>
+
+                    <!-- Salary Range -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="salary_min" class="form-label">Minimum Salary</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="salary_min" name="salary_min" step="0.01" min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="salary_max" class="form-label">Maximum Salary</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="salary_max" name="salary_max" step="0.01" min="0">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Quick Info -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Position Setup Tips</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <i class="material-icons text-primary me-2" style="font-size: 16px;">title</i>
+                        Use clear, descriptive titles
+                    </li>
+                    <li class="mb-2">
+                        <i class="material-icons text-success me-2" style="font-size: 16px;">business</i>
+                        Assign to appropriate department
+                    </li>
+                    <li class="mb-2">
+                        <i class="material-icons text-warning me-2" style="font-size: 16px;">attach_money</i>
+                        Set competitive salary ranges
+                    </li>
+                    <li class="mb-2">
+                        <i class="material-icons text-info me-2" style="font-size: 16px;">description</i>
+                        Provide detailed descriptions
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Salary Guidance -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Salary Range Guidance</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <div class="text-primary fw-bold">Entry Level</div>
+                        <small class="text-muted">$25,000 - $35,000</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="text-success fw-bold">Mid Level</div>
+                        <small class="text-muted">$35,000 - $55,000</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="text-warning fw-bold">Senior Level</div>
+                        <small class="text-muted">$55,000+</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-end gap-2">
+            <a href="{{ url_for('positions.index') }}" class="btn btn-outline-secondary">
+                <i class="material-icons me-2">cancel</i>
+                Cancel
+            </a>
+            <button type="submit" form="positionForm" class="btn btn-primary">
+                <i class="material-icons me-2">work</i>
+                Add Position
+            </button>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const titleInput = document.getElementById('title');
+
+    // Position title validation
+    titleInput.addEventListener('blur', function() {
+        const title = this.value.trim();
+        if (title) {
+            fetch('{{ url_for("positions.check_title") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ title: title })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.exists) {
+                    titleInput.classList.add('is-invalid');
+                    titleInput.nextElementSibling.textContent = 'This position title is already in use.';
+                } else {
+                    titleInput.classList.remove('is-invalid');
+                    titleInput.classList.add('is-valid');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    });
+
+    // Form validation
+    document.getElementById('positionForm').addEventListener('submit', function(e) {
+        if (!this.checkValidity()) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        this.classList.add('was-validated');
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}

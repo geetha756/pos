@@ -26,7 +26,11 @@ def get_dashboard_stats():
         'orders': 0,
         'total_revenue': 0.0,
         'pending_orders': 0,
-        'today_orders': 0
+        'today_orders': 0,
+        'staff': 0,
+        'active_staff': 0,
+        'departments': 0,
+        'positions': 0
     }
 
     try:
@@ -53,6 +57,22 @@ def get_dashboard_stats():
         # Today's orders
         result = execute_query_one("SELECT COUNT(*) as count FROM orders WHERE DATE(created_at) = CURRENT_DATE")
         stats['today_orders'] = result['count'] if result else 0
+
+        # Total staff count
+        result = execute_query_one("SELECT COUNT(*) as count FROM staff")
+        stats['staff'] = result['count'] if result else 0
+
+        # Active staff count
+        result = execute_query_one("SELECT COUNT(*) as count FROM staff WHERE is_active = TRUE")
+        stats['active_staff'] = result['count'] if result else 0
+
+        # Department count
+        result = execute_query_one("SELECT COUNT(*) as count FROM departments WHERE is_active = TRUE")
+        stats['departments'] = result['count'] if result else 0
+
+        # Position count
+        result = execute_query_one("SELECT COUNT(*) as count FROM positions WHERE is_active = TRUE")
+        stats['positions'] = result['count'] if result else 0
 
     except Exception as e:
         print(f"Error getting dashboard stats: {e}")

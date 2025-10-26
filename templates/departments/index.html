@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}Department Management - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Department Management</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('departments.add') }}" class="btn btn-primary">
+            <i class="material-icons me-2">business</i>
+            Add Department
+        </a>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-4 mb-2">
+        <div class="card stats-card stats-card-primary h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="stats-title">Total Departments</div>
+                        <div class="stats-value">{{ departments|length if departments else 0 }}</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="material-icons">business</i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-2">
+        <div class="card stats-card stats-card-success h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="stats-title">Active Departments</div>
+                        <div class="stats-value">
+                            {% set active_count = 0 %}
+                            {% for dept in departments %}
+                                {% if dept.is_active %}
+                                    {% set active_count = active_count + 1 %}
+                                {% endif %}
+                            {% endfor %}
+                            {{ active_count }}
+                        </div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="material-icons">check_circle</i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-2">
+        <div class="card stats-card stats-card-info h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="stats-title">Total Staff</div>
+                        <div class="stats-value">
+                            {% set total_staff = 0 %}
+                            {% for dept in departments %}
+                                {% set total_staff = total_staff + (dept.staff_count or 0) %}
+                            {% endfor %}
+                            {{ total_staff }}
+                        </div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="material-icons">people</i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if departments %}
+        <div class="table-responsive">
+            <table class="table table-striped table-hover" id="departmentsTable">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Manager</th>
+                        <th>Staff Count</th>
+                        <th>Budget</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for department in departments %}
+                    <tr data-active="{% if department.is_active %}active{% else %}inactive{% endif %}">
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <i class="material-icons me-2">business</i>
+                                <div>
+                                    <div class="fw-bold">{{ department.name }}</div>
+                                    {% if department.description %}
+                                    <small class="text-muted">{{ department.description[:50] }}{% if department.description|length > 50 %}...{% endif %}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>{{ department.description or '-' }}</td>
+                        <td>{{ department.manager_name or '-' }}</td>
+                        <td>
+                            <span class="badge bg-primary">{{ department.staff_count or 0 }}</span>
+                        </td>
+                        <td>
+                            {% if department.budget %}
+                                ${{ "%.2f"|format(department.budget) }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge {% if department.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                {% if department.is_active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('departments.view', department_id=department.id) }}" class="btn btn-sm btn-light text-info"
+                                   data-bs-toggle="tooltip" data-bs-placement="top" title="View Details">
+                                    <i class="material-icons">visibility</i>
+                                </a>
+                                <a href="{{ url_for('departments.edit', department_id=department.id) }}" class="btn btn-sm btn-light text-primary"
+                                   data-bs-toggle="tooltip" data-bs-placement="top" title="Edit">
+                                    <i class="material-icons">edit</i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-light text-danger delete-department-btn"
+                                        data-department-id="{{ department.id }}"
+                                        data-department-name="{{ department.name|replace("'", "\\'")|replace('"', '\\"')|replace('\n',' ')|replace('\r',' ') }}"
+                                        data-bs-toggle="tooltip" data-bs-placement="top" title="Delete"
+                                        id="delete-btn-{{ department.id }}">
+                                    <i class="material-icons">delete</i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="material-icons mb-3" style="font-size: 48px; color: #6c757d;">business</i>
+            <h5 class="text-muted">No departments found</h5>
+            <p class="text-muted">Get started by adding your first department.</p>
+            <a href="{{ url_for('departments.add') }}" class="btn btn-primary">
+                <i class="material-icons me-2">business</i>
+                Add First Department
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete department "<span id="deleteDepartmentName"></span>"? This action cannot be undone and will also remove all associated positions.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+// Store base URL to avoid Jinja2 rendering issues
+if (typeof window.departmentsUrls === 'undefined') {
+    window.departmentsUrls = {
+        deleteBaseUrl: '{{ url_for("departments.delete", department_id="") }}'
+    };
+}
+
+function openDeleteModal(departmentId, departmentName) {
+    document.getElementById('deleteDepartmentName').textContent = departmentName;
+    document.getElementById('deleteForm').action = window.departmentsUrls.deleteBaseUrl + departmentId;
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+// Initialize tooltips and button event listeners
+if (typeof window.tooltipInitializedForDepartments === 'undefined') {
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        // Add event listener for delete buttons
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('delete-department-btn') || e.target.closest('.delete-department-btn')) {
+                e.preventDefault();
+                var button = e.target.classList.contains('delete-department-btn') ? e.target : e.target.closest('.delete-department-btn');
+                var deptId = button.getAttribute('data-department-id');
+                var deptName = button.getAttribute('data-department-name');
+                openDeleteModal(deptId, deptName);
+            }
+        });
+    });
+    window.tooltipInitializedForDepartments = true;
+}
+</script>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+
+{% block title %}{{ staff.first_name }} {{ staff.last_name }} - Staff Details{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <h1 class="h2">{{ staff.first_name }} {{ staff.last_name }}</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('staff.index') }}">Staff Management</a></li>
+                <li class="breadcrumb-item active">{{ staff.first_name }} {{ staff.last_name }}</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('staff.edit', staff_id=staff.id) }}" class="btn btn-primary me-2">
+            <i class="material-icons me-2">edit</i>
+            Edit Staff Member
+        </a>
+        <a href="{{ url_for('staff.index') }}" class="btn btn-outline-secondary">
+            <i class="material-icons me-2">arrow_back</i>
+            Back to Staff
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Basic Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Basic Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Employee ID</label>
+                            <p class="form-control-plaintext">{{ staff.employee_id }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Status</label>
+                            <p class="form-control-plaintext">
+                                <span class="badge {% if staff.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                    {% if staff.is_active %}Active{% else %}Inactive{% endif %}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Position</label>
+                            <p class="form-control-plaintext">{{ staff.position }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Department</label>
+                            <p class="form-control-plaintext">{{ staff.department or '-' }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Location</label>
+                            <p class="form-control-plaintext">{{ staff.location_name or '-' }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Manager</label>
+                            <p class="form-control-plaintext">{{ staff.manager_name or '-' }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Hire Date</label>
+                            <p class="form-control-plaintext">{{ staff.hire_date.strftime('%B %d, %Y') if staff.hire_date else '-' }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Salary</label>
+                            <p class="form-control-plaintext">
+                                {% if staff.salary %}
+                                    ${{ "%.2f"|format(staff.salary) }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Contact Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Contact Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Email</label>
+                            <p class="form-control-plaintext">
+                                {% if staff.email %}
+                                    <a href="mailto:{{ staff.email }}">{{ staff.email }}</a>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Phone</label>
+                            <p class="form-control-plaintext">
+                                {% if staff.phone %}
+                                    <a href="tel:{{ staff.phone }}">{{ staff.phone }}</a>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Address Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Address Information</h5>
+            </div>
+            <div class="card-body">
+                {% if staff.address or staff.city or staff.state or staff.zip_code %}
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Street Address</label>
+                    <p class="form-control-plaintext">{{ staff.address or '-' }}</p>
+                </div>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">City</label>
+                            <p class="form-control-plaintext">{{ staff.city or '-' }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">State</label>
+                            <p class="form-control-plaintext">{{ staff.state or '-' }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">ZIP Code</label>
+                            <p class="form-control-plaintext">{{ staff.zip_code or '-' }}</p>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No address information provided.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Emergency Contact -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Emergency Contact</h5>
+            </div>
+            <div class="card-body">
+                {% if staff.emergency_contact_name or staff.emergency_contact_phone %}
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Contact Name</label>
+                            <p class="form-control-plaintext">{{ staff.emergency_contact_name or '-' }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Contact Phone</label>
+                            <p class="form-control-plaintext">
+                                {% if staff.emergency_contact_phone %}
+                                    <a href="tel:{{ staff.emergency_contact_phone }}">{{ staff.emergency_contact_phone }}</a>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No emergency contact information provided.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Notes -->
+        {% if staff.notes %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Additional Notes</h5>
+            </div>
+            <div class="card-body">
+                <p class="form-control-plaintext">{{ staff.notes }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Quick Stats -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Quick Stats</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Employee Since</label>
+                    <p class="form-control-plaintext">
+                        {% if staff.created_at %}
+                            {{ staff.created_at.strftime('%B %d, %Y') }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Last Updated</label>
+                    <p class="form-control-plaintext">
+                        {% if staff.updated_at %}
+                            {{ staff.updated_at.strftime('%B %d, %Y') }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Subordinates -->
+        {% if subordinates %}
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Team Members</h6>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for subordinate in subordinates %}
+                    <a href="{{ url_for('staff.view', staff_id=subordinate.id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-bold">{{ subordinate.name }}</div>
+                            <small class="text-muted">{{ subordinate.position }}</small>
+                        </div>
+                        <i class="material-icons">chevron_right</i>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

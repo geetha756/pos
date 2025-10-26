@@ -81,6 +81,89 @@
     </div>
 </div>
 
+<!-- Second Row: Staff Statistics -->
+<div class="row mb-4">
+    <div class="col-md-4 mb-2">
+        <div class="card stats-card stats-card-warning h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="stats-title">Total Staff</div>
+                        <div class="stats-value">{{ stats.staff }}</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="material-icons">people</i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-2">
+        <div class="card stats-card stats-card-success h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="stats-title">Active Staff</div>
+                        <div class="stats-value">{{ stats.active_staff }}</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="material-icons">person_check</i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-2">
+        <div class="card stats-card stats-card-primary h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="stats-title">Today's Orders</div>
+                        <div class="stats-value">{{ stats.today_orders }}</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="material-icons">today</i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Third Row: Organization Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-2">
+        <div class="card stats-card stats-card-secondary h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="stats-title">Departments</div>
+                        <div class="stats-value">{{ stats.departments }}</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="material-icons">business</i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-2">
+        <div class="card stats-card stats-card-dark h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="stats-title">Positions</div>
+                        <div class="stats-value">{{ stats.positions }}</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="material-icons">work</i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Quick Actions -->
 <div class="row mb-4">
     <div class="col-12">
@@ -112,6 +195,44 @@
                         <a href="{{ url_for('orders.index') }}" class="btn btn-info w-100">
                             <i class="material-icons me-2">bar_chart</i>
                             View Orders
+                        </a>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('staff.index') }}" class="btn btn-warning w-100">
+                            <i class="material-icons me-2">people</i>
+                            Manage Staff
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('departments.index') }}" class="btn btn-secondary w-100">
+                            <i class="material-icons me-2">business</i>
+                            Manage Departments
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('positions.index') }}" class="btn btn-secondary w-100">
+                            <i class="material-icons me-2">work</i>
+                            Manage Positions
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('locations.add') }}" class="btn btn-secondary w-100">
+                            <i class="material-icons me-2">add_location</i>
+                            Add Location
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('master_menu.add') }}" class="btn btn-secondary w-100">
+                            <i class="material-icons me-2">add_circle</i>
+                            Add Menu Item
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('location_menu.index') }}" class="btn btn-secondary w-100">
+                            <i class="material-icons me-2">restaurant</i>
+                            Manage Menus
                         </a>
                     </div>
                 </div>

@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Staff Member - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <h1 class="h2">Edit Staff Member</h1>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('staff.index') }}">Staff Management</a></li>
+                <li class="breadcrumb-item active">Edit: {{ staff.first_name }} {{ staff.last_name }}</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('staff.view', staff_id=staff.id) }}" class="btn btn-outline-info me-2">
+            <i class="material-icons me-2">visibility</i>
+            View Details
+        </a>
+        <a href="{{ url_for('staff.index') }}" class="btn btn-outline-secondary">
+            <i class="material-icons me-2">arrow_back</i>
+            Back to Staff
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Staff Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="staffForm">
+                    <!-- Basic Information -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="employee_id" class="form-label">Employee ID <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="employee_id" name="employee_id" value="{{ staff.employee_id }}" required>
+                            <div class="invalid-feedback">Employee ID is required and must be unique.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="first_name" class="form-label">First Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="first_name" name="first_name" value="{{ staff.first_name }}" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="last_name" class="form-label">Last Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="last_name" name="last_name" value="{{ staff.last_name }}" required>
+                        </div>
+                    </div>
+
+                    <!-- Contact Information -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" value="{{ staff.email or '' }}">
+                            <div class="invalid-feedback">Please enter a valid email address.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="phone" class="form-label">Phone</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" value="{{ staff.phone or '' }}">
+                        </div>
+                    </div>
+
+                    <!-- Job Information -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="position_id" class="form-label">Position <span class="text-danger">*</span></label>
+                            <select class="form-select" id="position_id" name="position_id" required>
+                                <option value="">Select Position</option>
+                                {% for position in positions %}
+                                <option value="{{ position.id }}" {% if position.id == staff.position_id %}selected{% endif %}>{{ position.title }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="department_id" class="form-label">Department</label>
+                            <select class="form-select" id="department_id" name="department_id">
+                                <option value="">Select Department</option>
+                                {% for department in departments %}
+                                <option value="{{ department.id }}" {% if department.id == staff.department_id %}selected{% endif %}>{{ department.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="hire_date" class="form-label">Hire Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="hire_date" name="hire_date" value="{{ staff.hire_date.strftime('%Y-%m-%d') if staff.hire_date else '' }}" required>
+                        </div>
+                    </div>
+
+                    <!-- Location and Manager -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="location_id" class="form-label">Location</label>
+                            <select class="form-select" id="location_id" name="location_id">
+                                <option value="">Select Location</option>
+                                {% for location in locations %}
+                                <option value="{{ location.id }}" {% if location.id == staff.location_id %}selected{% endif %}>{{ location.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="manager_id" class="form-label">Manager</label>
+                            <select class="form-select" id="manager_id" name="manager_id">
+                                <option value="">Select Manager</option>
+                                {% for manager in managers %}
+                                <option value="{{ manager.id }}" {% if manager.id == staff.manager_id %}selected{% endif %}>{{ manager.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Salary and Status -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="salary" class="form-label">Salary</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" id="salary" name="salary" step="0.01" min="0" value="{{ staff.salary or '' }}">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Status</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {% if staff.is_active %}checked{% endif %}>
+                                <label class="form-check-label" for="is_active">
+                                    Active Employee
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Address Information -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Address Information</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="address" class="form-label">Street Address</label>
+                    <textarea class="form-control" id="address" name="address" rows="2" form="staffForm">{{ staff.address or '' }}</textarea>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="city" class="form-label">City</label>
+                        <input type="text" class="form-control" id="city" name="city" form="staffForm" value="{{ staff.city or '' }}">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="state" class="form-label">State</label>
+                        <input type="text" class="form-control" id="state" name="state" form="staffForm" value="{{ staff.state or '' }}">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="zip_code" class="form-label">ZIP</label>
+                        <input type="text" class="form-control" id="zip_code" name="zip_code" form="staffForm" value="{{ staff.zip_code or '' }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Emergency Contact -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Emergency Contact</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="emergency_contact_name" class="form-label">Contact Name</label>
+                    <input type="text" class="form-control" id="emergency_contact_name" name="emergency_contact_name" form="staffForm" value="{{ staff.emergency_contact_name or '' }}">
+                </div>
+                <div class="mb-3">
+                    <label for="emergency_contact_phone" class="form-label">Contact Phone</label>
+                    <input type="tel" class="form-control" id="emergency_contact_phone" name="emergency_contact_phone" form="staffForm" value="{{ staff.emergency_contact_phone or '' }}">
+                </div>
+            </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Additional Notes</h6>
+            </div>
+            <div class="card-body">
+                <textarea class="form-control" id="notes" name="notes" rows="4" form="staffForm">{{ staff.notes or '' }}</textarea>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action Buttons -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-end gap-2">
+            <a href="{{ url_for('staff.index') }}" class="btn btn-outline-secondary">
+                <i class="material-icons me-2">cancel</i>
+                Cancel
+            </a>
+            <button type="submit" form="staffForm" class="btn btn-primary">
+                <i class="material-icons me-2">save</i>
+                Update Staff Member
+            </button>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const employeeIdInput = document.getElementById('employee_id');
+    const emailInput = document.getElementById('email');
+
+    // Employee ID validation
+    employeeIdInput.addEventListener('blur', function() {
+        const employeeId = this.value.trim();
+        if (employeeId) {
+            fetch('{{ url_for("staff.check_employee_id") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    employee_id: employeeId,
+                    exclude_id: '{{ staff.id }}'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.exists) {
+                    employeeIdInput.classList.add('is-invalid');
+                    employeeIdInput.nextElementSibling.textContent = 'This Employee ID is already in use.';
+                } else {
+                    employeeIdInput.classList.remove('is-invalid');
+                    employeeIdInput.classList.add('is-valid');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    });
+
+    // Email validation
+    emailInput.addEventListener('blur', function() {
+        const email = this.value.trim();
+        if (email) {
+            fetch('{{ url_for("staff.check_email") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: email,
+                    exclude_id: '{{ staff.id }}'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.exists) {
+                    emailInput.classList.add('is-invalid');
+                    emailInput.nextElementSibling.textContent = 'This email address is already in use.';
+                } else {
+                    emailInput.classList.remove('is-invalid');
+                    emailInput.classList.add('is-valid');
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        }
+    });
+
+    // Form validation
+    document.getElementById('staffForm').addEventListener('submit', function(e) {
+        if (!this.checkValidity()) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        this.classList.add('was-validated');
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}
