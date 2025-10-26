@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+
+{% block title %}Timesheet Analytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Timesheet Analytics</h1>
+                    <p class="text-muted">Timesheet usage analysis and productivity trends</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('payroll.reports') }}" class="btn btn-outline-secondary">
+                        <i class="material-icons me-2">arrow_back</i>
+                        Back to Reports
+                    </a>
+                    <button class="btn btn-outline-primary" onclick="exportReport()">
+                        <i class="material-icons me-2">download</i>
+                        Export
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timesheet Summary Cards -->
+    <div class="row mb-4">
+        {% set total_entries = monthly_hours|sum(attribute='total_entries') %}
+        {% set total_hours = monthly_hours|sum(attribute='total_hours') %}
+        {% set avg_hours = monthly_hours|sum(attribute='avg_hours_per_entry') / monthly_hours|length if monthly_hours else 0 %}
+        {% set active_employees = monthly_hours|sum(attribute='active_employees') / monthly_hours|length if monthly_hours else 0 %}
+
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-primary h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">{{ total_entries }}</div>
+                    <div class="stats-title">Total Entries</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-success h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">{{ "%.1f"|format(total_hours) }}</div>
+                    <div class="stats-title">Total Hours</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-warning h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">{{ "%.1f"|format(avg_hours) }}</div>
+                    <div class="stats-title">Avg Hours/Entry</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-info h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">{{ "%.0f"|format(active_employees) }}</div>
+                    <div class="stats-title">Active Employees</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Hours Trends -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">trending_up</i>
+                        Monthly Hours Trends (Last 12 Months)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if monthly_hours %}
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="monthlyHoursTable">
+                            <thead>
+                                <tr>
+                                    <th>Month</th>
+                                    <th>Total Entries</th>
+                                    <th>Active Employees</th>
+                                    <th>Total Hours</th>
+                                    <th>Regular Hours</th>
+                                    <th>Break Hours</th>
+                                    <th>Avg Hours/Entry</th>
+                                    <th>Efficiency</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for month in monthly_hours %}
+                                <tr>
+                                    <td><strong>{{ month.month_name }}</strong></td>
+                                    <td>{{ month.total_entries }}</td>
+                                    <td>{{ month.active_employees }}</td>
+                                    <td><strong>{{ "%.1f"|format(month.total_hours) }}</strong></td>
+                                    <td>{{ "%.1f"|format(month.regular_hours) }}</td>
+                                    <td>{{ "%.1f"|format(month.break_hours) }}</td>
+                                    <td>{{ "%.2f"|format(month.avg_hours_per_entry) }}</td>
+                                    <td>
+                                        {% set efficiency = (month.regular_hours / month.total_hours * 100) if month.total_hours > 0 else 0 %}
+                                        <span class="badge bg-{{ 'success' if efficiency >= 80 else 'warning' if efficiency >= 60 else 'danger' }}">
+                                            {{ "%.1f"|format(efficiency) }}%
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Monthly Summary -->
+                    <div class="mt-3 p-3 bg-light rounded">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <strong>Best Month:</strong>
+                                {% set best_month = monthly_hours|sort(attribute='total_hours')|last %}
+                                {{ best_month.month_name if best_month else 'N/A' }}
+                                ({{ "%.1f"|format(best_month.total_hours) if best_month else '0' }} hrs)
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Highest Efficiency:</strong>
+                                {% set best_efficiency = [] %}
+                                {% for month in monthly_hours %}
+                                {% set efficiency = (month.regular_hours / month.total_hours * 100) if month.total_hours > 0 else 0 %}
+                                {% if best_efficiency.append({'month': month, 'efficiency': efficiency}) %}{% endif %}
+                                {% endfor %}
+                                {% set best_eff = best_efficiency|sort(attribute='efficiency')|last %}
+                                {{ best_eff.month.month_name if best_eff else 'N/A' }}
+                                ({{ "%.1f"|format(best_eff.efficiency) if best_eff else '0' }}%)
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Most Active:</strong>
+                                {% set most_active = monthly_hours|sort(attribute='active_employees')|last %}
+                                {{ most_active.month_name if most_active else 'N/A' }}
+                                ({{ most_active.active_employees if most_active else '0' }} employees)
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Avg Efficiency:</strong>
+                                {% set total_efficiency = 0 %}
+                                {% for month in monthly_hours %}
+                                {% set efficiency = (month.regular_hours / month.total_hours * 100) if month.total_hours > 0 else 0 %}
+                                {% set total_efficiency = total_efficiency + efficiency %}
+                                {% endfor %}
+                                {{ "%.1f"|format(total_efficiency / monthly_hours|length) }}%
+                            </div>
+                        </div>
+                    </div>
+
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="material-icons" style="font-size: 48px; color: #dee2e6;">schedule</i>
+                        <h5 class="mt-3 text-muted">No Monthly Data</h5>
+                        <p class="text-muted">No timesheet data available for the last 12 months.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Department Hours & Weekly Trends -->
+    <div class="row mb-4">
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">business</i>
+                        Department Hours (Last 3 Months)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if dept_hours %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Department</th>
+                                    <th>Entries</th>
+                                    <th>Employees</th>
+                                    <th>Total Hours</th>
+                                    <th>Avg/Entry</th>
+                                    <th>Productivity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for dept in dept_hours %}
+                                <tr>
+                                    <td><strong>{{ dept.department_name }}</strong></td>
+                                    <td>{{ dept.total_entries }}</td>
+                                    <td>{{ dept.employees }}</td>
+                                    <td>{{ "%.1f"|format(dept.total_hours) }}</td>
+                                    <td>{{ "%.2f"|format(dept.avg_hours_per_entry) }}</td>
+                                    <td>
+                                        <div class="progress" style="width: 80px; height: 6px;">
+                                            {% set max_hours = dept_hours[0].total_hours if dept_hours[0].total_hours else 1 %}
+                                            {% set percentage = (dept.total_hours / max_hours * 100) if max_hours > 0 else 0 %}
+                                            <div class="progress-bar bg-primary" role="progressbar"
+                                                 style="width: {{ percentage }}%;"
+                                                 aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted">No department data available</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Weekly Trends -->
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">date_range</i>
+                        Weekly Hours Trend (Last 12 Weeks)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if weekly_trend %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Week</th>
+                                    <th>Entries</th>
+                                    <th>Total Hours</th>
+                                    <th>Avg Hours</th>
+                                    <th>Trend</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for week in weekly_trend %}
+                                <tr>
+                                    <td><strong>{{ week.week_start }}</strong></td>
+                                    <td>{{ week.entries }}</td>
+                                    <td>{{ "%.1f"|format(week.total_hours) }}</td>
+                                    <td>{{ "%.2f"|format(week.avg_hours) }}</td>
+                                    <td>
+                                        {% if loop.first %}
+                                        <span class="badge bg-secondary">Baseline</span>
+                                        {% else %}
+                                        {% set prev_week = weekly_trend[loop.index - 1] %}
+                                        {% set change = week.total_hours - prev_week.total_hours %}
+                                        <span class="badge bg-{{ 'success' if change > 0 else 'danger' if change < 0 else 'secondary' }}">
+                                            {{ '+' if change > 0 else '' }}{{ "%.1f"|format(change) }}
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Weekly Summary -->
+                    <div class="mt-2 p-2 bg-light rounded">
+                        <small class="text-muted">
+                            <strong>Trend Analysis:</strong>
+                            {% set increasing_weeks = 0 %}
+                            {% set decreasing_weeks = 0 %}
+                            {% for i in range(1, weekly_trend|length) %}
+                            {% set current = weekly_trend[i] %}
+                            {% set previous = weekly_trend[i-1] %}
+                            {% if current.total_hours > previous.total_hours %}
+                            {% set increasing_weeks = increasing_weeks + 1 %}
+                            {% elif current.total_hours < previous.total_hours %}
+                            {% set decreasing_weeks = decreasing_weeks + 1 %}
+                            {% endif %}
+                            {% endfor %}
+                            {{ increasing_weeks }} weeks increasing,
+                            {{ decreasing_weeks }} weeks decreasing,
+                            {{ (weekly_trend|length - 1 - increasing_weeks - decreasing_weeks) }} weeks stable
+                        </small>
+                    </div>
+
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted">No weekly data available</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function exportReport() {
+    // Get current filters and create export URL
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('export', 'csv');
+
+    window.open(`/payroll/reports/timesheets?${urlParams.toString()}`, '_blank');
+}
+
+// Initialize DataTable for better table functionality
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof $ !== 'undefined' && $.fn.DataTable) {
+        $('#monthlyHoursTable').DataTable({
+            pageLength: 12,
+            order: [[0, 'desc']], // Sort by month descending
+            responsive: true,
+            searching: false,
+            paging: false,
+            info: false
+        });
+    }
+});
+</script>
+{% endblock %}

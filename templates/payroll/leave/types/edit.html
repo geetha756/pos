@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Leave Type{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Edit Leave Type</h1>
+                    <p class="text-muted">Modify leave type configuration</p>
+                </div>
+                <a href="{{ url_for('payroll.leave_types') }}" class="btn btn-outline-secondary">
+                    <i class="material-icons me-2">arrow_back</i>
+                    Back to Leave Types
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Form -->
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">edit</i>
+                        Leave Type Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row g-3">
+                            <!-- Basic Information -->
+                            <div class="col-md-6">
+                                <label for="name" class="form-label">Leave Type Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name"
+                                       value="{{ leave_type.name }}" required>
+                                <div class="form-text">Display name for this leave type</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="code" class="form-label">Code <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control text-uppercase" id="code" name="code"
+                                       value="{{ leave_type.code }}" required maxlength="20">
+                                <div class="form-text">Unique code identifier (uppercase)</div>
+                            </div>
+
+                            <!-- Description -->
+                            <div class="col-12">
+                                <label for="description" class="form-label">Description</label>
+                                <textarea class="form-control" id="description" name="description" rows="3">{{ leave_type.description or '' }}</textarea>
+                            </div>
+
+                            <!-- Type Configuration -->
+                            <div class="col-md-6">
+                                <label class="form-label">Leave Properties</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="is_paid" name="is_paid"
+                                           {{ 'checked' if leave_type.is_paid else '' }}>
+                                    <label class="form-check-label" for="is_paid">
+                                        Paid Leave
+                                    </label>
+                                    <div class="form-text">Employees get paid during this leave</div>
+                                </div>
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" id="requires_approval" name="requires_approval"
+                                           {{ 'checked' if leave_type.requires_approval else '' }}>
+                                    <label class="form-check-label" for="requires_approval">
+                                        Requires Approval
+                                    </label>
+                                    <div class="form-text">Manager approval needed before leave can be taken</div>
+                                </div>
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" id="is_active" name="is_active"
+                                           {{ 'checked' if leave_type.is_active else '' }}>
+                                    <label class="form-check-label" for="is_active">
+                                        Active
+                                    </label>
+                                    <div class="form-text">Leave type is available for new requests</div>
+                                </div>
+                            </div>
+
+                            <!-- Limits and Carry Forward -->
+                            <div class="col-md-6">
+                                <label for="max_days_per_year" class="form-label">Maximum Days per Year</label>
+                                <input type="number" class="form-control" id="max_days_per_year" name="max_days_per_year"
+                                       min="1" value="{{ leave_type.max_days_per_year or '' }}">
+                                <div class="form-text">Leave: blank for unlimited</div>
+
+                                <label for="carry_forward_days" class="form-label mt-3">Carry Forward Days</label>
+                                <input type="number" class="form-control" id="carry_forward_days" name="carry_forward_days"
+                                       min="0" value="{{ leave_type.carry_forward_days or '' }}">
+                                <div class="form-text">Unused days that can be carried to next year</div>
+                            </div>
+
+                            <!-- Color Picker -->
+                            <div class="col-md-6">
+                                <label for="color" class="form-label">Display Color</label>
+                                <div class="input-group">
+                                    <input type="color" class="form-control form-control-color" id="color" name="color"
+                                           value="{{ leave_type.color or '#007bff' }}" style="width: 60px;">
+                                    <input type="text" class="form-control" id="colorHex" readonly>
+                                </div>
+                                <div class="form-text">Color used in calendars and displays</div>
+                            </div>
+
+                            <!-- Preview -->
+                            <div class="col-md-6">
+                                <label class="form-label">Preview</label>
+                                <div id="previewBadge" class="badge p-2" style="background-color: {{ leave_type.color or '#007bff' }}; color: white; font-size: 14px;">
+                                    {{ leave_type.name }}
+                                </div>
+                            </div>
+
+                            <!-- Usage Information -->
+                            <div class="col-12">
+                                <div class="alert alert-info">
+                                    <h6 class="alert-heading mb-2">
+                                        <i class="material-icons me-2">info</i>
+                                        Usage Information
+                                    </h6>
+                                    <p class="mb-1">This leave type is currently being used in existing leave requests and balances.</p>
+                                    <p class="mb-0">Changes to the code or fundamental properties may affect historical data.</p>
+                                </div>
+                            </div>
+
+                            <!-- Submit -->
+                            <div class="col-12">
+                                <hr>
+                                <div class="d-flex justify-content-end gap-2">
+                                    <a href="{{ url_for('payroll.leave_types') }}" class="btn btn-outline-secondary">Cancel</a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="material-icons me-2">save</i>
+                                        Update Leave Type
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Update color hex value when color picker changes
+document.getElementById('color').addEventListener('input', function() {
+    document.getElementById('colorHex').value = this.value;
+    updatePreview();
+});
+
+// Initialize color hex value
+document.getElementById('colorHex').value = document.getElementById('color').value;
+
+// Update preview badge
+function updatePreview() {
+    const color = document.getElementById('color').value;
+    const name = document.getElementById('name').value || 'Leave Type';
+    const preview = document.getElementById('previewBadge');
+
+    preview.style.backgroundColor = color;
+    preview.textContent = name;
+}
+
+// Update preview when name changes
+document.getElementById('name').addEventListener('input', updatePreview);
+
+// Initialize preview on page load
+document.addEventListener('DOMContentLoaded', updatePreview);
+</script>
+{% endblock %}

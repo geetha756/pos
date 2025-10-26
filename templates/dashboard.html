@@ -162,6 +162,70 @@
             </div>
         </div>
     </div>
+    <div class="col-md-3 mb-2">
+        <div class="card stats-card stats-card-info h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="stats-title">Employees</div>
+                        <div class="stats-value">{{ stats.total_employees }}</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="material-icons">group</i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-2">
+        <div class="card stats-card stats-card-light h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="stats-title">Active Timesheets</div>
+                        <div class="stats-value">{{ stats.active_timesheets }}</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="material-icons">schedule</i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Fourth Row: Payroll Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-2">
+        <div class="card stats-card stats-card-danger h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="stats-title">Pending Leave</div>
+                        <div class="stats-value">{{ stats.pending_leave_requests }}</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="material-icons">event_busy</i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-2">
+        <div class="card stats-card stats-card-purple h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="flex-grow-1">
+                        <div class="stats-title">Payroll Expense</div>
+                        <div class="stats-value">${{ "%.0f"|format(stats.total_payroll_expense) }}</div>
+                    </div>
+                    <div class="stats-icon">
+                        <i class="material-icons">attach_money</i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Quick Actions -->
@@ -215,6 +279,12 @@
                         <a href="{{ url_for('positions.index') }}" class="btn btn-secondary w-100">
                             <i class="material-icons me-2">work</i>
                             Manage Positions
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('payroll.index') }}" class="btn btn-danger w-100">
+                            <i class="material-icons me-2">schedule</i>
+                            Payroll System
                         </a>
                     </div>
                     <div class="col-md-3 mb-3">

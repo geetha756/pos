@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+
+{% block title %}Payroll Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Payroll Management System</h1>
+                    <p class="text-muted">Comprehensive employee time tracking, leave management, and payroll processing</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary" onclick="clockInOut()">
+                        <i class="material-icons me-2">schedule</i>
+                        Clock In/Out
+                    </button>
+                    <div class="dropdown">
+                        <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="material-icons me-2">add</i>
+                            Quick Actions
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('payroll.leave_request') }}">
+                                <i class="material-icons me-2">event</i>Request Leave</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('payroll.timesheets') }}">
+                                <i class="material-icons me-2">schedule</i>View Timesheets</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('payroll.reports') }}">
+                                <i class="material-icons me-2">bar_chart</i>Reports</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payroll Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-primary h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="flex-grow-1">
+                            <div class="stats-title">Total Employees</div>
+                            <div class="stats-value">{{ stats.total_employees }}</div>
+                        </div>
+                        <div class="stats-icon">
+                            <i class="material-icons">group</i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-success h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="flex-grow-1">
+                            <div class="stats-title">Active Timesheets</div>
+                            <div class="stats-value">{{ stats.active_timesheets }}</div>
+                        </div>
+                        <div class="stats-icon">
+                            <i class="material-icons">schedule</i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-warning h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="flex-grow-1">
+                            <div class="stats-title">Pending Leave</div>
+                            <div class="stats-value">{{ stats.pending_leave_requests }}</div>
+                        </div>
+                        <div class="stats-icon">
+                            <i class="material-icons">event_busy</i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-info h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="flex-grow-1">
+                            <div class="stats-title">Payroll Expense</div>
+                            <div class="stats-value">${{ "%.0f"|format(stats.total_payroll_expense) }}</div>
+                        </div>
+                        <div class="stats-icon">
+                            <i class="material-icons">attach_money</i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Payroll Cycle & Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12 mb-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">calendar_today</i>
+                        Current Payroll Cycle
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if stats.current_payroll_cycle %}
+                    <div class="alert alert-info">
+                        <strong>{{ stats.current_payroll_cycle }}</strong>
+                        <br>
+                        <small class="text-muted">Payroll processing is active for this cycle</small>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-secondary">
+                        No active payroll cycle
+                        <br>
+                        <small class="text-muted">Create a new payroll cycle to begin processing</small>
+                    </div>
+                    {% endif %}
+                    <a href="{{ url_for('payroll.payroll_cycles') }}" class="btn btn-outline-primary btn-sm">
+                        Manage Payroll Cycles
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12 mb-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">dashboard</i>
+                        Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <a href="{{ url_for('payroll.timesheets') }}" class="btn btn-outline-primary w-100">
+                                <i class="material-icons me-1">schedule</i>
+                                Timesheets
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{{ url_for('payroll.leave') }}" class="btn btn-outline-success w-100">
+                                <i class="material-icons me-1">event</i>
+                                Leave Mgmt
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{{ url_for('payroll.payroll_cycles') }}" class="btn btn-outline-warning w-100">
+                                <i class="material-icons me-1">account_balance</i>
+                                Payroll
+                            </a>
+                        </div>
+                        <div class="col-6">
+                            <a href="{{ url_for('payroll.reports') }}" class="btn btn-outline-info w-100">
+                                <i class="material-icons me-1">bar_chart</i>
+                                Reports
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Timesheets -->
+    <div class="row mb-4">
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">schedule</i>
+                        Recent Timesheets
+                    </h5>
+                    <a href="{{ url_for('payroll.timesheets') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    {% if recent_timesheets %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Date</th>
+                                    <th>Hours</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for timesheet in recent_timesheets %}
+                                <tr>
+                                    <td>{{ timesheet.employee_name }}</td>
+                                    <td>{{ timesheet.date.strftime('%m/%d/%Y') }}</td>
+                                    <td>{{ "%.1f"|format(timesheet.total_hours) }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if timesheet.status == 'approved' else 'warning' if timesheet.status == 'submitted' else 'secondary' }}">
+                                            {{ timesheet.status.title() }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="material-icons" style="font-size: 48px;">schedule</i>
+                        <p>No recent timesheets</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Leave Requests -->
+    <div class="row mb-4">
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">event_busy</i>
+                        Pending Leave Requests
+                    </h5>
+                    <a href="{{ url_for('payroll.leave') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    {% if pending_leave %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Leave Type</th>
+                                    <th>Days</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for request in pending_leave %}
+                                <tr>
+                                    <td>{{ request.employee_name }}</td>
+                                    <td>
+                                        <span class="badge" style="background-color: {{ request.color }}; color: white;">
+                                            {{ request.leave_type }}
+                                        </span>
+                                    </td>
+                                    <td>{{ request.total_days }}</td>
+                                    <td>
+                                        <span class="badge bg-warning">Pending</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="material-icons" style="font-size: 48px;">event_available</i>
+                        <p>No pending leave requests</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function clockInOut() {
+    // Show loading
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="material-icons me-2">hourglass_empty</i>Processing...';
+    button.disabled = true;
+
+    // Make API call to clock in/out
+    const baseUrl = window.location.origin;
+    const url = baseUrl + '/payroll/timesheets/clock-in';
+    console.log('Making request to', url, 'from origin', baseUrl);
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams(),
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        // Check if response is JSON or HTML redirect
+        if (response.headers.get('content-type')?.includes('application/json')) {
+            return response.json();
+        } else {
+            // Likely redirected to login page
+            throw new Error('Authentication required');
+        }
+    })
+    .then(data => {
+        if (data.success) {
+            // Show success message and update UI
+            showAlert('success', data.message);
+            // Could update button text to show current status
+        } else {
+            showAlert('danger', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Fetch error:', error);
+        if (error.message === 'Authentication required') {
+            showAlert('warning', 'Please log in to use this feature');
+            // Optionally redirect to login
+            // window.location.href = '/auth/login';
+        } else {
+            showAlert('danger', 'Error processing request: ' + error.message);
+            console.error('Error details:', error);
+        }
+    })
+    .finally(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+function showAlert(type, message) {
+    // Create and show Bootstrap alert
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(alertDiv);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

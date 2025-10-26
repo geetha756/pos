@@ -30,7 +30,11 @@ def get_dashboard_stats():
         'staff': 0,
         'active_staff': 0,
         'departments': 0,
-        'positions': 0
+        'positions': 0,
+        'total_employees': 0,
+        'active_timesheets': 0,
+        'pending_leave_requests': 0,
+        'total_payroll_expense': 0.0
     }
 
     try:
@@ -73,6 +77,32 @@ def get_dashboard_stats():
         # Position count
         result = execute_query_one("SELECT COUNT(*) as count FROM positions WHERE is_active = TRUE")
         stats['positions'] = result['count'] if result else 0
+
+        # Payroll statistics
+        # Total employees (from staff table)
+        result = execute_query_one("SELECT COUNT(*) as count FROM staff WHERE is_active = TRUE")
+        stats['total_employees'] = result['count'] if result else 0
+
+        # Active timesheets (draft or submitted this week)
+        result = execute_query_one("""
+            SELECT COUNT(*) as count FROM timesheets
+            WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+            AND status IN ('draft', 'submitted')
+        """)
+        stats['active_timesheets'] = result['count'] if result else 0
+
+        # Pending leave requests
+        result = execute_query_one("SELECT COUNT(*) as count FROM leave_requests WHERE status = 'pending'")
+        stats['pending_leave_requests'] = result['count'] if result else 0
+
+        # Total payroll expense (last 30 days)
+        result = execute_query_one("""
+            SELECT COALESCE(SUM(net_pay), 0) as total FROM payroll_entries pe
+            JOIN payroll_cycles pc ON pe.payroll_cycle_id = pc.id
+            WHERE pc.end_date >= CURRENT_DATE - INTERVAL '30 days'
+            AND pe.status = 'paid'
+        """)
+        stats['total_payroll_expense'] = result['total'] if result else 0.0
 
     except Exception as e:
         print(f"Error getting dashboard stats: {e}")

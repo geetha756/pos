@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}Leave Analytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Leave Analytics</h1>
+                    <p class="text-muted">Comprehensive leave usage analysis and trends</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('payroll.reports') }}" class="btn btn-outline-secondary">
+                        <i class="material-icons me-2">arrow_back</i>
+                        Back to Reports
+                    </a>
+                    <button class="btn btn-outline-primary" onclick="exportReport()">
+                        <i class="material-icons me-2">download</i>
+                        Export
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leave Usage by Type -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">pie_chart</i>
+                        Leave Usage by Type
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if leave_usage %}
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="leaveUsageTable">
+                            <thead>
+                                <tr>
+                                    <th>Leave Type</th>
+                                    <th>Total Requests</th>
+                                    <th>Approved Requests</th>
+                                    <th>Total Days Taken</th>
+                                    <th>Avg Days/Request</th>
+                                    <th>Usage Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for usage in leave_usage %}
+                                <tr>
+                                    <td>
+                                        <span class="badge" style="background-color: {{ usage.color }}; color: white; font-size: 14px;">
+                                            {{ usage.leave_type_name }}
+                                        </span>
+                                    </td>
+                                    <td>{{ usage.total_requests or 0 }}</td>
+                                    <td>{{ usage.approved_requests or 0 }}</td>
+                                    <td><strong>{{ "%.1f"|format(usage.total_days_taken or 0) }}</strong></td>
+                                    <td>{{ "%.1f"|format(usage.avg_days_per_request or 0) }}</td>
+                                    <td>
+                                        <div class="progress" style="width: 100px; height: 8px;">
+                                            {% set rate = (usage.approved_requests / usage.total_requests * 100) if usage.total_requests > 0 else 0 %}
+                                            <div class="progress-bar bg-success" role="progressbar"
+                                                 style="width: {{ rate }}%;" aria-valuenow="{{ rate }}"
+                                                 aria-valuemin="0" aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">{{ "%.1f"|format(rate) }}%</small>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted">No leave usage data available</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Leave Trends -->
+    <div class="row mb-4">
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">trending_up</i>
+                        Monthly Leave Trends (Last 12 Months)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if monthly_leave %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Month</th>
+                                    <th>Total Requests</th>
+                                    <th>Approved</th>
+                                    <th>Total Days</th>
+                                    <th>Approval Rate</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for month in monthly_leave %}
+                                <tr>
+                                    <td><strong>{{ month.month_name }}</strong></td>
+                                    <td>{{ month.total_requests }}</td>
+                                    <td>{{ month.approved_requests }}</td>
+                                    <td>{{ "%.1f"|format(month.total_days or 0) }}</td>
+                                    <td>
+                                        {% set rate = (month.approved_requests / month.total_requests * 100) if month.total_requests > 0 else 0 %}
+                                        <span class="badge bg-{{ 'success' if rate >= 80 else 'warning' if rate >= 50 else 'danger' }}">
+                                            {{ "%.1f"|format(rate) }}%
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted">No monthly data available</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Department Leave Usage -->
+    <div class="row mb-4">
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">business</i>
+                        Department Usage
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if dept_leave %}
+                    <div class="mb-3">
+                        {% for dept in dept_leave %}
+                        {% if dept.total_days_taken %}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="small">{{ dept.department_name }}</span>
+                            <span class="badge bg-primary">{{ "%.1f"|format(dept.total_days_taken) }} days</span>
+                        </div>
+                        <div class="progress mb-3" style="height: 6px;">
+                            {% set max_days = dept_leave[0].total_days_taken if dept_leave[0].total_days_taken else 1 %}
+                            {% set percentage = (dept.total_days_taken / max_days * 100) if max_days > 0 else 0 %}
+                            <div class="progress-bar" role="progressbar"
+                                 style="width: {{ percentage }}%; background-color: #007bff;"
+                                 aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted">No department data available</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leave Summary Cards -->
+    <div class="row mb-4">
+        {% set total_requests = leave_usage|sum(attribute='total_requests') %}
+        {% set total_approved = leave_usage|sum(attribute='approved_requests') %}
+        {% set total_days = leave_usage|sum(attribute='total_days_taken') %}
+        {% set approval_rate = (total_approved / total_requests * 100) if total_requests > 0 else 0 %}
+
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-primary h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">{{ total_requests }}</div>
+                    <div class="stats-title">Total Requests</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-success h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">{{ total_approved }}</div>
+                    <div class="stats-title">Approved</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-warning h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">{{ "%.1f"|format(total_days) }}</div>
+                    <div class="stats-title">Days Taken</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-info h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">{{ "%.1f"|format(approval_rate) }}%</div>
+                    <div class="stats-title">Approval Rate</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function exportReport() {
+    // Get current filters and create export URL
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('export', 'csv');
+
+    window.open(`/payroll/reports/leave?${urlParams.toString()}`, '_blank');
+}
+
+// Initialize DataTable for better table functionality
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof $ !== 'undefined' && $.fn.DataTable) {
+        $('#leaveRequestsTable').DataTable({
+            pageLength: 25,
+            order: [[3, 'desc']], // Sort by start date descending
+            responsive: true
+        });
+    }
+});
+</script>
+{% endblock %}

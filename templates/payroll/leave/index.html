@@ -1,0 +1,433 @@
+{% extends "base.html" %}
+
+{% block title %}Leave Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Leave Management</h1>
+                    <p class="text-muted">Manage employee leave requests, balances, and approvals</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('payroll.leave_request') }}" class="btn btn-primary">
+                        <i class="material-icons me-2">add</i>
+                        Request Leave
+                    </a>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="material-icons me-2">settings</i>
+                            Manage
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" onclick="manageLeaveTypes()">
+                                <i class="material-icons me-2">category</i>Leave Types</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="manageHolidays()">
+                                <i class="material-icons me-2">event</i>Holidays</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" onclick="updateBalances()">
+                                <i class="material-icons me-2">refresh</i>Update Balances</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leave Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-warning h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="flex-grow-1">
+                            <div class="stats-title">Pending Requests</div>
+                            <div class="stats-value">{{ pending_requests|length }}</div>
+                        </div>
+                        <div class="stats-icon">
+                            <i class="material-icons">pending</i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-success h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="flex-grow-1">
+                            <div class="stats-title">Approved This Month</div>
+                            <div class="stats-value">
+                                {{ pending_requests|selectattr('status', 'equalto', 'approved')|list|length }}
+                            </div>
+                        </div>
+                        <div class="stats-icon">
+                            <i class="material-icons">check_circle</i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-info h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="flex-grow-1">
+                            <div class="stats-title">Total Leave Days</div>
+                            <div class="stats-value">
+                                {{ leave_balances|sum(attribute='allocated_days')|round|int }}
+                            </div>
+                        </div>
+                        <div class="stats-icon">
+                            <i class="material-icons">calendar_view_month</i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-danger h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="flex-grow-1">
+                            <div class="stats-title">Used Days</div>
+                            <div class="stats-value">
+                                {{ leave_balances|sum(attribute='used_days')|round|int }}
+                            </div>
+                        </div>
+                        <div class="stats-icon">
+                            <i class="material-icons">remove_circle</i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row">
+        <!-- Leave Balances -->
+        <div class="col-md-8 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">account_balance_wallet</i>
+                        Leave Balances
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if leave_balances %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Leave Type</th>
+                                    <th>Allocated</th>
+                                    <th>Used</th>
+                                    <th>Remaining</th>
+                                    <th>Balance Bar</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for balance in leave_balances %}
+                                <tr>
+                                    <td>{{ balance.employee_name }}</td>
+                                    <td>
+                                        <span class="badge" style="background-color: {{ balance.color }}; color: white;">
+                                            {{ balance.leave_type_name }}
+                                        </span>
+                                    </td>
+                                    <td>{{ "%.1f"|format(balance.allocated_days) }}</td>
+                                    <td>{{ "%.1f"|format(balance.used_days) }}</td>
+                                    <td><strong>{{ "%.1f"|format(balance.remaining_days) }}</strong></td>
+                                    <td>
+                                        <div class="progress" style="width: 100px;">
+                                            {% set percentage = (balance.used_days / balance.allocated_days * 100) if balance.allocated_days > 0 else 0 %}
+                                            <div class="progress-bar" role="progressbar"
+                                                 style="width: {{ percentage }}%; background-color: {{ balance.color }};"
+                                                 aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="viewLeaveHistory('{{ balance.staff_id }}')" title="View History">
+                                            <i class="material-icons">history</i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="material-icons" style="font-size: 64px; color: #dee2e6;">account_balance_wallet</i>
+                        <h4 class="mt-3 text-muted">No Leave Balances</h4>
+                        <p class="text-muted">Leave balances will appear here once configured.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Pending Requests -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">pending_actions</i>
+                        Pending Requests
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if pending_requests %}
+                    <div class="list-group list-group-flush">
+                        {% for request in pending_requests %}
+                        <div class="list-group-item px-0">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ request.employee_name }}</h6>
+                                    <p class="mb-1">
+                                        <span class="badge" style="background-color: {{ request.color }}; color: white;">
+                                            {{ request.leave_type }}
+                                        </span>
+                                    </p>
+                                    <small class="text-muted">
+                                        {{ request.start_date.strftime('%m/%d') }} - {{ request.end_date.strftime('%m/%d') }}
+                                        ({{ "%.1f"|format(request.total_days) }} days)
+                                    </small>
+                                </div>
+                                <div class="d-flex gap-1">
+                                    <button class="btn btn-sm btn-outline-success" onclick="approveRequest('{{ request.id }}')" title="Approve">
+                                        <i class="material-icons">check</i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="rejectRequest('{{ request.id }}')" title="Reject">
+                                        <i class="material-icons">close</i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="material-icons" style="font-size: 48px; color: #dee2e6;">event_available</i>
+                        <p class="mt-3 text-muted">No pending requests</p>
+                        <small class="text-muted">All caught up!</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leave Calendar View -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">calendar_month</i>
+                        Leave Calendar
+                    </h5>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-primary active" onclick="switchView('month')">Month</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="switchView('week')">Week</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="leaveCalendar" class="calendar-container">
+                        <!-- Calendar will be rendered here -->
+                        <div class="text-center py-5">
+                            <i class="material-icons" style="font-size: 64px; color: #dee2e6;">calendar_month</i>
+                            <h4 class="mt-3 text-muted">Leave Calendar</h4>
+                            <p class="text-muted">Interactive calendar view will be implemented here.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmationTitle">Confirm Action</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="confirmationMessage">
+                Are you sure you want to proceed?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmationConfirmBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Leave Request Modal -->
+<div class="modal fade" id="leaveRequestModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Leave Request Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="leaveRequestDetails">
+                <!-- Content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Approve/Reject leave requests
+function approveRequest(requestId) {
+    showConfirmationModal(
+        'Approve Leave Request',
+        'Are you sure you want to approve this leave request?',
+        () => {
+            fetch(`/payroll/leave/approve/${requestId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ approved_by: 'ADMIN' }) // Should come from auth system
+            })
+            .then(response => {
+                if (response.ok) {
+                    showAlert('success', 'Leave request approved!');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showAlert('danger', 'Error approving request');
+                }
+            })
+            .catch(error => {
+                showAlert('danger', 'Error approving request');
+                console.error('Error:', error);
+            });
+        }
+    );
+}
+
+function rejectRequest(requestId) {
+    const comments = prompt('Please provide a reason for rejection:');
+    if (comments !== null) {
+        fetch(`/payroll/leave/reject/${requestId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                approved_by: 'ADMIN', // Should come from auth system
+                comments: comments
+            })
+        })
+        .then(response => {
+            if (response.ok) {
+                showAlert('success', 'Leave request rejected!');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert('danger', 'Error rejecting request');
+            }
+        })
+        .catch(error => {
+            showAlert('danger', 'Error rejecting request');
+            console.error('Error:', error);
+        });
+    }
+}
+
+function viewLeaveHistory(staffId) {
+    // Redirect to detailed leave history page
+    window.location.href = `/payroll/leave/history/${staffId}`;
+}
+
+// Management functions
+function manageLeaveTypes() {
+    window.location.href = '/payroll/leave/types';
+}
+
+function manageHolidays() {
+    window.location.href = '/payroll/leave/holidays';
+}
+
+function updateBalances() {
+    window.location.href = '/payroll/leave/balances';
+}
+
+function switchView(viewType) {
+    // Update calendar view
+    const buttons = document.querySelectorAll('.btn-group .btn');
+    buttons.forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+
+    // Here you would implement calendar switching logic
+    console.log('Switching to', viewType, 'view');
+}
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(alertDiv);
+
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+// Confirmation modal functions
+function showConfirmationModal(title, message, onConfirm) {
+    document.getElementById('confirmationTitle').textContent = title;
+    document.getElementById('confirmationMessage').textContent = message;
+
+    const confirmBtn = document.getElementById('confirmationConfirmBtn');
+    confirmBtn.onclick = () => {
+        bootstrap.Modal.getInstance(document.getElementById('confirmationModal')).hide();
+        onConfirm();
+    };
+
+    new bootstrap.Modal(document.getElementById('confirmationModal')).show();
+}
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(alertDiv);
+
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+// Initialize calendar when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Calendar initialization would go here
+    console.log('Leave calendar initialized');
+});
+</script>
+{% endblock %}

@@ -1,0 +1,148 @@
+<!-- Employee Information -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h6 class="fw-bold mb-3">
+            <i class="material-icons me-2">person</i>
+            Employee Information
+        </h6>
+        <div class="row">
+            <div class="col-sm-6">
+                <strong>Name:</strong><br>
+                {{ timesheet.employee_name }}
+            </div>
+            <div class="col-sm-6">
+                <strong>Employee ID:</strong><br>
+                {{ timesheet.employee_id }}
+            </div>
+            <div class="col-sm-6">
+                <strong>Email:</strong><br>
+                {{ timesheet.email }}
+            </div>
+            <div class="col-sm-6">
+                <strong>Department:</strong><br>
+                {{ timesheet.department_name or 'Not assigned' }}
+            </div>
+        </div>
+    </div>
+
+    <!-- Timesheet Summary -->
+    <div class="col-md-6">
+        <h6 class="fw-bold mb-3">
+            <i class="material-icons me-2">schedule</i>
+            Timesheet Summary
+        </h6>
+        <div class="row">
+            <div class="col-sm-6">
+                <strong>Date:</strong><br>
+                {{ timesheet.date.strftime('%A, %B %d, %Y') }}
+            </div>
+            <div class="col-sm-6">
+                <strong>Status:</strong><br>
+                <span class="badge bg-{{ 'success' if timesheet.status == 'approved' else 'warning' if timesheet.status == 'submitted' else 'secondary' }}">
+                    {{ timesheet.status.title() }}
+                </span>
+            </div>
+            <div class="col-sm-6">
+                <strong>Clock In:</strong><br>
+                {{ timesheet.clock_in.strftime('%H:%M') if timesheet.clock_in else 'Not recorded' }}
+            </div>
+            <div class="col-sm-6">
+                <strong>Clock Out:</strong><br>
+                {{ timesheet.clock_out.strftime('%H:%M') if timesheet.clock_out else 'Not recorded' }}
+            </div>
+            <div class="col-sm-6">
+                <strong>Regular Hours:</strong><br>
+                <span class="fw-bold">{{ "%.2f"|format(timesheet.regular_hours) }}</span>
+            </div>
+            <div class="col-sm-6">
+                <strong>Break Hours:</strong><br>
+                <span class="fw-bold">{{ "%.2f"|format(timesheet.break_hours) }}</span>
+            </div>
+            <div class="col-12">
+                <strong>Total Hours:</strong><br>
+                <span class="fw-bold text-primary fs-5">{{ "%.2f"|format(timesheet.total_hours) }}</span>
+            </div>
+            {% if timesheet.payroll_cycle_name %}
+            <div class="col-12 mt-2">
+                <strong>Payroll Cycle:</strong><br>
+                {{ timesheet.payroll_cycle_name }}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Breaks Section -->
+{% if breaks %}
+<div class="row">
+    <div class="col-12">
+        <h6 class="fw-bold mb-3">
+            <i class="material-icons me-2">pause</i>
+            Breaks
+        </h6>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Start Time</th>
+                        <th>End Time</th>
+                        <th>Duration</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for break in breaks %}
+                    <tr>
+                        <td>
+                            <span class="badge bg-info">{{ break.break_type.title() }}</span>
+                        </td>
+                        <td>{{ break.start_time.strftime('%H:%M') if break.start_time else 'N/A' }}</td>
+                        <td>{{ break.end_time.strftime('%H:%M') if break.end_time else 'N/A' }}</td>
+                        <td>
+                            {% if break.duration %}
+                            {{ "%.2f"|format(break.duration) }} hours
+                            {% else %}
+                            N/A
+                            {% endif %}
+                        </td>
+                        <td>{{ break.notes or 'No notes' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="row">
+    <div class="col-12">
+        <div class="text-center py-3">
+            <i class="material-icons" style="font-size: 32px; color: #dee2e6;">pause</i>
+            <p class="text-muted mb-0 mt-2">No breaks recorded for this timesheet.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Actions -->
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="d-flex gap-2 justify-content-end">
+            {% if timesheet.status in ['draft', 'submitted'] %}
+            <button class="btn btn-success btn-sm" onclick="approveTimesheetFromModal('{{ timesheet.id }}')">
+                <i class="material-icons me-1">check</i>
+                Approve Timesheet
+            </button>
+            {% endif %}
+            <button class="btn btn-warning btn-sm" onclick="editTimesheetFromModal('{{ timesheet.id }}')">
+                <i class="material-icons me-1">edit</i>
+                Edit Timesheet
+            </button>
+            <button class="btn btn-outline-primary btn-sm" onclick="exportTimesheetFromModal('{{ timesheet.id }}')">
+                <i class="material-icons me-1">download</i>
+                Export
+            </button>
+        </div>
+    </div>
+</div>

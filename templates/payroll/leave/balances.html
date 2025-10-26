@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}Leave Balances Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Leave Balances Management</h1>
+                    <p class="text-muted">Manage employee leave allocations and balances</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <form method="POST" action="{{ url_for('payroll.recalculate_leave_balances') }}" style="display: inline;">
+                        <button type="submit" class="btn btn-outline-info">
+                            <i class="material-icons me-2">refresh</i>
+                            Recalculate All
+                        </button>
+                    </form>
+                    <a href="{{ url_for('payroll.leave') }}" class="btn btn-outline-secondary">
+                        <i class="material-icons me-2">arrow_back</i>
+                        Back to Leave
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-primary h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">{{ staff_list|length }}</div>
+                    <div class="stats-title">Active Employees</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-success h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">
+                        {{ "%.1f"|format(staff_list|sum(attribute='total_allocated')|round|int) }}
+                    </div>
+                    <div class="stats-title">Total Allocated Days</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-warning h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">
+                        {{ "%.1f"|format(staff_list|sum(attribute='total_used')|round|int) }}
+                    </div>
+                    <div class="stats-title">Total Used Days</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-info h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">
+                        {{ "%.1f"|format(staff_list|sum(attribute='total_remaining')|round|int) }}
+                    </div>
+                    <div class="stats-title">Total Remaining Days</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Employee Leave Balances -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">account_balance_wallet</i>
+                        Employee Leave Balances
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if staff_list %}
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="leaveBalancesTable">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Department</th>
+                                    <th>Leave Types</th>
+                                    <th>Total Allocated</th>
+                                    <th>Total Used</th>
+                                    <th>Total Remaining</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for staff in staff_list %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-circle me-2">
+                                                {{ (staff.first_name[0] + staff.last_name[0])|upper }}
+                                            </div>
+                                            <div>
+                                                <strong>{{ staff.first_name }} {{ staff.last_name }}</strong>
+                                                <br>
+                                                <small class="text-muted">{{ staff.employee_id }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ staff.department_name or 'Not assigned' }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ staff.leave_types_count }}</span>
+                                    </td>
+                                    <td>
+                                        <strong>{{ "%.1f"|format(staff.total_allocated or 0) }}</strong>
+                                    </td>
+                                    <td>
+                                        <span class="text-warning">{{ "%.1f"|format(staff.total_used or 0) }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="text-success fw-bold">{{ "%.1f"|format(staff.total_remaining or 0) }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm btn-outline-primary"
+                                                    onclick="editBalances('{{ staff.id }}', '{{ staff.first_name }} {{ staff.last_name }}')"
+                                                    title="Edit Balances">
+                                                <i class="material-icons">edit</i>
+                                            </button>
+                                            <a href="{{ url_for('payroll.leave_history', staff_id=staff.id) }}"
+                                               class="btn btn-sm btn-outline-info" title="View History">
+                                                <i class="material-icons">history</i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="material-icons" style="font-size: 64px; color: #dee2e6;">group</i>
+                        <h4 class="mt-3 text-muted">No Active Employees</h4>
+                        <p class="text-muted">No active employees found in the system.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Balances Modal -->
+<div class="modal fade" id="editBalancesModal" tabindex="-1" aria-labelledby="editBalancesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editBalancesModalLabel">Edit Leave Balances</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editBalancesForm" method="POST">
+                <div class="modal-body" id="editBalancesContent">
+                    <!-- Content will be loaded dynamically -->
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Balances</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.avatar-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #007bff;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+}
+</style>
+
+<script>
+// Edit balances function
+function editBalances(staffId, employeeName) {
+    document.getElementById('editBalancesModalLabel').textContent = `Edit Leave Balances - ${employeeName}`;
+
+    // Load balance editing form
+    fetch(`/payroll/leave/balances/edit/${staffId}`)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('editBalancesContent').innerHTML = html;
+            document.getElementById('editBalancesForm').action = `/payroll/leave/balances/update/${staffId}`;
+
+            // Show modal
+            new bootstrap.Modal(document.getElementById('editBalancesModal')).show();
+        })
+        .catch(error => {
+            console.error('Error loading balances:', error);
+            document.getElementById('editBalancesContent').innerHTML =
+                '<div class="alert alert-danger">Error loading leave balances. Please try again.</div>';
+        });
+}
+
+// Initialize DataTable
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof $ !== 'undefined' && $.fn.DataTable) {
+        $('#leaveBalancesTable').DataTable({
+            pageLength: 25,
+            order: [[0, 'asc']],
+            responsive: true,
+            columnDefs: [
+                { orderable: false, targets: [6] }
+            ]
+        });
+    }
+});
+</script>
+{% endblock %}

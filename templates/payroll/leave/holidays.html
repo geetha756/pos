@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+
+{% block title %}Holiday Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Holiday Management</h1>
+                    <p class="text-muted">Configure company holidays and non-working days</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('payroll.add_holiday') }}" class="btn btn-primary">
+                        <i class="material-icons me-2">add</i>
+                        Add Holiday
+                    </a>
+                    <a href="{{ url_for('payroll.leave') }}" class="btn btn-outline-secondary">
+                        <i class="material-icons me-2">arrow_back</i>
+                        Back to Leave
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Holiday Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-info h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">{{ holidays|length }}</div>
+                    <div class="stats-title">Total Holidays</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-success h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">
+                        {{ holidays|selectattr('is_recurring')|list|length }}
+                    </div>
+                    <div class="stats-title">Recurring</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-warning h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">
+                        {{ holidays|rejectattr('is_recurring')|list|length }}
+                    </div>
+                    <div class="stats-title">One-time</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-primary h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">
+                        {{ holidays|selectattr('is_active')|list|length }}
+                    </div>
+                    <div class="stats-title">Active</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Holiday Generation Tool -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">auto_fix_high</i>
+                        Generate Recurring Holidays
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" class="row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label for="generate_year" class="form-label">Year</label>
+                            <select class="form-select" id="generate_year" name="year" required>
+                                {% for year in range(2024, 2031) %}
+                                <option value="{{ year }}" {{ 'selected' if year == 2025 else '' }}>{{ year }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-2 text-muted">This will create holiday entries for the selected year based on all active recurring holidays.</p>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" formaction="/payroll/leave/holidays/generate/{{ year }}" class="btn btn-outline-primary">
+                                <i class="material-icons me-2">refresh</i>
+                                Generate
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Holidays by Year -->
+    {% for year, year_holidays in holidays_by_year.items() %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">calendar_month</i>
+                        {{ year }} Holidays
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if year_holidays %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Holiday Name</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Description</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for holiday in year_holidays %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ holiday.date.strftime('%b %d') }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ holiday.date.strftime('%A') }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <i class="material-icons me-2" style="color: #ff6b35;">celebration</i>
+                                            <strong>{{ holiday.name }}</strong>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if holiday.is_recurring %}
+                                        <span class="badge bg-success">{{ holiday.type_label }}</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">{{ holiday.type_label }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if holiday.is_active else 'secondary' }}">
+                                            {{ 'Active' if holiday.is_active else 'Inactive' }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {{ holiday.description or 'No description' }}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('payroll.edit_holiday', holiday_id=holiday.id) }}"
+                                               class="btn btn-sm btn-outline-primary" title="Edit">
+                                                <i class="material-icons">edit</i>
+                                            </a>
+                                            <button class="btn btn-sm btn-outline-danger"
+                                                    onclick="deleteHoliday('{{ holiday.id }}', '{{ holiday.name }}')"
+                                                    title="Delete">
+                                                <i class="material-icons">delete</i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="material-icons" style="font-size: 48px; color: #dee2e6;">calendar_month</i>
+                        <h5 class="mt-3 text-muted">No holidays for {{ year }}</h5>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- All Holidays List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">list</i>
+                        All Holidays
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if holidays %}
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="holidaysTable">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Description</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for holiday in holidays %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ holiday.date.strftime('%Y-%m-%d') }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ holiday.date.strftime('%A') }}</small>
+                                    </td>
+                                    <td>{{ holiday.name }}</td>
+                                    <td>
+                                        {% if holiday.is_recurring %}
+                                        <span class="badge bg-success">Recurring</span>
+                                        {% else %}
+                                        <span class="badge bg-warning">One-time</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if holiday.is_active else 'secondary' }}">
+                                            {{ 'Active' if holiday.is_active else 'Inactive' }}
+                                        </span>
+                                    </td>
+                                    <td>{{ holiday.description or 'N/A' }}</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <a href="{{ url_for('payroll.edit_holiday', holiday_id=holiday.id) }}"
+                                               class="btn btn-sm btn-outline-primary" title="Edit">
+                                                <i class="material-icons">edit</i>
+                                            </a>
+                                            <button class="btn btn-sm btn-outline-danger"
+                                                    onclick="deleteHoliday('{{ holiday.id }}', '{{ holiday.name }}')"
+                                                    title="Delete">
+                                                <i class="material-icons">delete</i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="material-icons" style="font-size: 64px; color: #dee2e6;">celebration</i>
+                        <h4 class="mt-3 text-muted">No Holidays Configured</h4>
+                        <p class="text-muted">Add company holidays to define non-working days.</p>
+                        <a href="{{ url_for('payroll.add_holiday') }}" class="btn btn-primary">
+                            <i class="material-icons me-2">add</i>
+                            Add First Holiday
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Holiday</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the holiday "<strong id="deleteHolidayName"></strong>"?</p>
+                <div class="alert alert-warning">
+                    <strong>Warning:</strong> This action cannot be undone. The holiday will no longer be considered a non-working day.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">Delete Holiday</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function deleteHoliday(holidayId, holidayName) {
+    document.getElementById('deleteHolidayName').textContent = holidayName;
+    document.getElementById('deleteForm').action = `/payroll/leave/holidays/delete/${holidayId}`;
+
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+// Initialize DataTable if available
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof $ !== 'undefined' && $.fn.DataTable) {
+        $('#holidaysTable').DataTable({
+            pageLength: 25,
+            order: [[0, 'desc']], // Sort by date descending
+            responsive: true,
+            columnDefs: [
+                { orderable: false, targets: [5] } // Actions column not sortable
+            ]
+        });
+    }
+});
+</script>
+{% endblock %}

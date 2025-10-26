@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Holiday{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Edit Holiday</h1>
+                    <p class="text-muted">Modify holiday configuration</p>
+                </div>
+                <a href="{{ url_for('payroll.holidays') }}" class="btn btn-outline-secondary">
+                    <i class="material-icons me-2">arrow_back</i>
+                    Back to Holidays
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Form -->
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">edit</i>
+                        Holiday Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row g-3">
+                            <!-- Basic Information -->
+                            <div class="col-md-8">
+                                <label for="name" class="form-label">Holiday Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name"
+                                       value="{{ holiday.name }}" required>
+                                <div class="form-text">Name of the holiday or non-working day</div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="date" class="form-label">Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="date" name="date"
+                                       value="{{ holiday.date.strftime('%Y-%m-%d') if holiday.date else '' }}" required>
+                                <div class="form-text">Date of the holiday</div>
+                            </div>
+
+                            <!-- Description -->
+                            <div class="col-12">
+                                <label for="description" class="form-label">Description</label>
+                                <textarea class="form-control" id="description" name="description" rows="3">{{ holiday.description or '' }}</textarea>
+                            </div>
+
+                            <!-- Holiday Type and Status -->
+                            <div class="col-md-6">
+                                <label class="form-label">Holiday Type</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="is_recurring" name="is_recurring"
+                                           {{ 'checked' if holiday.is_recurring else '' }}>
+                                    <label class="form-check-label" for="is_recurring">
+                                        Recurring Holiday
+                                    </label>
+                                    <div class="form-text">
+                                        Check this if this holiday occurs every year on the same date.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label">Status</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="is_active" name="is_active"
+                                           {{ 'checked' if holiday.is_active else '' }}>
+                                    <label class="form-check-label" for="is_active">
+                                        Active
+                                    </label>
+                                    <div class="form-text">
+                                        Active holidays are considered non-working days.
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Preview -->
+                            <div class="col-12">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">
+                                            <i class="material-icons me-2">preview</i>
+                                            Preview
+                                        </h6>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <strong>Name:</strong> <span id="preview-name">{{ holiday.name }}</span>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <strong>Date:</strong> <span id="preview-date">{{ holiday.date.strftime('%m/%d/%Y') if holiday.date else '--/--/----' }}</span>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <strong>Type:</strong> <span id="preview-type">{{ 'Recurring' if holiday.is_recurring else 'One-time' }}</span>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <strong>Status:</strong> <span id="preview-status">{{ 'Active' if holiday.is_active else 'Inactive' }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="mt-2">
+                                            <strong>Description:</strong> <span id="preview-description">{{ holiday.description or 'No description' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Submit -->
+                            <div class="col-12">
+                                <hr>
+                                <div class="d-flex justify-content-end gap-2">
+                                    <a href="{{ url_for('payroll.holidays') }}" class="btn btn-outline-secondary">Cancel</a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="material-icons me-2">save</i>
+                                        Update Holiday
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Update preview when form values change
+function updatePreview() {
+    const name = document.getElementById('name').value || 'Holiday Name';
+    const dateInput = document.getElementById('date').value;
+    const description = document.getElementById('description').value || 'No description';
+    const isRecurring = document.getElementById('is_recurring').checked;
+    const isActive = document.getElementById('is_active').checked;
+
+    // Update preview elements
+    document.getElementById('preview-name').textContent = name;
+    document.getElementById('preview-description').textContent = description;
+    document.getElementById('preview-type').textContent = isRecurring ? 'Recurring' : 'One-time';
+    document.getElementById('preview-status').textContent = isActive ? 'Active' : 'Inactive';
+
+    if (dateInput) {
+        const date = new Date(dateInput);
+        const formattedDate = date.toLocaleDateString('en-US', {
+            month: '2-digit',
+            day: '2-digit',
+            year: 'numeric'
+        });
+
+        document.getElementById('preview-date').textContent = formattedDate;
+    } else {
+        document.getElementById('preview-date').textContent = '--/--/----';
+    }
+}
+
+// Add event listeners for live preview
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('name').addEventListener('input', updatePreview);
+    document.getElementById('date').addEventListener('input', updatePreview);
+    document.getElementById('description').addEventListener('input', updatePreview);
+    document.getElementById('is_recurring').addEventListener('change', updatePreview);
+    document.getElementById('is_active').addEventListener('change', updatePreview);
+});
+</script>
+{% endblock %}

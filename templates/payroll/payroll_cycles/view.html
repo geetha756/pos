@@ -1,0 +1,484 @@
+{% extends "base.html" %}
+
+{% block title %}Payroll Cycle Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">{{ cycle.name }}</h1>
+                    <p class="text-muted">
+                        {{ cycle.start_date.strftime('%B %d, %Y') }} - {{ cycle.end_date.strftime('%B %d, %Y') }}
+                        <br>
+                        Pay Date: {{ cycle.pay_date.strftime('%B %d, %Y') }}
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{{ url_for('payroll.payroll_cycles') }}" class="btn btn-outline-secondary">
+                        <i class="material-icons me-2">arrow_back</i>
+                        Back to Cycles
+                    </a>
+                    {% if cycle.status == 'draft' %}
+                    <button class="btn btn-success" onclick="startProcessing()">
+                        <i class="material-icons me-2">play_arrow</i>
+                        Start Processing
+                    </button>
+                    {% endif %}
+                    {% if cycle.status == 'processing' %}
+                    <button class="btn btn-warning" onclick="completeCycle()">
+                        <i class="material-icons me-2">check_circle</i>
+                        Mark Complete
+                    </button>
+                    {% endif %}
+                    <div class="dropdown">
+                        <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <i class="material-icons me-2">print</i>
+                            Export
+                        </button>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" onclick="exportReport('pdf')">
+                                <i class="material-icons me-2">picture_as_pdf</i>PDF Report</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="exportReport('csv')">
+                                <i class="material-icons me-2">table_chart</i>CSV Data</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="exportReport('excel')">
+                                <i class="material-icons me-2">description</i>Excel File</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cycle Status & Summary -->
+    <div class="row mb-4">
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">info</i>
+                        Cycle Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="border rounded p-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="material-icons text-primary me-3">calendar_today</i>
+                                    <div>
+                                        <h6 class="mb-1">Status</h6>
+                                        <span class="badge bg-{{ 'success' if cycle.status == 'completed' else 'warning' if cycle.status == 'processing' else 'secondary' }} fs-6">
+                                            {{ cycle.status.title() }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="border rounded p-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="material-icons text-success me-3">group</i>
+                                    <div>
+                                        <h6 class="mb-1">Total Employees</h6>
+                                        <span class="h4 text-success">{{ totals.total_employees }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="border rounded p-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="material-icons text-info me-3">access_time</i>
+                                    <div>
+                                        <h6 class="mb-1">Total Hours</h6>
+                                        <span class="h4 text-info">{{ "%.1f"|format(totals.total_regular_hours + totals.total_overtime_hours) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="border rounded p-3">
+                                <div class="d-flex align-items-center">
+                                    <i class="material-icons text-warning me-3">attach_money</i>
+                                    <div>
+                                        <h6 class="mb-1">Total Payroll</h6>
+                                        <span class="h4 text-warning">${{ "%.2f"|format(totals.total_gross_pay) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payroll Breakdown -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">analytics</i>
+                        Payroll Breakdown
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="payrollBreakdownChart" width="300" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payroll Entries -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">receipt</i>
+                        Payroll Entries
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="Search employees..." style="width: 200px;">
+                        <button class="btn btn-sm btn-outline-primary" onclick="exportEntries()">
+                            <i class="material-icons me-1">download</i>
+                            Export
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if entries %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped" id="payrollEntriesTable">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Type</th>
+                                    <th>Regular Hours</th>
+                                    <th>Overtime Hours</th>
+                                    <th>Total Hours</th>
+                                    <th>Gross Pay</th>
+                                    <th>Deductions</th>
+                                    <th>Net Pay</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for entry in entries %}
+                                <tr>
+                                    <td>
+                                        <div>
+                                            <strong>{{ entry.employee_name }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ entry.employee_id }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ entry.employee_type_name }}</span>
+                                    </td>
+                                    <td class="text-end">{{ "%.2f"|format(entry.regular_hours) }}</td>
+                                    <td class="text-end">{{ "%.2f"|format(entry.overtime_hours) }}</td>
+                                    <td class="text-end"><strong>{{ "%.2f"|format(entry.total_hours) }}</strong></td>
+                                    <td class="text-end">${{ "%.2f"|format(entry.gross_pay) }}</td>
+                                    <td class="text-end">${{ "%.2f"|format(entry.deductions) }}</td>
+                                    <td class="text-end"><strong>${{ "%.2f"|format(entry.net_pay) }}</strong></td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if entry.status == 'paid' else 'warning' if entry.status == 'approved' else 'secondary' }}">
+                                            {{ entry.status.title() }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm btn-outline-primary"
+                                                    onclick="viewEntryDetails('{{ entry.id }}')" title="View Details">
+                                                <i class="material-icons">visibility</i>
+                                            </button>
+                                            {% if entry.status in ['calculated', 'approved'] %}
+                                            <button class="btn btn-sm btn-outline-success"
+                                                    onclick="approveEntry('{{ entry.id }}')" title="Approve">
+                                                <i class="material-icons">check</i>
+                                            </button>
+                                            {% endif %}
+                                            {% if entry.status == 'approved' %}
+                                            <button class="btn btn-sm btn-outline-info"
+                                                    onclick="markAsPaid('{{ entry.id }}')" title="Mark as Paid">
+                                                <i class="material-icons">payment</i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot class="table-dark">
+                                <tr>
+                                    <th colspan="2" class="text-end">TOTALS:</th>
+                                    <th class="text-end">{{ "%.2f"|format(entries|sum(attribute='regular_hours')) }}</th>
+                                    <th class="text-end">{{ "%.2f"|format(entries|sum(attribute='overtime_hours')) }}</th>
+                                    <th class="text-end">{{ "%.2f"|format(entries|sum(attribute='total_hours')) }}</th>
+                                    <th class="text-end">${{ "%.2f"|format(entries|sum(attribute='gross_pay')) }}</th>
+                                    <th class="text-end">${{ "%.2f"|format(entries|sum(attribute='deductions')) }}</th>
+                                    <th class="text-end">${{ "%.2f"|format(entries|sum(attribute='net_pay')) }}</th>
+                                    <th colspan="2"></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="material-icons" style="font-size: 64px; color: #dee2e6;">receipt</i>
+                        <h4 class="mt-3 text-muted">No Payroll Entries</h4>
+                        <p class="text-muted">Payroll has not been processed for this cycle yet.</p>
+                        {% if cycle.status == 'draft' %}
+                        <button class="btn btn-primary" onclick="startProcessing()">
+                            <i class="material-icons me-2">play_arrow</i>
+                            Start Processing
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmationTitle">Confirm Action</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="confirmationMessage">
+                Are you sure you want to proceed?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmationConfirmBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Entry Details Modal -->
+<div class="modal fade" id="entryDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Payroll Entry Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="entryDetails">
+                <!-- Entry details will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Chart initialization
+{% if entries %}
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('payrollBreakdownChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Regular Pay', 'Overtime Pay', 'Deductions'],
+            datasets: [{
+                data: [
+                    {{ "%.2f"|format(entries|sum(attribute='regular_pay')) }},
+                    {{ "%.2f"|format(entries|sum(attribute='overtime_pay')) }},
+                    {{ "%.2f"|format(entries|sum(attribute='deductions')) }}
+                ],
+                backgroundColor: [
+                    '#28a745',
+                    '#ffc107',
+                    '#dc3545'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+});
+{% endif %}
+
+// Search functionality
+document.getElementById('searchInput').addEventListener('keyup', function() {
+    const filter = this.value.toLowerCase();
+    const rows = document.querySelectorAll('#payrollEntriesTable tbody tr');
+
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(filter) ? '' : 'none';
+    });
+});
+
+// Action functions
+function startProcessing() {
+    showConfirmationModal(
+        'Start Payroll Processing',
+        'Are you sure you want to start processing payroll for this cycle?',
+        () => {
+            fetch(`/payroll/payroll-cycles/{{ cycle.id }}/start-processing`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                showAlert(data.success ? 'success' : 'danger', data.message);
+                if (data.success) {
+                    setTimeout(() => location.reload(), 1000);
+                }
+            })
+            .catch(error => {
+                showAlert('danger', 'Error starting payroll processing');
+                console.error('Error:', error);
+            });
+        }
+    );
+}
+
+function completeCycle() {
+    showConfirmationModal(
+        'Complete Payroll Cycle',
+        'Are you sure you want to mark this payroll cycle as completed?',
+        () => {
+            fetch(`/payroll/payroll-cycles/{{ cycle.id }}/complete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                showAlert(data.success ? 'success' : 'danger', data.message);
+                if (data.success) {
+                    setTimeout(() => location.reload(), 1000);
+                }
+            })
+            .catch(error => {
+                showAlert('danger', 'Error completing payroll cycle');
+                console.error('Error:', error);
+            });
+        }
+    );
+}
+
+function viewEntryDetails(entryId) {
+    // Load entry details
+    fetch(`/payroll/payroll-entries/${entryId}`)
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById('entryDetails').innerHTML = html;
+        new bootstrap.Modal(document.getElementById('entryDetailsModal')).show();
+    })
+    .catch(error => {
+        showAlert('danger', 'Error loading entry details');
+        console.error('Error:', error);
+    });
+}
+
+function approveEntry(entryId) {
+    showConfirmationModal(
+        'Approve Payroll Entry',
+        'Are you sure you want to approve this payroll entry?',
+        () => {
+            fetch(`/payroll/payroll-entries/${entryId}/approve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                showAlert(data.success ? 'success' : 'danger', data.message);
+                if (data.success) {
+                    setTimeout(() => location.reload(), 1000);
+                }
+            })
+            .catch(error => {
+                showAlert('danger', 'Error approving entry');
+                console.error('Error:', error);
+            });
+        }
+    );
+}
+
+function markAsPaid(entryId) {
+    showConfirmationModal(
+        'Mark as Paid',
+        'Are you sure you want to mark this entry as paid?',
+        () => {
+            fetch(`/payroll/payroll-entries/${entryId}/mark-paid`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            })
+            .then(response => response.json())
+            .then(data => {
+                showAlert(data.success ? 'success' : 'danger', data.message);
+                if (data.success) {
+                    setTimeout(() => location.reload(), 1000);
+                }
+            })
+            .catch(error => {
+                showAlert('danger', 'Error marking entry as paid');
+                console.error('Error:', error);
+            });
+        }
+    );
+}
+
+function exportReport(format) {
+    const url = `/payroll/payroll-cycles/{{ cycle.id }}/export?format=${format}`;
+    window.open(url, '_blank');
+}
+
+function exportEntries() {
+    const url = `/payroll/payroll-cycles/{{ cycle.id }}/entries/export`;
+    window.open(url, '_blank');
+}
+
+// Confirmation modal functions
+function showConfirmationModal(title, message, onConfirm) {
+    document.getElementById('confirmationTitle').textContent = title;
+    document.getElementById('confirmationMessage').textContent = message;
+
+    const confirmBtn = document.getElementById('confirmationConfirmBtn');
+    confirmBtn.onclick = () => {
+        bootstrap.Modal.getInstance(document.getElementById('confirmationModal')).hide();
+        onConfirm();
+    };
+
+    new bootstrap.Modal(document.getElementById('confirmationModal')).show();
+}
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(alertDiv);
+
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

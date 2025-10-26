@@ -1,0 +1,375 @@
+{% extends "base.html" %}
+
+{% block title %}Leave History - {{ staff_info.first_name }} {{ staff_info.last_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Leave History</h1>
+                    <p class="text-muted">{{ staff_info.first_name }} {{ staff_info.last_name }} ({{ staff_info.employee_id }})</p>
+                </div>
+                <a href="{{ url_for('payroll.leave') }}" class="btn btn-outline-secondary">
+                    <i class="material-icons me-2">arrow_back</i>
+                    Back to Leave Management
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Employee Information -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">person</i>
+                        Employee Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>Employee ID:</strong> {{ staff_info.employee_id }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Name:</strong> {{ staff_info.first_name }} {{ staff_info.last_name }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Department:</strong> {{ staff_info.department_name or 'Not assigned' }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Location:</strong> {{ staff_info.location_name or 'Not assigned' }}
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-3">
+                            <strong>Email:</strong> {{ staff_info.email }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Phone:</strong> {{ staff_info.phone or 'Not provided' }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Hire Date:</strong> {{ staff_info.hire_date.strftime('%m/%d/%Y') if staff_info.hire_date else 'Not set' }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Status:</strong>
+                            <span class="badge bg-{{ 'success' if staff_info.is_active else 'secondary' }}">
+                                {{ 'Active' if staff_info.is_active else 'Inactive' }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leave Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-2 mb-3">
+            <div class="card stats-card stats-card-primary h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">{{ stats.total_requests }}</div>
+                    <div class="stats-title">Total Requests</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 mb-3">
+            <div class="card stats-card stats-card-success h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">{{ stats.approved_requests }}</div>
+                    <div class="stats-title">Approved</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 mb-3">
+            <div class="card stats-card stats-card-warning h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">{{ stats.pending_requests }}</div>
+                    <div class="stats-title">Pending</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 mb-3">
+            <div class="card stats-card stats-card-danger h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">{{ stats.rejected_requests }}</div>
+                    <div class="stats-title">Rejected</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 mb-3">
+            <div class="card stats-card stats-card-info h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">{{ "%.1f"|format(stats.total_days_taken) }}</div>
+                    <div class="stats-title">Days Taken</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 mb-3">
+            <div class="card stats-card stats-card-secondary h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">{{ leave_balances|sum(attribute='remaining_days')|round|int }}</div>
+                    <div class="stats-title">Days Remaining</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Leave Balances -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">account_balance_wallet</i>
+                        Current Leave Balances
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if leave_balances %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Leave Type</th>
+                                    <th>Allocated</th>
+                                    <th>Used</th>
+                                    <th>Remaining</th>
+                                    <th>Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for balance in leave_balances %}
+                                <tr>
+                                    <td>
+                                        <span class="badge" style="background-color: {{ balance.color }}; color: white;">
+                                            {{ balance.leave_type_name }}
+                                        </span>
+                                    </td>
+                                    <td>{{ "%.1f"|format(balance.allocated_days) }}</td>
+                                    <td>{{ "%.1f"|format(balance.used_days) }}</td>
+                                    <td><strong>{{ "%.1f"|format(balance.remaining_days) }}</strong></td>
+                                    <td>
+                                        <div class="progress" style="width: 80px; height: 8px;">
+                                            {% set percentage = (balance.used_days / balance.allocated_days * 100) if balance.allocated_days > 0 else 0 %}
+                                            <div class="progress-bar" role="progressbar"
+                                                 style="width: {{ percentage }}%; background-color: {{ balance.color }};"
+                                                 aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">No leave balances found</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Leave Calendar Preview -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">calendar_month</i>
+                        Recent Leave Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if leave_requests %}
+                    <div class="timeline">
+                        {% for request in leave_requests[:5] %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker" style="background-color: {{ request.color }};"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-1">{{ request.leave_type_name }}</h6>
+                                <p class="mb-1 text-muted">
+                                    {{ request.start_date.strftime('%m/%d/%Y') }} - {{ request.end_date.strftime('%m/%d/%Y') }}
+                                    ({{ "%.1f"|format(request.total_days) }} days)
+                                </p>
+                                <small class="text-muted">
+                                    Status:
+                                    <span class="badge bg-{{ 'success' if request.status == 'approved' else 'warning' if request.status == 'pending' else 'danger' if request.status == 'rejected' else 'secondary' }}">
+                                        {{ request.status.title() }}
+                                    </span>
+                                    • {{ request.created_at.strftime('%m/%d/%Y') }}
+                                </small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center mb-0">No leave requests found</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leave Requests History -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">history</i>
+                        Leave Request History
+                    </h5>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <input type="radio" class="btn-check" name="statusFilter" id="all" autocomplete="off" checked>
+                        <label class="btn btn-outline-secondary btn-sm" for="all">All</label>
+
+                        <input type="radio" class="btn-check" name="statusFilter" id="approved" autocomplete="off">
+                        <label class="btn btn-outline-success btn-sm" for="approved">Approved</label>
+
+                        <input type="radio" class="btn-check" name="statusFilter" id="pending" autocomplete="off">
+                        <label class="btn btn-outline-warning btn-sm" for="pending">Pending</label>
+
+                        <input type="radio" class="btn-check" name="statusFilter" id="rejected" autocomplete="off">
+                        <label class="btn btn-outline-danger btn-sm" for="rejected">Rejected</label>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if leave_requests %}
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="leaveHistoryTable">
+                            <thead>
+                                <tr>
+                                    <th>Date Requested</th>
+                                    <th>Leave Type</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Days</th>
+                                    <th>Status</th>
+                                    <th>Approved By</th>
+                                    <th>Comments</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for request in leave_requests %}
+                                <tr class="status-{{ request.status }}">
+                                    <td>{{ request.created_at.strftime('%m/%d/%Y %H:%M') }}</td>
+                                    <td>
+                                        <span class="badge" style="background-color: {{ request.color }}; color: white;">
+                                            {{ request.leave_type_name }}
+                                        </span>
+                                    </td>
+                                    <td>{{ request.start_date.strftime('%m/%d/%Y') }}</td>
+                                    <td>{{ request.end_date.strftime('%m/%d/%Y') }}</td>
+                                    <td>{{ "%.1f"|format(request.total_days) }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if request.status == 'approved' else 'warning' if request.status == 'pending' else 'danger' if request.status == 'rejected' else 'secondary' }}">
+                                            {{ request.status.title() }}
+                                        </span>
+                                    </td>
+                                    <td>{{ request.approved_by_name or 'N/A' }}</td>
+                                    <td>
+                                        <span title="{{ request.comments or '' }}">
+                                            {{ request.comments|truncate(30) if request.comments else 'N/A' }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="material-icons" style="font-size: 64px; color: #dee2e6;">history</i>
+                        <h4 class="mt-3 text-muted">No Leave History</h4>
+                        <p class="text-muted">This employee has not submitted any leave requests yet.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -40px;
+    top: 5px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 2px #dee2e6;
+}
+
+.timeline-content {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 6px;
+    border-left: 3px solid #dee2e6;
+}
+
+.timeline-item:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: -35px;
+    top: 17px;
+    width: 2px;
+    height: calc(100% + 3px);
+    background: #dee2e6;
+}
+</style>
+
+<script>
+// Status filtering functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const filterButtons = document.querySelectorAll('input[name="statusFilter"]');
+    const tableRows = document.querySelectorAll('#leaveHistoryTable tbody tr');
+
+    filterButtons.forEach(button => {
+        button.addEventListener('change', function() {
+            const statusFilter = this.id;
+
+            tableRows.forEach(row => {
+                if (statusFilter === 'all' || row.classList.contains(`status-${statusFilter}`)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    });
+
+    // Initialize DataTable if available
+    if (typeof $ !== 'undefined' && $.fn.DataTable) {
+        $('#leaveHistoryTable').DataTable({
+            pageLength: 15,
+            order: [[0, 'desc']], // Sort by date requested descending
+            responsive: true,
+            columnDefs: [
+                { orderable: false, targets: [7] } // Comments column not sortable
+            ]
+        });
+    }
+});
+
+// Update the viewLeaveHistory function to redirect to this page instead of showing modal
+function viewLeaveHistory(staffId) {
+    window.location.href = `/payroll/leave/history/${staffId}`;
+}
+</script>
+{% endblock %}

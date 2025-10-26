@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Add Leave Type{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Add Leave Type</h1>
+                    <p class="text-muted">Create a new type of leave for employees</p>
+                </div>
+                <a href="{{ url_for('payroll.leave_types') }}" class="btn btn-outline-secondary">
+                    <i class="material-icons me-2">arrow_back</i>
+                    Back to Leave Types
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Form -->
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">add</i>
+                        Leave Type Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row g-3">
+                            <!-- Basic Information -->
+                            <div class="col-md-6">
+                                <label for="name" class="form-label">Leave Type Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name" required
+                                       placeholder="e.g., Annual Vacation, Sick Leave">
+                                <div class="form-text">Display name for this leave type</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="code" class="form-label">Code <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control text-uppercase" id="code" name="code" required
+                                       placeholder="e.g., VACATION, SICK" maxlength="20">
+                                <div class="form-text">Unique code identifier (uppercase)</div>
+                            </div>
+
+                            <!-- Description -->
+                            <div class="col-12">
+                                <label for="description" class="form-label">Description</label>
+                                <textarea class="form-control" id="description" name="description" rows="3"
+                                          placeholder="Describe this leave type..."></textarea>
+                            </div>
+
+                            <!-- Type Configuration -->
+                            <div class="col-md-6">
+                                <label class="form-label">Leave Properties</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="is_paid" name="is_paid" checked>
+                                    <label class="form-check-label" for="is_paid">
+                                        Paid Leave
+                                    </label>
+                                    <div class="form-text">Employees get paid during this leave</div>
+                                </div>
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" id="requires_approval" name="requires_approval" checked>
+                                    <label class="form-check-label" for="requires_approval">
+                                        Requires Approval
+                                    </label>
+                                    <div class="form-text">Manager approval needed before leave can be taken</div>
+                                </div>
+                            </div>
+
+                            <!-- Limits and Carry Forward -->
+                            <div class="col-md-6">
+                                <label for="max_days_per_year" class="form-label">Maximum Days per Year</label>
+                                <input type="number" class="form-control" id="max_days_per_year" name="max_days_per_year"
+                                       min="1" placeholder="e.g., 15">
+                                <div class="form-text">Leave: blank for unlimited</div>
+
+                                <label for="carry_forward_days" class="form-label mt-3">Carry Forward Days</label>
+                                <input type="number" class="form-control" id="carry_forward_days" name="carry_forward_days"
+                                       min="0" placeholder="e.g., 5">
+                                <div class="form-text">Unused days that can be carried to next year</div>
+                            </div>
+
+                            <!-- Color Picker -->
+                            <div class="col-md-6">
+                                <label for="color" class="form-label">Display Color</label>
+                                <div class="input-group">
+                                    <input type="color" class="form-control form-control-color" id="color" name="color"
+                                           value="#007bff" style="width: 60px;">
+                                    <input type="text" class="form-control" id="colorHex" readonly>
+                                </div>
+                                <div class="form-text">Color used in calendars and displays</div>
+                            </div>
+
+                            <!-- Preview -->
+                            <div class="col-md-6">
+                                <label class="form-label">Preview</label>
+                                <div id="previewBadge" class="badge p-2" style="background-color: #007bff; color: white; font-size: 14px;">
+                                    Annual Vacation
+                                </div>
+                            </div>
+
+                            <!-- Submit -->
+                            <div class="col-12">
+                                <hr>
+                                <div class="d-flex justify-content-end gap-2">
+                                    <a href="{{ url_for('payroll.leave_types') }}" class="btn btn-outline-secondary">Cancel</a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="material-icons me-2">save</i>
+                                        Create Leave Type
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Update color hex value when color picker changes
+document.getElementById('color').addEventListener('input', function() {
+    document.getElementById('colorHex').value = this.value;
+    updatePreview();
+});
+
+// Initialize color hex value
+document.getElementById('colorHex').value = document.getElementById('color').value;
+
+// Update preview badge
+function updatePreview() {
+    const color = document.getElementById('color').value;
+    const name = document.getElementById('name').value || 'Leave Type';
+    const preview = document.getElementById('previewBadge');
+
+    preview.style.backgroundColor = color;
+    preview.textContent = name;
+}
+
+// Update preview when name changes
+document.getElementById('name').addEventListener('input', updatePreview);
+
+// Auto-generate code from name
+document.getElementById('name').addEventListener('input', function() {
+    const codeInput = document.getElementById('code');
+    if (!codeInput.value) {
+        codeInput.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 20);
+    }
+});
+
+// Initialize preview on page load
+document.addEventListener('DOMContentLoaded', updatePreview);
+</script>
+{% endblock %}

@@ -98,8 +98,8 @@ def process_auth():
             user_name = idinfo.get('name')
             user_picture = idinfo.get('picture')
             
-            # Validate organization - check if email ends with @sn15.com or @sn15.org
-            if not (user_email.endswith('@sn15.ai') or user_email.endswith('@sn15.com')):
+            # Validate organization - check if email ends with @sn15.com, @sn15.org, or @sipnsnack.com (for testing)
+            if not (user_email.endswith('@sn15.ai') or user_email.endswith('@sn15.com') or user_email.endswith('@sipnsnack.com')):
                 flash('Access denied. This application is restricted to SN15 organization members only. Please use an SN15 email address to sign in.', 'error')
                 return redirect(url_for('auth.login'))
             
@@ -152,11 +152,15 @@ def logout():
 def login_required(f):
     """Decorator to require authentication"""
     from functools import wraps
-    
+
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get('authenticated'):
             flash('Please log in to access this page.', 'warning')
-            return redirect(url_for('auth.login'))
+            try:
+                return redirect(url_for('auth.login'))
+            except Exception as e:
+                # Fallback if url_for fails
+                return redirect('/login')
         return f(*args, **kwargs)
     return decorated_function

@@ -1,0 +1,68 @@
+<div class="employee-info mb-4">
+    <h6>Employee: {{ staff.first_name }} {{ staff.last_name }}</h6>
+    <p class="text-muted mb-0">Employee ID: {{ staff.employee_id }} • Department: {{ staff.department_name or 'Not assigned' }}</p>
+</div>
+
+{% if leave_types %}
+<div class="row">
+    {% for leave_type in leave_types %}
+    {% set balance = current_balances.get(leave_type.id) %}
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <span class="badge" style="background-color: #007bff; color: white;">{{ leave_type.name }}</span>
+                    <small class="text-muted ms-2">{{ leave_type.code }}</small>
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-12">
+                        <label class="form-label">Allocated Days</label>
+                        <input type="number" class="form-control" name="allocated_{{ leave_type.id }}"
+                               value="{{ "%.1f"|format(balance.allocated_days) if balance and balance.allocated_days else '0' }}"
+                               min="0" step="0.5" placeholder="0">
+                    </div>
+                    {% if balance %}
+                    <div class="col-md-6">
+                        <label class="form-label">Used Days</label>
+                        <input type="number" class="form-control" readonly
+                               value="{{ "%.1f"|format(balance.used_days or 0) }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Remaining Days</label>
+                        <input type="number" class="form-control" readonly
+                               value="{{ "%.1f"|format(balance.remaining_days or 0) }}">
+                    </div>
+                    {% endif %}
+                </div>
+                {% if leave_type.max_days_per_year %}
+                <div class="mt-2">
+                    <small class="text-muted">
+                        Max per year: {{ leave_type.max_days_per_year }} days
+                        {% if leave_type.carry_forward_days %}
+                        • Carry forward: {{ leave_type.carry_forward_days }} days
+                        {% endif %}
+                    </small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="alert alert-info">
+    <strong>Notes:</strong>
+    <ul class="mb-0 mt-2">
+        <li>Used and remaining days are automatically calculated from approved leave requests</li>
+        <li>Changes to allocated days will update the employee's leave balance immediately</li>
+        <li>You can use the "Recalculate All" button to sync all balances with leave history</li>
+    </ul>
+</div>
+{% else %}
+<div class="alert alert-warning">
+    <strong>No Leave Types Found</strong>
+    <p class="mb-0">No active leave types are configured. Please add leave types first.</p>
+</div>
+{% endif %}

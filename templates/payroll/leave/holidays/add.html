@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+
+{% block title %}Add Holiday{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Add Holiday</h1>
+                    <p class="text-muted">Add a new company holiday or non-working day</p>
+                </div>
+                <a href="{{ url_for('payroll.holidays') }}" class="btn btn-outline-secondary">
+                    <i class="material-icons me-2">arrow_back</i>
+                    Back to Holidays
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Form -->
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">add</i>
+                        Holiday Details
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row g-3">
+                            <!-- Basic Information -->
+                            <div class="col-md-8">
+                                <label for="name" class="form-label">Holiday Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name" required
+                                       placeholder="e.g., Christmas Day, Independence Day">
+                                <div class="form-text">Name of the holiday or non-working day</div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label for="date" class="form-label">Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="date" name="date" required>
+                                <div class="form-text">Date of the holiday</div>
+                            </div>
+
+                            <!-- Description -->
+                            <div class="col-12">
+                                <label for="description" class="form-label">Description</label>
+                                <textarea class="form-control" id="description" name="description" rows="3"
+                                          placeholder="Optional description or notes about this holiday..."></textarea>
+                            </div>
+
+                            <!-- Holiday Type -->
+                            <div class="col-12">
+                                <label class="form-label">Holiday Type</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="is_recurring" name="is_recurring">
+                                    <label class="form-check-label" for="is_recurring">
+                                        Recurring Holiday
+                                    </label>
+                                    <div class="form-text">
+                                        Check this if this holiday occurs every year on the same date (e.g., Christmas, New Year's Day).
+                                        Uncheck for one-time holidays (e.g., inauguration days, special observances).
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Preview -->
+                            <div class="col-12">
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title">
+                                            <i class="material-icons me-2">preview</i>
+                                            Preview
+                                        </h6>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <strong>Name:</strong> <span id="preview-name">Holiday Name</span>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <strong>Date:</strong> <span id="preview-date">--/--/----</span>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <strong>Type:</strong> <span id="preview-type">One-time</span>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <strong>Day:</strong> <span id="preview-day">--day--</span>
+                                            </div>
+                                        </div>
+                                        <div class="mt-2">
+                                            <strong>Description:</strong> <span id="preview-description">No description</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Submit -->
+                            <div class="col-12">
+                                <hr>
+                                <div class="d-flex justify-content-end gap-2">
+                                    <a href="{{ url_for('payroll.holidays') }}" class="btn btn-outline-secondary">Cancel</a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="material-icons me-2">save</i>
+                                        Create Holiday
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Update preview when form values change
+function updatePreview() {
+    const name = document.getElementById('name').value || 'Holiday Name';
+    const dateInput = document.getElementById('date').value;
+    const description = document.getElementById('description').value || 'No description';
+    const isRecurring = document.getElementById('is_recurring').checked;
+
+    // Update preview elements
+    document.getElementById('preview-name').textContent = name;
+    document.getElementById('preview-description').textContent = description;
+    document.getElementById('preview-type').textContent = isRecurring ? 'Recurring' : 'One-time';
+
+    if (dateInput) {
+        const date = new Date(dateInput);
+        const formattedDate = date.toLocaleDateString('en-US', {
+            month: '2-digit',
+            day: '2-digit',
+            year: 'numeric'
+        });
+        const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+
+        document.getElementById('preview-date').textContent = formattedDate;
+        document.getElementById('preview-day').textContent = dayOfWeek;
+    } else {
+        document.getElementById('preview-date').textContent = '--/--/----';
+        document.getElementById('preview-day').textContent = '--day--';
+    }
+}
+
+// Set default date to today if not set
+document.addEventListener('DOMContentLoaded', function() {
+    const dateInput = document.getElementById('date');
+    if (!dateInput.value) {
+        const today = new Date();
+        const formatted = today.toISOString().split('T')[0];
+        dateInput.value = formatted;
+        updatePreview();
+    }
+
+    // Add event listeners for live preview
+    document.getElementById('name').addEventListener('input', updatePreview);
+    document.getElementById('date').addEventListener('input', updatePreview);
+    document.getElementById('description').addEventListener('input', updatePreview);
+    document.getElementById('is_recurring').addEventListener('change', updatePreview);
+});
+</script>
+{% endblock %}

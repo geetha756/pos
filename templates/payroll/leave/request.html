@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Submit Leave Request{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Submit Leave Request</h1>
+                    <p class="text-muted">Request time off from work</p>
+                </div>
+                <a href="{{ url_for('payroll.leave') }}" class="btn btn-outline-secondary">
+                    <i class="material-icons me-2">arrow_back</i>
+                    Back to Leave Management
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leave Request Form -->
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">event_note</i>
+                        New Leave Request
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <div class="row g-3">
+                            <!-- Staff Member -->
+                            <div class="col-md-6">
+                                <label for="staff_id" class="form-label">Employee</label>
+                                <select class="form-select" id="staff_id" name="staff_id" required>
+                                    <option value="">Select Employee</option>
+                                    {% for staff_member in staff %}
+                                    <option value="{{ staff_member.id }}">{{ staff_member.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Leave Type -->
+                            <div class="col-md-6">
+                                <label for="leave_type_id" class="form-label">Leave Type</label>
+                                <select class="form-select" id="leave_type_id" name="leave_type_id" required>
+                                    <option value="">Select Leave Type</option>
+                                    {% for leave_type in leave_types %}
+                                    <option value="{{ leave_type.id }}">{{ leave_type.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Start Date -->
+                            <div class="col-md-6">
+                                <label for="start_date" class="form-label">Start Date</label>
+                                <input type="date" class="form-control" id="start_date" name="start_date" required>
+                            </div>
+
+                            <!-- End Date -->
+                            <div class="col-md-6">
+                                <label for="end_date" class="form-label">End Date</label>
+                                <input type="date" class="form-control" id="end_date" name="end_date" required>
+                            </div>
+
+                            <!-- Reason -->
+                            <div class="col-12">
+                                <label for="reason" class="form-label">Reason (Optional)</label>
+                                <textarea class="form-control" id="reason" name="reason" rows="3" placeholder="Please provide details about your leave request..."></textarea>
+                            </div>
+
+                            <!-- Submit Buttons -->
+                            <div class="col-12">
+                                <hr>
+                                <div class="d-flex justify-content-end gap-2">
+                                    <a href="{{ url_for('payroll.leave') }}" class="btn btn-outline-secondary">Cancel</a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="material-icons me-2">send</i>
+                                        Submit Request
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leave Type Information -->
+    <div class="row mt-4">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">Available Leave Types</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        {% for leave_type in leave_types %}
+                        <div class="col-md-6">
+                            <div class="border rounded p-3">
+                                <h6 class="mb-2">{{ leave_type.name }}</h6>
+                                <p class="text-muted small mb-0">{{ leave_type.description or 'No description available' }}</p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Set minimum date to today for start and end dates
+document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    const startDateInput = document.getElementById('start_date');
+    const endDateInput = document.getElementById('end_date');
+
+    startDateInput.min = today;
+    endDateInput.min = today;
+
+    // Update end date minimum when start date changes
+    startDateInput.addEventListener('change', function() {
+        endDateInput.min = this.value;
+        if (endDateInput.value && endDateInput.value < this.value) {
+            endDateInput.value = this.value;
+        }
+    });
+});
+</script>
+{% endblock %}

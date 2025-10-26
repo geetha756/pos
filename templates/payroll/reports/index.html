@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}Reports Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Reports Dashboard</h1>
+                    <p class="text-muted">Comprehensive analytics and reporting for HR operations</p>
+                </div>
+                <a href="{{ url_for('payroll.index') }}" class="btn btn-outline-secondary">
+                    <i class="material-icons me-2">arrow_back</i>
+                    Back to Payroll
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Categories -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">analytics</i>
+                        Available Reports
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Leave Analytics -->
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100 border-primary">
+                                <div class="card-body text-center">
+                                    <i class="material-icons text-primary" style="font-size: 48px;">event_busy</i>
+                                    <h5 class="card-title mt-3">Leave Analytics</h5>
+                                    <p class="card-text text-muted">
+                                        Comprehensive leave usage analysis, approval rates, department comparisons,
+                                        and monthly trends for the last 12 months.
+                                    </p>
+                                    <a href="{{ url_for('payroll.leave_reports') }}" class="btn btn-primary">
+                                        <i class="material-icons me-2">bar_chart</i>
+                                        View Leave Reports
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Timesheet Analytics -->
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100 border-success">
+                                <div class="card-body text-center">
+                                    <i class="material-icons text-success" style="font-size: 48px;">schedule</i>
+                                    <h5 class="card-title mt-3">Timesheet Analytics</h5>
+                                    <p class="card-text text-muted">
+                                        Productivity tracking, department comparisons, monthly hours analysis,
+                                        and weekly trends for the last 12 weeks.
+                                    </p>
+                                    <a href="{{ url_for('payroll.timesheet_reports') }}" class="btn btn-success">
+                                        <i class="material-icons me-2">show_chart</i>
+                                        View Timesheet Reports
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-info h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">2</div>
+                    <div class="stats-title">Report Types</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-primary h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">12</div>
+                    <div class="stats-title">Months of Data</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-warning h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">12</div>
+                    <div class="stats-title">Weeks of Trends</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card stats-card-success h-100">
+                <div class="card-body text-center">
+                    <div class="stats-value">Real-time</div>
+                    <div class="stats-title">Data Updates</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Features -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">info</i>
+                        Report Features
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary">
+                                <i class="material-icons me-2">event_busy</i>
+                                Leave Analytics Include:
+                            </h6>
+                            <ul class="list-unstyled ms-4">
+                                <li class="mb-2">
+                                    <i class="material-icons text-success me-1" style="font-size: 16px;">check_circle</i>
+                                    Leave usage by type with approval rates
+                                </li>
+                                <li class="mb-2">
+                                    <i class="material-icons text-success me-1" style="font-size: 16px;">check_circle</i>
+                                    Monthly leave trends (12-month view)
+                                </li>
+                                <li class="mb-2">
+                                    <i class="material-icons text-success me-1" style="font-size: 16px;">check_circle</i>
+                                    Department usage comparisons
+                                </li>
+                                <li class="mb-2">
+                                    <i class="material-icons text-success me-1" style="font-size: 16px;">check_circle</i>
+                                    Visual progress bars and efficiency metrics
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-success">
+                                <i class="material-icons me-2">schedule</i>
+                                Timesheet Analytics Include:
+                            </h6>
+                            <ul class="list-unstyled ms-4">
+                                <li class="mb-2">
+                                    <i class="material-icons text-success me-1" style="font-size: 16px;">check_circle</i>
+                                    Monthly hours trends with productivity metrics
+                                </li>
+                                <li class="mb-2">
+                                    <i class="material-icons text-success me-1" style="font-size: 16px;">check_circle</i>
+                                    Department hours comparisons
+                                </li>
+                                <li class="mb-2">
+                                    <i class="material-icons text-success me-1" style="font-size: 16px;">check_circle</i>
+                                    Weekly hours tracking and trend analysis
+                                </li>
+                                <li class="mb-2">
+                                    <i class="material-icons text-success me-1" style="font-size: 16px;">check_circle</i>
+                                    Active employee counts and efficiency ratios
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.stats-card {
+    border-left: 4px solid #007bff;
+}
+
+.stats-card-primary {
+    border-left-color: #007bff;
+}
+
+.stats-card-info {
+    border-left-color: #0dcaf0;
+}
+
+.stats-card-warning {
+    border-left-color: #ffc107;
+}
+
+.stats-card-success {
+    border-left-color: #198754;
+}
+
+.stats-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #495057;
+}
+
+.stats-title {
+    font-size: 0.875rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-top: 0.5rem;
+}
+</style>
+{% endblock %}

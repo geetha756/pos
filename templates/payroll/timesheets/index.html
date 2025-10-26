@@ -1,0 +1,537 @@
+{% extends "base.html" %}
+
+{% block title %}Timesheets{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">Timesheet Management</h1>
+                    <p class="text-muted">Track employee working hours, breaks, and time entries</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-success" onclick="clockInOut()">
+                        <i class="material-icons me-2">play_arrow</i>
+                        Clock In/Out
+                    </button>
+                    <button class="btn btn-outline-primary" onclick="startBreak()">
+                        <i class="material-icons me-2">pause</i>
+                        Start Break
+                    </button>
+                    <button class="btn btn-outline-warning" onclick="endBreak()">
+                        <i class="material-icons me-2">play_arrow</i>
+                        End Break
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">filter_list</i>
+                        Filters
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="staff_id" class="form-label">Employee</label>
+                            <select class="form-select" id="staff_id" name="staff_id">
+                                <option value="">All Employees</option>
+                                {% for staff in staff_list %}
+                                <option value="{{ staff.id }}" {% if filters.staff_id == staff.id|string %}selected{% endif %}>
+                                    {{ staff.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="start_date" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="start_date" name="start_date"
+                                   value="{{ filters.start_date }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="end_date" class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="end_date" name="end_date"
+                                   value="{{ filters.end_date }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="status" class="form-label">Status</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="">All Status</option>
+                                <option value="draft" {% if filters.status == 'draft' %}selected{% endif %}>Draft</option>
+                                <option value="submitted" {% if filters.status == 'submitted' %}selected{% endif %}>Submitted</option>
+                                <option value="approved" {% if filters.status == 'approved' %}selected{% endif %}>Approved</option>
+                                <option value="rejected" {% if filters.status == 'rejected' %}selected{% endif %}>Rejected</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="material-icons me-1">search</i>
+                                Filter
+                            </button>
+                            <a href="{{ url_for('payroll.timesheets') }}" class="btn btn-outline-secondary">
+                                <i class="material-icons me-1">clear</i>
+                                Clear
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Timesheets Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="material-icons me-2">schedule</i>
+                        Timesheets
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-primary" onclick="exportTimesheets()">
+                            <i class="material-icons me-1">download</i>
+                            Export
+                        </button>
+                        <button class="btn btn-sm btn-outline-success" onclick="bulkApprove()">
+                            <i class="material-icons me-1">check_circle</i>
+                            Bulk Approve
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if timesheets %}
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="timesheetsTable">
+                            <thead>
+                                <tr>
+                                    <th>
+                                        <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                                    </th>
+                                    <th>Employee</th>
+                                    <th>Date</th>
+                                    <th>Clock In</th>
+                                    <th>Clock Out</th>
+                                    <th>Regular Hours</th>
+                                    <th>Break Hours</th>
+                                    <th>Total Hours</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for timesheet in timesheets %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" class="timesheet-checkbox" value="{{ timesheet.id }}">
+                                    </td>
+                                    <td>{{ timesheet.employee_name }}</td>
+                                    <td>{{ timesheet.date.strftime('%m/%d/%Y') }}</td>
+                                    <td>{{ timesheet.clock_in.strftime('%H:%M') if timesheet.clock_in else '-' }}</td>
+                                    <td>{{ timesheet.clock_out.strftime('%H:%M') if timesheet.clock_out else '-' }}</td>
+                                    <td>{{ "%.2f"|format(timesheet.regular_hours) }}</td>
+                                    <td>{{ "%.2f"|format(timesheet.break_hours) }}</td>
+                                    <td><strong>{{ "%.2f"|format(timesheet.total_hours) }}</strong></td>
+                                    <td>
+                                        <span class="badge bg-{{ 'success' if timesheet.status == 'approved' else 'warning' if timesheet.status == 'submitted' else 'secondary' }}">
+                                            {{ timesheet.status.title() }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm btn-outline-primary" onclick="viewTimesheet('{{ timesheet.id }}')" title="View Details">
+                                                <i class="material-icons">visibility</i>
+                                            </button>
+                                            {% if timesheet.status in ['draft', 'submitted'] %}
+                                            <button class="btn btn-sm btn-outline-success" onclick="approveTimesheet('{{ timesheet.id }}')" title="Approve">
+                                                <i class="material-icons">check</i>
+                                            </button>
+                                            {% endif %}
+                                            <button class="btn btn-sm btn-outline-danger" onclick="editTimesheet('{{ timesheet.id }}')" title="Edit">
+                                                <i class="material-icons">edit</i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Summary Footer -->
+                    <div class="mt-3 p-3 bg-light rounded">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <strong>Total Entries:</strong> {{ timesheets|length }}
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Total Hours:</strong> {{ "%.2f"|format(timesheets|sum(attribute='total_hours')) }}
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Regular Hours:</strong> {{ "%.2f"|format(timesheets|sum(attribute='regular_hours')) }}
+                            </div>
+                            <div class="col-md-3">
+                                <strong>Break Hours:</strong> {{ "%.2f"|format(timesheets|sum(attribute='break_hours')) }}
+                            </div>
+                        </div>
+                    </div>
+
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="material-icons" style="font-size: 64px; color: #dee2e6;">schedule</i>
+                        <h4 class="mt-3 text-muted">No Timesheets Found</h4>
+                        <p class="text-muted">No timesheets match your current filters.</p>
+                        <a href="{{ url_for('payroll.timesheets') }}" class="btn btn-primary">
+                            <i class="material-icons me-2">clear</i>
+                            Clear Filters
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmationTitle">Confirm Action</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="confirmationMessage">
+                Are you sure you want to proceed?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmationConfirmBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Timesheet Details Modal -->
+<div class="modal fade" id="timesheetModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Timesheet Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="timesheetDetails">
+                <!-- Content will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Clock In/Out functionality
+function clockInOut() {
+    const baseUrl = window.location.origin;
+    const url = baseUrl + '/payroll/timesheets/clock-in';
+    console.log('Making request to', url, 'from origin', baseUrl);
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams()
+    })
+    .then(response => {
+        // Check if response is JSON or HTML redirect
+        if (response.headers.get('content-type')?.includes('application/json')) {
+            return response.json();
+        } else {
+            // Likely redirected to login page
+            throw new Error('Authentication required');
+        }
+    })
+    .then(data => {
+        showAlert(data.success ? 'success' : 'danger', data.message);
+        if (data.success) {
+            setTimeout(() => location.reload(), 1000);
+        }
+    })
+    .catch(error => {
+        console.error('Fetch error:', error);
+        if (error.message === 'Authentication required') {
+            showAlert('warning', 'Please log in to use this feature');
+        } else {
+            showAlert('danger', 'Error processing request: ' + error.message);
+            console.error('Error details:', error);
+        }
+    });
+}
+
+// Break management
+function startBreak() {
+    fetch('/payroll/timesheets/start-break', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams()
+    })
+    .then(response => {
+        if (response.headers.get('content-type')?.includes('application/json')) {
+            return response.json();
+        } else {
+            throw new Error('Authentication required');
+        }
+    })
+    .then(data => {
+        showAlert(data.success ? 'success' : 'danger', data.message);
+    })
+    .catch(error => {
+        if (error.message === 'Authentication required') {
+            showAlert('warning', 'Please log in to use this feature');
+        } else {
+            showAlert('danger', 'Error starting break');
+            console.error('Error:', error);
+        }
+    });
+}
+
+function endBreak() {
+    fetch('/payroll/timesheets/end-break', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams()
+    })
+    .then(response => {
+        if (response.headers.get('content-type')?.includes('application/json')) {
+            return response.json();
+        } else {
+            throw new Error('Authentication required');
+        }
+    })
+    .then(data => {
+        showAlert(data.success ? 'success' : 'danger', data.message);
+        if (data.success) {
+            setTimeout(() => location.reload(), 1000);
+        }
+    })
+    .catch(error => {
+        if (error.message === 'Authentication required') {
+            showAlert('warning', 'Please log in to use this feature');
+        } else {
+            showAlert('danger', 'Error ending break');
+            console.error('Error:', error);
+        }
+    });
+}
+
+// Table functions
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.timesheet-checkbox');
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+}
+
+function viewTimesheet(timesheetId) {
+    // Load timesheet details via AJAX
+    fetch(`/payroll/timesheets/${timesheetId}/modal`)
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById('timesheetDetails').innerHTML = html;
+        new bootstrap.Modal(document.getElementById('timesheetModal')).show();
+    })
+    .catch(error => {
+        showAlert('danger', 'Error loading timesheet details');
+        console.error('Error:', error);
+    });
+}
+
+function approveTimesheet(timesheetId) {
+    if (confirm('Are you sure you want to approve this timesheet?')) {
+        fetch(`/payroll/timesheets/${timesheetId}/approve`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+                'approved_by': '{{ current_user.id if current_user else "" }}'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', data.message);
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert('danger', data.message);
+            }
+        })
+        .catch(error => {
+            showAlert('danger', 'Error approving timesheet');
+            console.error('Error:', error);
+        });
+    }
+}
+
+function bulkApprove() {
+    const selectedTimesheets = document.querySelectorAll('.timesheet-checkbox:checked');
+    if (selectedTimesheets.length === 0) {
+        showAlert('warning', 'Please select timesheets to approve');
+        return;
+    }
+
+    if (confirm(`Are you sure you want to approve ${selectedTimesheets.length} timesheets?`)) {
+        const formData = new FormData();
+        selectedTimesheets.forEach(checkbox => {
+            formData.append('timesheet_ids[]', checkbox.value);
+        });
+        formData.append('approved_by', '{{ current_user.id if current_user else "" }}');
+
+        fetch('/payroll/timesheets/bulk-approve', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (response.redirected) {
+                window.location.reload();
+            } else {
+                return response.json();
+            }
+        })
+        .then(data => {
+            if (data && data.success) {
+                showAlert('success', data.message);
+                setTimeout(() => location.reload(), 1000);
+            } else if (data) {
+                showAlert('danger', data.message);
+            }
+        })
+        .catch(error => {
+            showAlert('danger', 'Error approving timesheets');
+            console.error('Error:', error);
+        });
+    }
+}
+
+function editTimesheet(timesheetId) {
+    // Redirect to edit page or open edit modal
+    window.location.href = `/payroll/timesheets/${timesheetId}/edit`;
+}
+
+function exportTimesheets() {
+    // Get current filters and create export URL
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('export', 'csv');
+
+    window.open(`/payroll/timesheets?${urlParams.toString()}`, '_blank');
+}
+
+// Confirmation modal functions
+function showConfirmationModal(title, message, onConfirm) {
+    document.getElementById('confirmationTitle').textContent = title;
+    document.getElementById('confirmationMessage').textContent = message;
+
+    const confirmBtn = document.getElementById('confirmationConfirmBtn');
+    confirmBtn.onclick = () => {
+        bootstrap.Modal.getInstance(document.getElementById('confirmationModal')).hide();
+        onConfirm();
+    };
+
+    new bootstrap.Modal(document.getElementById('confirmationModal')).show();
+}
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(alertDiv);
+
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+// Modal action functions for timesheet details
+function approveTimesheetFromModal(timesheetId) {
+    if (confirm('Are you sure you want to approve this timesheet?')) {
+        fetch(`/payroll/timesheets/${timesheetId}/approve`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: new URLSearchParams({
+                'approved_by': 'system' // You might want to get this from session
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', data.message);
+                bootstrap.Modal.getInstance(document.getElementById('timesheetModal')).hide();
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert('danger', data.message);
+            }
+        })
+        .catch(error => {
+            showAlert('danger', 'Error approving timesheet');
+            console.error('Error:', error);
+        });
+    }
+}
+
+function editTimesheetFromModal(timesheetId) {
+    bootstrap.Modal.getInstance(document.getElementById('timesheetModal')).hide();
+    // Redirect to edit page
+    window.location.href = `/payroll/timesheets/${timesheetId}/edit`;
+}
+
+function exportTimesheetFromModal(timesheetId) {
+    // Create export URL
+    const url = `/payroll/timesheets?export=csv&timesheet_id=${timesheetId}`;
+    window.open(url, '_blank');
+}
+</script>
+
+<!-- Timesheet Details Modal -->
+<div class="modal fade" id="timesheetModal" tabindex="-1" aria-labelledby="timesheetModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="timesheetModalLabel">
+                    <i class="material-icons me-2">schedule</i>
+                    Timesheet Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="timesheetDetails">
+                <!-- Content will be loaded dynamically -->
+                <div class="text-center py-4">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Loading timesheet details...</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

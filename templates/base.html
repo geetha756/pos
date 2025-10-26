@@ -540,13 +540,19 @@
                                     Departments
                                 </a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('positions') %} active{% endif %}" href="{{ url_for('positions.index') }}">
-<i class="material-icons">work</i>
-                                    Positions
-                                </a>
-                            </li>
-                        </ul>
+    <li class="nav-item">
+        <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('positions') %} active{% endif %}" href="{{ url_for('positions.index') }}">
+            <i class="material-icons">work</i>
+            Positions
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('payroll') %} active{% endif %}" href="{{ url_for('payroll.index') }}">
+            <i class="material-icons">schedule</i>
+            Payroll
+        </a>
+    </li>
+</ul>
 
                     </div>
                 </div>
