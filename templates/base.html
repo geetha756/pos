@@ -496,6 +496,7 @@
     #statusConfirmModal.modal .modal-backdrop {
         --bs-modal-backdrop-zindex: 1040;
     }
+
     </style>
 
     {% block extra_head %}{% endblock %}
@@ -551,112 +552,101 @@
         </symbol>
     </svg>
 
-    <header class="navbar sticky-top bg-dark flex-md-nowrap p-0 shadow" data-bs-theme="dark">
-        <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3 fs-6 text-white" href="{{ url_for('main.dashboard') }}">Sip & Snack Portal</a>
 
-        <ul class="navbar-nav flex-row d-md-none">
-            <li class="nav-item text-nowrap">
-                <button class="nav-link px-3 text-white" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSearch" aria-controls="navbarSearch" aria-expanded="false" aria-label="Toggle search">
-<i class="material-icons">search</i>
-                </button>
-            </li>
-            <li class="nav-item text-nowrap">
-                <button class="nav-link px-3 text-white" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
-<i class="material-icons">menu</i>
-                </button>
-            </li>
-        </ul>
+    <div style="display: grid; grid-template-columns: 220px 1fr; grid-column-gap: 0; min-height: 100vh;">
+        <div class="sidebar border border-right p-0 bg-body-tertiary">
+            <div class="offcanvas-md offcanvas-end bg-body-tertiary" tabindex="-1" id="sidebarMenu" aria-labelledby="sidebarMenuLabel">
+                <div class="offcanvas-body d-md-flex flex-column p-0 overflow-y-auto" style="padding-bottom: 80px;">
 
-        <div class="navbar-nav ms-auto me-3">
-            <div class="nav-item dropdown">
-                <a class="nav-link dropdown-toggle text-white d-flex align-items-center" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                    {% if session.user_picture %}
-                        <img src="{{ session.user_picture }}" alt="Profile" class="rounded-circle me-2" width="32" height="32">
-                    {% else %}
-                        <i class="material-icons me-2">account_circle</i>
-                    {% endif %}
-                    {{ session.user_name or 'User' }}
-                </a>
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
-                        <i class="material-icons me-2">logout</i>Logout
-                    </a></li>
-                </ul>
-            </div>
-        </div>
-
-        <div id="navbarSearch" class="navbar-search w-100 collapse">
-            <input class="form-control w-100 rounded-0 border-0" type="text" placeholder="Search" aria-label="Search">
-        </div>
-    </header>
-
-    <div class="container-fluid">
-        <div class="row">
-            <div class="sidebar border border-right col-md-3 col-lg-2 p-0 bg-body-tertiary">
-                <div class="offcanvas-md offcanvas-end bg-body-tertiary" tabindex="-1" id="sidebarMenu" aria-labelledby="sidebarMenuLabel">
-                    <div class="offcanvas-body d-md-flex flex-column p-0 overflow-y-auto">
-                        <ul class="nav flex-column">
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint == 'main.dashboard' %} active{% endif %}" href="{{ url_for('main.dashboard') }}">
-<i class="material-icons">home</i>
-                                    Dashboard
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('master_menu') %} active{% endif %}" href="{{ url_for('master_menu.index') }}">
-<i class="material-icons">restaurant_menu</i>
-                                    Master Menu
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('locations') %} active{% endif %}" href="{{ url_for('locations.index') }}">
-<i class="material-icons">location_on</i>
-                                    Locations
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('location_menu') %} active{% endif %}" href="{{ url_for('location_menu.index') }}">
-<i class="material-icons">shopping_cart</i>
-                                    Location Menu
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('orders') %} active{% endif %}" href="{{ url_for('orders.index') }}">
-<i class="material-icons">bar_chart</i>
-                                    Orders
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('staff') %} active{% endif %}" href="{{ url_for('staff.index') }}">
-<i class="material-icons">people</i>
-                                    Staff
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('departments') %} active{% endif %}" href="{{ url_for('departments.index') }}">
-<i class="material-icons">business</i>
-                                    Departments
-                                </a>
-                            </li>
-    <li class="nav-item">
-        <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('positions') %} active{% endif %}" href="{{ url_for('positions.index') }}">
-            <i class="material-icons">work</i>
-            Positions
-        </a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('payroll') %} active{% endif %}" href="{{ url_for('payroll.index') }}">
-            <i class="material-icons">schedule</i>
-            Payroll
-        </a>
-    </li>
-</ul>
-
+                    <!-- Sidebar Header with Logo -->
+                    <div class="p-3 border-bottom bg-white">
+                        <div class="d-flex align-items-center">
+                            <img src="{{ url_for('static', filename='img/sn15-logo-transparent.png') }}" alt="Sip & Snack Portal Logo" style="max-width: 100%; max-height: 60px; object-fit: contain;">
+                        </div>
                     </div>
+
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint == 'main.dashboard' %} active{% endif %}" href="{{ url_for('main.dashboard') }}">
+<i class="material-icons">home</i>
+                                Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('master_menu') %} active{% endif %}" href="{{ url_for('master_menu.index') }}">
+<i class="material-icons">restaurant_menu</i>
+                                Master Menu
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('locations') %} active{% endif %}" href="{{ url_for('locations.index') }}">
+<i class="material-icons">location_on</i>
+                                Locations
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('location_menu') %} active{% endif %}" href="{{ url_for('location_menu.index') }}">
+<i class="material-icons">shopping_cart</i>
+                                Location Menu
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('orders') %} active{% endif %}" href="{{ url_for('orders.index') }}">
+<i class="material-icons">bar_chart</i>
+                                Orders
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('staff') %} active{% endif %}" href="{{ url_for('staff.index') }}">
+<i class="material-icons">people</i>
+                                Staff
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('departments') %} active{% endif %}" href="{{ url_for('departments.index') }}">
+<i class="material-icons">business</i>
+                                Departments
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('positions') %} active{% endif %}" href="{{ url_for('positions.index') }}">
+<i class="material-icons">work</i>
+                                Positions
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('payroll') %} active{% endif %}" href="{{ url_for('payroll.index') }}">
+<i class="material-icons">schedule</i>
+                                Payroll
+                            </a>
+                        </li>
+                    </ul>
+
+                    <!-- User Profile Section - Fixed at bottom left of viewport -->
+                    <div class="p-3 border-top" style="background-color: #f0f0f0; position: fixed; bottom: 0; left: 0; width: 220px; z-index: 1000;" id="user-section">
+                        <div class="d-flex align-items-center">
+                            {% if session.user_picture %}
+                                <img src="{{ session.user_picture }}" alt="Profile" class="rounded-circle me-3" width="48" height="48" style="object-fit: cover;">
+                            {% else %}
+                                <i class="material-icons me-3" style="font-size: 48px; color: #666;">account_circle</i>
+                            {% endif %}
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center fw-bold text-dark" style="font-size: 1.25rem;">
+                                    {{ session.user_name or 'User' }}
+                                    <span class="mx-2 text-muted">|</span>
+                                    <a href="{{ url_for('auth.logout') }}" class="text-danger text-decoration-none d-flex align-items-center" title="Logout">
+                                        <i class="material-icons" style="font-size: 20px; line-height: 1;">logout</i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
+        </div>
 
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+        <main class="px-md-4 text-left" style="padding-bottom: 100px; margin-left: 0;">
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         {% for category, message in messages %}

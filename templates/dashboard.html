@@ -3,19 +3,6 @@
 {% block title %}Dashboard - Sip & Snack Portal{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Dashboard</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <div class="btn-group me-2">
-            <button type="button" class="btn btn-sm btn-outline-secondary">Share</button>
-            <button type="button" class="btn btn-sm btn-outline-secondary">Export</button>
-        </div>
-        <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1">
-<i class="material-icons">calendar_today</i>
-            This week
-        </button>
-    </div>
-</div>
 
 <!-- Module Statistics -->
 <div class="row mb-4">
@@ -115,7 +102,7 @@
                     </a>
                     <a href="{{ url_for('staff.index') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0">
                         <div class="d-flex align-items-center">
-                            <i class="material-icons me-3 text-success">person_check</i>
+                            <i class="material-icons me-3 text-success">group</i>
                             <span>Active Staff</span>
                         </div>
                         <span class="badge bg-success">{{ stats.active_staff }}</span>
@@ -216,12 +203,12 @@
                 <div class="row g-2">
                     <div class="col-6">
                         <a href="{{ url_for('departments.index') }}" class="btn btn-secondary btn-sm w-100">
-                            <i class="material-icons me-1">business</i>Manage Departments
+                            <i class="material-icons me-1">business</i>Departments
                         </a>
                     </div>
                     <div class="col-6">
                         <a href="{{ url_for('positions.index') }}" class="btn btn-dark btn-sm w-100">
-                            <i class="material-icons me-1">work</i>Manage Positions
+                            <i class="material-icons me-1">work</i>Positions
                         </a>
                     </div>
                     <div class="col-6">
