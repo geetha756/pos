@@ -28,26 +28,46 @@
                         <textarea class="form-control" id="description" name="description" rows="3">{{ item.description or '' }}</textarea>
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="price" class="form-label">Price *</label>
-                            <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                <input type="number" class="form-control" id="price" name="price" step="0.01" min="0" value="{{ item.price }}" required>
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Category</label>
+                        <select class="form-select" id="category" name="category">
+                            <option value="">Select Category</option>
+                            <option value="Appetizers" {% if item.category == 'Appetizers' %}selected{% endif %}>Appetizers</option>
+                            <option value="Main Course" {% if item.category == 'Main Course' %}selected{% endif %}>Main Course</option>
+                            <option value="Desserts" {% if item.category == 'Desserts' %}selected{% endif %}>Desserts</option>
+                            <option value="Beverages" {% if item.category == 'Beverages' %}selected{% endif %}>Beverages</option>
+                            <option value="Snacks" {% if item.category == 'Snacks' %}selected{% endif %}>Snacks</option>
+                            <option value="Non-Veg" {% if item.category == 'Non-Veg' %}selected{% endif %}>Non-Veg</option>
+                            <option value="Sides" {% if item.category == 'Sides' %}selected{% endif %}>Sides</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="image_file" class="form-label">Menu Item Image</label>
+                        <input type="file" class="form-control" id="image_file" name="image_file"
+                               accept="image/*" onchange="previewImage(this)">
+                        <div class="form-text">Select an image file to upload (JPEG, PNG, GIF, etc.). Image will be resized and optimized automatically.</div>
+
+                        <!-- Current image preview -->
+                        <div id="current_image_container" class="mt-2" {% if not item.image_data %}style="display: none;"{% endif %}>
+                            <label class="form-label">Current Image:</label>
+                            <div>
+                                <img id="current_image" src="{{ item.image_data or '' }}" alt="{{ item.name }}"
+                                     class="rounded border" style="max-width: 150px; max-height: 150px; object-fit: cover; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                             </div>
                         </div>
 
-                        <div class="col-md-6 mb-3">
-                            <label for="category" class="form-label">Category</label>
-                            <select class="form-select" id="category" name="category">
-                                <option value="">Select Category</option>
-                                <option value="Appetizers" {% if item.category == 'Appetizers' %}selected{% endif %}>Appetizers</option>
-                                <option value="Main Course" {% if item.category == 'Main Course' %}selected{% endif %}>Main Course</option>
-                                <option value="Desserts" {% if item.category == 'Desserts' %}selected{% endif %}>Desserts</option>
-                                <option value="Beverages" {% if item.category == 'Beverages' %}selected{% endif %}>Beverages</option>
-                                <option value="Snacks" {% if item.category == 'Snacks' %}selected{% endif %}>Snacks</option>
-                            </select>
+                        <!-- New image preview -->
+                        <div id="new_image_container" class="mt-2" style="display: none;">
+                            <label class="form-label">New Image Preview:</label>
+                            <div>
+                                <img id="new_image_preview" src="" alt="New image preview"
+                                     class="rounded border" style="max-width: 150px; max-height: 150px; object-fit: cover; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                            </div>
                         </div>
+
+                        <!-- Hidden field to store base64 data -->
+                        <input type="hidden" id="image_data" name="image_data" value="{{ item.image_data or '' }}">
                     </div>
 
                     <div class="mb-3 form-check">
@@ -85,5 +105,130 @@
             </div>
         </div>
     </div>
-</div>
+    </div>
+
+<script>
+function previewImage(input) {
+    const file = input.files[0];
+    if (file) {
+        // Validate file type
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+            alert('Please select a valid image file (JPEG, PNG, GIF, or WebP).');
+            input.value = '';
+            return;
+        }
+
+        // Validate file size (max 5MB)
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (file.size > maxSize) {
+            alert('Image file is too large. Please select an image smaller than 5MB.');
+            input.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            // Resize and compress the image
+            resizeImage(e.target.result, 400, 400, 0.8, function(resizedDataUrl) {
+                // Update the hidden field with the resized base64 data
+                document.getElementById('image_data').value = resizedDataUrl;
+
+                // Show the new image preview
+                const newImageContainer = document.getElementById('new_image_container');
+                const newImagePreview = document.getElementById('new_image_preview');
+                newImagePreview.src = resizedDataUrl;
+                newImageContainer.style.display = 'block';
+
+                // Hide the current image if it exists
+                const currentImageContainer = document.getElementById('current_image_container');
+                if (currentImageContainer) {
+                    currentImageContainer.style.display = 'none';
+                }
+            });
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function resizeImage(dataUrl, maxWidth, maxHeight, quality, callback) {
+    const img = new Image();
+    img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        // Calculate new dimensions
+        let { width, height } = calculateDimensions(img.width, img.height, maxWidth, maxHeight);
+
+        // Set canvas size
+        canvas.width = width;
+        canvas.height = height;
+
+        // Draw and compress image
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert to base64 with compression
+        const resizedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        callback(resizedDataUrl);
+    };
+    img.src = dataUrl;
+}
+
+function calculateDimensions(originalWidth, originalHeight, maxWidth, maxHeight) {
+    let width = originalWidth;
+    let height = originalHeight;
+
+    // If image is smaller than max dimensions, keep original size
+    if (width <= maxWidth && height <= maxHeight) {
+        return { width, height };
+    }
+
+    // Calculate aspect ratio
+    const aspectRatio = width / height;
+
+    // Resize based on the limiting dimension
+    if (width > height) {
+        // Landscape image
+        if (width > maxWidth) {
+            width = maxWidth;
+            height = width / aspectRatio;
+        }
+    } else {
+        // Portrait image
+        if (height > maxHeight) {
+            height = maxHeight;
+            width = height * aspectRatio;
+        }
+    }
+
+    // Ensure we don't exceed either dimension
+    if (width > maxWidth) {
+        width = maxWidth;
+        height = width / aspectRatio;
+    }
+    if (height > maxHeight) {
+        height = maxHeight;
+        width = height * aspectRatio;
+    }
+
+    return { width: Math.round(width), height: Math.round(height) };
+}
+
+// Form validation
+document.getElementById('image_file').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        // Additional client-side validation
+        const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+        const fileName = file.name.toLowerCase();
+        const hasValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
+
+        if (!hasValidExtension) {
+            alert('Please select a valid image file.');
+            e.target.value = '';
+            return;
+        }
+    }
+});
+</script>
 {% endblock %}

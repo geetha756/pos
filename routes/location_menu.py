@@ -32,7 +32,7 @@ def manage(location_id):
 
         # Get all master menu items
         master_menu = execute_query("""
-            SELECT id, name, description, price, category, is_active
+            SELECT id, name, description, category, is_active
             FROM master_menu
             WHERE is_active = TRUE
             ORDER BY category, name
@@ -78,10 +78,9 @@ def add_item(location_id, menu_item_id):
                 flash('Menu item already assigned to this location', 'warning')
             else:
                 # Item was soft deleted, reactivate it
-                # Get default price from master menu if not provided
+                # Use provided price or default to 0 (price will be set at location level)
                 if not price:
-                    master_item = execute_query_one("SELECT price FROM master_menu WHERE id = %s", (menu_item_id,))
-                    price = master_item['price'] if master_item else 0
+                    price = 0
 
                 execute_query("""
                     UPDATE location_menu
@@ -91,10 +90,9 @@ def add_item(location_id, menu_item_id):
                 flash('Menu item re-added to location!', 'success')
         else:
             # Item doesn't exist at all, create new record
-            # Get default price from master menu if not provided
+            # Use provided price or default to 0 (price will be set at location level)
             if not price:
-                master_item = execute_query_one("SELECT price FROM master_menu WHERE id = %s", (menu_item_id,))
-                price = master_item['price'] if master_item else 0
+                price = 0
 
             execute_query("""
                 INSERT INTO location_menu (location_id, master_menu_id, price, is_available)

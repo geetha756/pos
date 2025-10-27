@@ -30,7 +30,6 @@
                             <tr>
                                 <th>Name</th>
                                 <th>Category</th>
-                                <th>Master Price</th>
                                 <th>Location Price</th>
                                 <th>Status</th>
                                 <th>Actions</th>
@@ -41,7 +40,6 @@
                             <tr>
                                 <td>{{ item.name }}</td>
                                 <td>{{ item.category or '-' }}</td>
-                                <td>${{ "%.2f"|format(item.price) }}</td>
                                 <td>
                                     {% if item.name in assigned_items %}
                                         ${{ "%.2f"|format(assigned_items[item.name].price) }}
@@ -64,12 +62,16 @@
                                                     data-item-name="{{ item.name }}"
                                                     data-item-price="{{ assigned_items[item.name].price }}"
                                                     data-is-available="{{ assigned_items[item.name].is_available|lower }}"
+                                                    data-bs-toggle="modal" data-bs-target="#editItemModal"
+                                                    onclick="prepareEditModal(this)"
                                                     data-bs-toggle="tooltip" data-bs-placement="top" title="Edit">
                                                 Edit
                                             </button>
                                             <button type="button" class="btn btn-sm btn-light text-danger"
                                                     data-location-menu-id="{{ assigned_items[item.name].location_menu_id }}"
                                                     data-item-name="{{ item.name }}"
+                                                    data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                                    onclick="prepareDeleteModal(this)"
                                                     data-bs-toggle="tooltip" data-bs-placement="top" title="Remove">
                                                 Remove
                                             </button>
@@ -77,7 +79,9 @@
                                             <button type="button" class="btn btn-sm btn-light text-success"
                                                     data-item-id="{{ item.id }}"
                                                     data-item-name="{{ item.name }}"
-                                                    data-item-price="{{ item.price }}"
+                                                    data-item-price="0"
+                                                    data-bs-toggle="modal" data-bs-target="#addItemModal"
+                                                    onclick="prepareAddModal(this)"
                                                     data-bs-toggle="tooltip" data-bs-placement="top" title="Add to Menu">
                                                 Add to Menu
                                             </button>
@@ -125,7 +129,7 @@
 </div>
 
 <!-- Add Item Modal -->
-<div class="modal fade" id="addItemModal" tabindex="-1" aria-labelledby="addItemModalLabel">
+<div class="modal fade" id="addItemModal" tabindex="-1" inert>
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -154,7 +158,7 @@
 </div>
 
 <!-- Edit Item Modal -->
-<div class="modal fade" id="editItemModal" tabindex="-1" aria-labelledby="editItemModalLabel">
+<div class="modal fade" id="editItemModal" tabindex="-1" inert>
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -182,7 +186,7 @@
 </div>
 
 <!-- Delete Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel">
+<div class="modal fade" id="deleteModal" tabindex="-1" inert>
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -203,27 +207,89 @@
 </div>
 
 {% block extra_js %}
+<style>
+/* Fix accessibility issue by preventing aria-hidden from affecting shown modals */
+.modal.show[aria-hidden="true"] {
+    /* Override Bootstrap's aria-hidden when modal is shown */
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 1055 !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden !important;
+    outline: 0 !important;
+}
+
+/* Ensure modal content is accessible when shown */
+.modal.show[aria-hidden="true"] .modal-dialog {
+    position: relative !important;
+    width: auto !important;
+    margin: 0.5rem !important;
+    pointer-events: auto !important;
+}
+
+.modal.show[aria-hidden="true"] .modal-content {
+    position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    pointer-events: auto !important;
+    background-color: #fff !important;
+    background-clip: padding-box !important;
+    border: 1px solid rgba(0, 0, 0, 0.2) !important;
+    border-radius: 0.3rem !important;
+    outline: 0 !important;
+}
+</style>
 <script>
-function addItem(menuItemId, itemName, masterPrice) {
+function prepareAddModal(button) {
+    const menuItemId = button.getAttribute('data-item-id');
+    const itemName = button.getAttribute('data-item-name');
+    const masterPrice = button.getAttribute('data-item-price');
+
     document.getElementById('addItemName').textContent = itemName;
     document.getElementById('addItemPrice').value = masterPrice;
     document.getElementById('addItemForm').action = '{{ url_for("location_menu.add_item", location_id=location.id, menu_item_id="") }}' + menuItemId;
-    new bootstrap.Modal(document.getElementById('addItemModal')).show();
 }
 
-function editAssignment(locationMenuId, itemName, currentPrice, isAvailable) {
+function prepareEditModal(button) {
+    const locationMenuId = button.getAttribute('data-location-menu-id');
+    const itemName = button.getAttribute('data-item-name');
+    const currentPrice = button.getAttribute('data-item-price');
+    const isAvailable = button.getAttribute('data-is-available') === 'true';
+
     document.getElementById('editItemName').textContent = itemName;
     document.getElementById('editItemPrice').value = currentPrice;
     document.getElementById('editItemAvailable').checked = isAvailable;
     document.getElementById('editItemForm').action = '{{ url_for("location_menu.update_item", location_id=location.id, location_menu_id="") }}' + locationMenuId;
-    new bootstrap.Modal(document.getElementById('editItemModal')).show();
 }
 
-function removeItem(locationMenuId, itemName) {
+function prepareDeleteModal(button) {
+    const locationMenuId = button.getAttribute('data-location-menu-id');
+    const itemName = button.getAttribute('data-item-name');
+
     document.getElementById('deleteItemName').textContent = itemName;
     document.getElementById('deleteForm').action = '{{ url_for("location_menu.remove_item", location_id=location.id, location_menu_id="") }}' + locationMenuId;
-    new bootstrap.Modal(document.getElementById('deleteModal')).show();
 }
+
+// Handle modal accessibility
+document.addEventListener('DOMContentLoaded', function() {
+    ['addItemModal', 'editItemModal', 'deleteModal'].forEach(modalId => {
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            modalElement.addEventListener('show.bs.modal', function() {
+                // Remove inert when modal is shown
+                this.removeAttribute('inert');
+            });
+
+            modalElement.addEventListener('hide.bs.modal', function() {
+                // Restore inert when modal is hidden
+                this.setAttribute('inert', '');
+            });
+        }
+    });
+});
 
 // Initialize tooltips and button event listeners
 if (typeof window.tooltipInitialized === 'undefined') {
@@ -237,42 +303,6 @@ if (typeof window.tooltipInitialized === 'undefined') {
     window.tooltipInitialized = true;
 }
 
-// Add event listeners for buttons with data attributes
-document.addEventListener('DOMContentLoaded', function() {
-    // Add to Menu buttons
-    document.querySelectorAll('button[data-item-id]').forEach(button => {
-        button.addEventListener('click', function() {
-            const itemId = this.dataset.itemId;
-            const itemName = this.dataset.itemName;
-            const itemPrice = parseFloat(this.dataset.itemPrice);
-            addItem(itemId, itemName, itemPrice);
-        });
-    });
-
-    // Edit buttons
-    document.querySelectorAll('button[data-location-menu-id][data-item-name][data-item-price]').forEach(button => {
-        if (button.textContent.trim().includes('Edit')) {
-            button.addEventListener('click', function() {
-                const locationMenuId = this.dataset.locationMenuId;
-                const itemName = this.dataset.itemName;
-                const itemPrice = parseFloat(this.dataset.itemPrice);
-                const isAvailable = this.dataset.isAvailable === 'true';
-                editAssignment(locationMenuId, itemName, itemPrice, isAvailable);
-            });
-        }
-    });
-
-    // Remove buttons
-    document.querySelectorAll('button[data-location-menu-id][data-item-name]').forEach(button => {
-        if (button.textContent.trim().includes('Remove')) {
-            button.addEventListener('click', function() {
-                const locationMenuId = this.dataset.locationMenuId;
-                const itemName = this.dataset.itemName;
-                removeItem(locationMenuId, itemName);
-            });
-        }
-    });
-});
 </script>
 {% endblock %}
 {% endblock %}
