@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% block title %}Manage Permissions{% endblock %}
+{% block content %}
+<div class="container-fluid mt-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>Manage Permissions for {{ user.email }}</h2>
+        <a class="btn btn-secondary" href="{{ url_for('users.view', user_id=user.id) }}">Back</a>
+    </div>
+    <form method="post">
+        {% set ns = namespace(current_module=None) %}
+        {% for p in permissions %}
+            {% if ns.current_module != p.module %}
+                {% if ns.current_module is not none %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+                {% endif %}
+            <div class="card mb-3" data-module-card="{{ p.module }}">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="card-title mb-0">{{ p.module|capitalize }}</div>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input module-perm" type="radio" name="module_{{ p.module }}" id="module_allow_{{ p.module }}" value="allow" data-module="{{ p.module }}">
+                            <label class="form-check-label text-success" for="module_allow_{{ p.module }}">Allow all</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input module-perm" type="radio" name="module_{{ p.module }}" id="module_deny_{{ p.module }}" value="deny" data-module="{{ p.module }}">
+                            <label class="form-check-label text-danger" for="module_deny_{{ p.module }}">Deny all</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input module-perm" type="radio" name="module_{{ p.module }}" id="module_none_{{ p.module }}" value="none" data-module="{{ p.module }}">
+                            <label class="form-check-label text-secondary" for="module_none_{{ p.module }}">None</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th style="width:200px;">Action</th>
+                                    <th>Code</th>
+                                    <th style="width:340px;">Grant</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                {% set ns.current_module = p.module %}
+            {% endif %}
+            <tr data-perm-id="{{ p.id }}">
+                <td>{{ p.action }}</td>
+                <td><code>{{ p.code }}</code></td>
+                <td>
+                    {% set current = grant_map.get(p.id) %}
+                    <div class="d-flex align-items-center gap-4">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="perm_{{ p.id }}" id="perm_allow_{{ p.id }}" value="allow" {% if current == 'allow' %}checked{% endif %}>
+                            <label class="form-check-label text-success" for="perm_allow_{{ p.id }}">Allow</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="perm_{{ p.id }}" id="perm_deny_{{ p.id }}" value="deny" {% if current == 'deny' %}checked{% endif %}>
+                            <label class="form-check-label text-danger" for="perm_deny_{{ p.id }}">Deny</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="perm_{{ p.id }}" id="perm_none_{{ p.id }}" value="" {% if not current %}checked{% endif %}>
+                            <label class="form-check-label text-secondary" for="perm_none_{{ p.id }}">None</label>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        {% endfor %}
+        {% if ns.current_module is not none %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+        <div class="mt-3">
+            <button class="btn btn-primary" type="submit">Save Changes</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.module-perm').forEach(function (el) {
+    el.addEventListener('change', function (e) {
+      var moduleName = e.target.getAttribute('data-module');
+      var value = e.target.value; // 'allow' | 'deny' | 'none'
+      var container = document.querySelector('[data-module-card="' + moduleName + '"]');
+      if (!container) return;
+      container.querySelectorAll('tr[data-perm-id]').forEach(function (row) {
+        var pid = row.getAttribute('data-perm-id');
+        var radioId = value === 'allow' ? ('perm_allow_' + pid)
+                    : value === 'deny'  ? ('perm_deny_' + pid)
+                    : ('perm_none_' + pid);
+        var radio = container.querySelector('#' + radioId);
+        if (radio) radio.checked = true;
+      });
+    });
+  });
+});
+</script>
+{% endblock %}
+
+

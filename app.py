@@ -30,6 +30,11 @@ def create_app():
         'WTF_CSRF_SECRET_KEY': os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production'),
     })
 
+    # Initialize security schema and permissions within app context
+    from security import init_security_schema_and_seed, register_audit_hooks
+    with app.app_context():
+        init_security_schema_and_seed()
+
     # Register blueprints
     from routes.auth import auth_bp
     from routes.main import main_bp
@@ -42,6 +47,7 @@ def create_app():
     from routes.positions import positions_bp
     from routes.payroll import payroll_bp
     from routes.inventory import inventory_bp
+    from routes.users import users_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -54,6 +60,10 @@ def create_app():
     app.register_blueprint(positions_bp, url_prefix='/positions')
     app.register_blueprint(payroll_bp, url_prefix='/payroll')
     app.register_blueprint(inventory_bp, url_prefix='/inventory')
+    app.register_blueprint(users_bp, url_prefix='/users')
+
+    # Register audit hooks after blueprints
+    register_audit_hooks(app)
 
     return app
 

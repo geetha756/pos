@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block title %}API Keys{% endblock %}
+{% block content %}
+<div class="container-fluid mt-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2>API Keys for {{ user.email }}</h2>
+        <a class="btn btn-secondary" href="{{ url_for('users.view', user_id=user.id) }}">Back</a>
+    </div>
+
+    {% if created_token %}
+    <div class="alert alert-warning">
+        <strong>Copy your new API key now:</strong>
+        <code>{{ created_token }}</code>
+    </div>
+    {% endif %}
+
+    <div class="card mb-3"><div class="card-body">
+        <h5 class="mb-3">Create New API Key</h5>
+        <form method="post">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Name</label>
+                    <input class="form-control" type="text" name="name" placeholder="Integration, CLI, etc.">
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label">Scopes</label>
+                    <div class="row" style="max-height: 220px; overflow:auto;">
+                        {% for code in all_permissions %}
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="scopes" id="sc_{{ loop.index }}" value="{{ code }}">
+                                <label class="form-check-label" for="sc_{{ loop.index }}"><code>{{ code }}</code></label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="mt-3">
+                <button class="btn btn-primary" type="submit">Generate Key</button>
+            </div>
+        </form>
+    </div></div>
+
+    <div class="card"><div class="card-body">
+        <h5 class="mb-3">Existing Keys</h5>
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Prefix</th>
+                        <th>Scopes</th>
+                        <th>Created</th>
+                        <th>Last Used</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for k in keys %}
+                    <tr>
+                        <td>{{ k.name }}</td>
+                        <td><code>{{ k.token_prefix }}</code></td>
+                        <td>
+                            {% for s in k.scopes %}
+                                <span class="badge text-bg-light"><code>{{ s }}</code></span>
+                            {% endfor %}
+                        </td>
+                        <td>{{ k.created_at }}</td>
+                        <td>{{ k.last_used_at or '-' }}</td>
+                        <td>
+                            {% if k.revoked_at %}
+                                <span class="badge bg-secondary">Revoked</span>
+                            {% else %}
+                                <span class="badge bg-success">Active</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if not k.revoked_at %}
+                            <form method="post" action="{{ url_for('users.revoke_key', key_id=k.id) }}" onsubmit="return confirm('Revoke this key?');">
+                                <button class="btn btn-sm btn-outline-danger" type="submit">Revoke</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div></div>
+</div>
+{% endblock %}
+
+

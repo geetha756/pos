@@ -691,23 +691,72 @@
                                 Staff
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('departments') %} active{% endif %}" href="{{ url_for('departments.index') }}">
-<i class="material-icons">business</i>
-                                Departments
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('positions') %} active{% endif %}" href="{{ url_for('positions.index') }}">
-<i class="material-icons">work</i>
-                                Positions
-                            </a>
-                        </li>
+                        
                         <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('payroll') %} active{% endif %}" href="{{ url_for('payroll.index') }}">
 <i class="material-icons">schedule</i>
                                 Payroll
                             </a>
+                        </li>
+                        <li class="nav-item">
+                            <div class="d-flex align-items-center gap-2{% if request.endpoint and (request.endpoint.startswith('users') or request.endpoint.startswith('departments') or request.endpoint.startswith('positions')) %} bg-nav-active{% endif %}">
+                                <a class="nav-link flex-grow-1 d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('users') and not (request.endpoint.startswith('users.position_permissions') or request.endpoint.startswith('users.department_permissions') or request.endpoint.startswith('users.audit_logs') or request.endpoint.startswith('users.add')) %} active{% endif %}"
+                                   href="{{ url_for('users.index') }}">
+<i class="material-icons">manage_accounts</i>
+                                    Users & Access
+                                </a>
+                                <button class="btn btn-link p-0 ms-auto" type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#nav-users" aria-expanded="{{ 'true' if request.endpoint and (request.endpoint.startswith('users') or request.endpoint.startswith('departments') or request.endpoint.startswith('positions')) else 'false' }}"
+                                        aria-controls="nav-users" title="Toggle">
+                                    <i class="material-icons">expand_more</i>
+                                </button>
+                            </div>
+                            <div id="nav-users" class="collapse{% if request.endpoint and (request.endpoint.startswith('users') or request.endpoint.startswith('departments') or request.endpoint.startswith('positions')) %} show{% endif %}">
+                            <ul class="nav flex-column ms-3">
+                                <li class="nav-item">
+                                    <a class="nav-link{% if request.endpoint and request.endpoint.startswith('users') and not (request.endpoint.startswith('users.position_permissions') or request.endpoint.startswith('users.department_permissions') or request.endpoint.startswith('users.audit_logs') or request.endpoint.startswith('users.add')) %} active{% endif %}" href="{{ url_for('users.index') }}">
+                                        <i class="material-icons" style="font-size: 16px;">people</i>
+                                        Users
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link{% if request.endpoint == 'users.add' %} active{% endif %}" href="{{ url_for('users.add') }}">
+                                        <i class="material-icons" style="font-size: 16px;">person_add</i>
+                                        Add User
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link{% if request.endpoint and request.endpoint.startswith('departments') %} active{% endif %}" href="{{ url_for('departments.index') }}">
+                                        <i class="material-icons" style="font-size: 16px;">business</i>
+                                        Departments
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link{% if request.endpoint and request.endpoint.startswith('positions') %} active{% endif %}" href="{{ url_for('positions.index') }}">
+                                        <i class="material-icons" style="font-size: 16px;">work</i>
+                                        Positions
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link{% if request.endpoint and request.endpoint.startswith('users.position_permissions') %} active{% endif %}" href="{{ url_for('users.position_permissions') }}">
+                                        <i class="material-icons" style="font-size: 16px;">tune</i>
+                                        Position Permissions
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link{% if request.endpoint and request.endpoint.startswith('users.department_permissions') %} active{% endif %}" href="{{ url_for('users.department_permissions') }}">
+                                        <i class="material-icons" style="font-size: 16px;">tune</i>
+                                        Department Permissions
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link{% if request.endpoint and request.endpoint.startswith('users.audit_logs') %} active{% endif %}" href="{{ url_for('users.audit_logs') }}">
+                                        <i class="material-icons" style="font-size: 16px;">list</i>
+                                        Audit Logs
+                                    </a>
+                                </li>
+                            </ul>
+                            </div>
                         </li>
                         <li class="nav-item">
                             <div class="d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('inventory') %} bg-nav-active{% endif %}">

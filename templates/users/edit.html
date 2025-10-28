@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block title %}Edit User{% endblock %}
+{% block content %}
+<div class="container-fluid mt-3">
+    <h2 class="mb-3">Edit User</h2>
+    <div class="card">
+        <div class="card-body">
+            <form method="post">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Email</label>
+                        <input class="form-control" type="email" value="{{ user.email }}" disabled>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Full Name</label>
+                        <input class="form-control" type="text" name="full_name" value="{{ user.full_name }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Picture URL</label>
+                        <input class="form-control" type="url" name="picture_url" value="{{ user.picture_url }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Position</label>
+                        <select class="form-select" name="position_id">
+                            <option value="">- None -</option>
+                            {% for p in positions %}
+                            <option value="{{ p.id }}" {% if user.position_id == p.id %}selected{% endif %}>{{ p.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Department</label>
+                        <select class="form-select" name="department_id">
+                            <option value="">- None -</option>
+                            {% for d in departments %}
+                            <option value="{{ d.id }}" {% if user.department_id == d.id %}selected{% endif %}>{{ d.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="is_active" id="is_active" {% if user.is_active %}checked{% endif %}>
+                            <label class="form-check-label" for="is_active">Active</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <a href="{{ url_for('users.view', user_id=user.id) }}" class="btn btn-secondary">Cancel</a>
+                    <button class="btn btn-primary" type="submit">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

@@ -108,6 +108,13 @@ def process_auth():
             session['user_name'] = user_name
             session['user_picture'] = user_picture
             session['authenticated'] = True
+
+            # Ensure application user exists/updated
+            try:
+                from database import upsert_user_from_session
+                upsert_user_from_session(user_email, user_name, user_picture)
+            except Exception as e:
+                print(f"Failed to upsert user: {e}")
             
             # Log user session to database
             try:

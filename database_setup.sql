@@ -952,38 +952,38 @@ ON CONFLICT DO NOTHING;
 -- Insert sample location inventory for each location
 INSERT INTO location_inventory (location_id, master_inventory_id, current_stock, minimum_stock_level, maximum_stock_level, reorder_point) VALUES
 -- Downtown Branch inventory
-((SELECT id FROM locations WHERE name = 'Downtown Branch'), (SELECT id FROM master_inventory WHERE name = 'Rice (Basmati)'), 25.0, 10.0, 50.0, 15.0),
-((SELECT id FROM locations WHERE name = 'Downtown Branch'), (SELECT id FROM master_inventory WHERE name = 'Sugar'), 8.0, 5.0, 20.0, 8.0),
-((SELECT id FROM locations WHERE name = 'Downtown Branch'), (SELECT id FROM master_inventory WHERE name = 'Tea Powder'), 2.5, 1.0, 5.0, 2.0),
-((SELECT id FROM locations WHERE name = 'Downtown Branch'), (SELECT id FROM master_inventory WHERE name = 'Coffee Powder'), 1.2, 0.5, 3.0, 1.0),
-((SELECT id FROM locations WHERE name = 'Downtown Branch'), (SELECT id FROM master_inventory WHERE name = 'Paper Cups (200ml)'), 1500.0, 500.0, 2000.0, 800.0),
+((SELECT id FROM locations WHERE name = 'Downtown Branch' LIMIT 1), (SELECT id FROM master_inventory WHERE name = 'Rice (Basmati)' LIMIT 1), 25.0, 10.0, 50.0, 15.0),
+((SELECT id FROM locations WHERE name = 'Downtown Branch' LIMIT 1), (SELECT id FROM master_inventory WHERE name = 'Sugar' LIMIT 1), 8.0, 5.0, 20.0, 8.0),
+((SELECT id FROM locations WHERE name = 'Downtown Branch' LIMIT 1), (SELECT id FROM master_inventory WHERE name = 'Tea Powder' LIMIT 1), 2.5, 1.0, 5.0, 2.0),
+((SELECT id FROM locations WHERE name = 'Downtown Branch' LIMIT 1), (SELECT id FROM master_inventory WHERE name = 'Coffee Powder' LIMIT 1), 1.2, 0.5, 3.0, 1.0),
+((SELECT id FROM locations WHERE name = 'Downtown Branch' LIMIT 1), (SELECT id FROM master_inventory WHERE name = 'Paper Cups (200ml)' LIMIT 1), 1500.0, 500.0, 2000.0, 800.0),
 
 -- Mall Location inventory
-((SELECT id FROM locations WHERE name = 'Mall Location'), (SELECT id FROM master_inventory WHERE name = 'Rice (Basmati)'), 30.0, 10.0, 50.0, 15.0),
-((SELECT id FROM locations WHERE name = 'Mall Location'), (SELECT id FROM master_inventory WHERE name = 'Sugar'), 12.0, 5.0, 20.0, 8.0),
-((SELECT id FROM locations WHERE name = 'Mall Location'), (SELECT id FROM master_inventory WHERE name = 'Tea Powder'), 3.0, 1.0, 5.0, 2.0),
-((SELECT id FROM locations WHERE name = 'Mall Location'), (SELECT id FROM master_inventory WHERE name = 'Coffee Powder'), 1.8, 0.5, 3.0, 1.0),
-((SELECT id FROM locations WHERE name = 'Mall Location'), (SELECT id FROM master_inventory WHERE name = 'Paper Cups (200ml)'), 2000.0, 500.0, 2000.0, 800.0),
+((SELECT id FROM locations WHERE name = 'Mall Location' LIMIT 1), (SELECT id FROM master_inventory WHERE name = 'Rice (Basmati)' LIMIT 1), 30.0, 10.0, 50.0, 15.0),
+((SELECT id FROM locations WHERE name = 'Mall Location' LIMIT 1), (SELECT id FROM master_inventory WHERE name = 'Sugar' LIMIT 1), 12.0, 5.0, 20.0, 8.0),
+((SELECT id FROM locations WHERE name = 'Mall Location' LIMIT 1), (SELECT id FROM master_inventory WHERE name = 'Tea Powder' LIMIT 1), 3.0, 1.0, 5.0, 2.0),
+((SELECT id FROM locations WHERE name = 'Mall Location' LIMIT 1), (SELECT id FROM master_inventory WHERE name = 'Coffee Powder' LIMIT 1), 1.8, 0.5, 3.0, 1.0),
+((SELECT id FROM locations WHERE name = 'Mall Location' LIMIT 1), (SELECT id FROM master_inventory WHERE name = 'Paper Cups (200ml)' LIMIT 1), 2000.0, 500.0, 2000.0, 800.0),
 
 -- Airport Terminal inventory
-((SELECT id FROM locations WHERE name = 'Airport Terminal'), (SELECT id FROM master_inventory WHERE name = 'Rice (Basmati)'), 20.0, 10.0, 50.0, 15.0),
-((SELECT id FROM locations WHERE name = 'Airport Terminal'), (SELECT id FROM master_inventory WHERE name = 'Sugar'), 6.0, 5.0, 20.0, 8.0),
-((SELECT id FROM locations WHERE name = 'Airport Terminal'), (SELECT id FROM master_inventory WHERE name = 'Tea Powder'), 1.5, 1.0, 5.0, 2.0),
-((SELECT id FROM locations WHERE name = 'Airport Terminal'), (SELECT id FROM master_inventory WHERE name = 'Coffee Powder'), 0.8, 0.5, 3.0, 1.0),
-((SELECT id FROM locations WHERE name = 'Airport Terminal'), (SELECT id FROM master_inventory WHERE name = 'Paper Cups (200ml)'), 1000.0, 500.0, 2000.0, 800.0)
+((SELECT id FROM locations WHERE name = 'Airport Terminal' LIMIT 1), (SELECT id FROM master_inventory WHERE name = 'Rice (Basmati)' LIMIT 1), 20.0, 10.0, 50.0, 15.0),
+((SELECT id FROM locations WHERE name = 'Airport Terminal' LIMIT 1), (SELECT id FROM master_inventory WHERE name = 'Sugar' LIMIT 1), 6.0, 5.0, 20.0, 8.0),
+((SELECT id FROM locations WHERE name = 'Airport Terminal' LIMIT 1), (SELECT id FROM master_inventory WHERE name = 'Tea Powder' LIMIT 1), 1.5, 1.0, 5.0, 2.0),
+((SELECT id FROM locations WHERE name = 'Airport Terminal' LIMIT 1), (SELECT id FROM master_inventory WHERE name = 'Coffee Powder' LIMIT 1), 0.8, 0.5, 3.0, 1.0),
+((SELECT id FROM locations WHERE name = 'Airport Terminal' LIMIT 1), (SELECT id FROM master_inventory WHERE name = 'Paper Cups (200ml)' LIMIT 1), 1000.0, 500.0, 2000.0, 800.0)
 ON CONFLICT DO NOTHING;
 
 -- Insert sample purchase list
 INSERT INTO purchase_lists (location_id, name, description, created_by, status, total_estimated_cost, priority) VALUES
-((SELECT id FROM locations WHERE name = 'Downtown Branch'), 'Weekly Stock Replenishment', 'Regular weekly inventory replenishment for Downtown Branch', (SELECT id FROM staff WHERE employee_id = 'EMP001'), 'approved', 250.00, 'normal')
+((SELECT id FROM locations WHERE name = 'Downtown Branch' LIMIT 1), 'Weekly Stock Replenishment', 'Regular weekly inventory replenishment for Downtown Branch', (SELECT id FROM staff WHERE employee_id = 'EMP001' LIMIT 1), 'approved', 250.00, 'normal')
 ON CONFLICT DO NOTHING;
 
 -- Insert sample purchase list items
 INSERT INTO purchase_list_items (purchase_list_id, master_inventory_id, quantity_requested, quantity_approved, cost_per_unit, total_cost, status) VALUES
-((SELECT id FROM purchase_lists WHERE name = 'Weekly Stock Replenishment'), (SELECT id FROM master_inventory WHERE name = 'Rice (Basmati)'), 15.0, 15.0, 2.50, 37.50, 'procured'),
-((SELECT id FROM purchase_lists WHERE name = 'Weekly Stock Replenishment'), (SELECT id FROM master_inventory WHERE name = 'Sugar'), 5.0, 5.0, 1.20, 6.00, 'procured'),
-((SELECT id FROM purchase_lists WHERE name = 'Weekly Stock Replenishment'), (SELECT id FROM master_inventory WHERE name = 'Tea Powder'), 1.0, 1.0, 8.50, 8.50, 'procured'),
-((SELECT id FROM purchase_lists WHERE name = 'Weekly Stock Replenishment'), (SELECT id FROM master_inventory WHERE name = 'Paper Cups (200ml)'), 500.0, 500.0, 0.05, 25.00, 'pending')
+((SELECT id FROM purchase_lists WHERE name = 'Weekly Stock Replenishment' AND location_id = (SELECT id FROM locations WHERE name = 'Downtown Branch' LIMIT 1) LIMIT 1), (SELECT id FROM master_inventory WHERE name = 'Rice (Basmati)' LIMIT 1), 15.0, 15.0, 2.50, 37.50, 'procured'),
+((SELECT id FROM purchase_lists WHERE name = 'Weekly Stock Replenishment' AND location_id = (SELECT id FROM locations WHERE name = 'Downtown Branch' LIMIT 1) LIMIT 1), (SELECT id FROM master_inventory WHERE name = 'Sugar' LIMIT 1), 5.0, 5.0, 1.20, 6.00, 'procured'),
+((SELECT id FROM purchase_lists WHERE name = 'Weekly Stock Replenishment' AND location_id = (SELECT id FROM locations WHERE name = 'Downtown Branch' LIMIT 1) LIMIT 1), (SELECT id FROM master_inventory WHERE name = 'Tea Powder' LIMIT 1), 1.0, 1.0, 8.50, 8.50, 'procured'),
+((SELECT id FROM purchase_lists WHERE name = 'Weekly Stock Replenishment' AND location_id = (SELECT id FROM locations WHERE name = 'Downtown Branch' LIMIT 1) LIMIT 1), (SELECT id FROM master_inventory WHERE name = 'Paper Cups (200ml)' LIMIT 1), 500.0, 500.0, 0.05, 25.00, 'pending')
 ON CONFLICT DO NOTHING;
 
 -- ============================================
@@ -1060,8 +1060,8 @@ ON CONFLICT DO NOTHING;
 
 -- Insert sample breaks
 INSERT INTO breaks (timesheet_id, break_type, start_time, end_time, duration_minutes, notes) VALUES
-((SELECT id FROM timesheets WHERE staff_id = (SELECT id FROM staff WHERE employee_id = 'EMP003') AND date = '2025-10-01'), 'lunch', '2025-10-01 12:00:00', '2025-10-01 12:30:00', 30, 'Lunch break'),
-((SELECT id FROM timesheets WHERE staff_id = (SELECT id FROM staff WHERE employee_id = 'EMP004') AND date = '2025-10-01'), 'lunch', '2025-10-01 12:30:00', '2025-10-01 13:00:00', 30, 'Lunch break')
+((SELECT id FROM timesheets WHERE staff_id = (SELECT id FROM staff WHERE employee_id = 'EMP003' LIMIT 1) AND date = '2025-10-01' LIMIT 1), 'lunch', '2025-10-01 12:00:00', '2025-10-01 12:30:00', 30, 'Lunch break'),
+((SELECT id FROM timesheets WHERE staff_id = (SELECT id FROM staff WHERE employee_id = 'EMP004' LIMIT 1) AND date = '2025-10-01' LIMIT 1), 'lunch', '2025-10-01 12:30:00', '2025-10-01 13:00:00', 30, 'Lunch break')
 ON CONFLICT DO NOTHING;
 
 -- ============================================
