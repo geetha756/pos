@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Adjust Inventory - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Adjust Inventory</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('inventory.location_inventory') }}" class="btn btn-outline-secondary">
+            <i class="material-icons me-2">arrow_back</i>Back to Location Inventory
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="material-icons me-2">inventory_2</i>
+            {{ inventory.location_name }} · {{ inventory.item_name }} ({{ inventory.unit }})
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <div class="small text-muted">Current Stock</div>
+                <div class="h4 mb-0">{{ inventory.current_stock }}</div>
+            </div>
+            <div class="col-md-3">
+                <div class="small text-muted">Minimum</div>
+                <div class="h5 mb-0">{{ inventory.minimum_stock_level }}</div>
+            </div>
+            <div class="col-md-3">
+                <div class="small text-muted">Maximum</div>
+                <div class="h5 mb-0">{{ inventory.maximum_stock_level }}</div>
+            </div>
+            <div class="col-md-3">
+                <div class="small text-muted">Reorder Point</div>
+                <div class="h5 mb-0">{{ inventory.reorder_point }}</div>
+            </div>
+        </div>
+
+        <form method="POST" class="row g-3">
+            <div class="col-md-3">
+                <label for="adjustment_type" class="form-label">Adjustment Type</label>
+                <select id="adjustment_type" name="adjustment_type" class="form-select" required>
+                    <option value="add">Add</option>
+                    <option value="subtract">Subtract</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="quantity" class="form-label">Quantity</label>
+                <input type="number" step="0.01" min="0" class="form-control" id="quantity" name="quantity" required>
+            </div>
+            <div class="col-md-6">
+                <label for="reason" class="form-label">Reason</label>
+                <select id="reason" name="reason" class="form-select" required>
+                    <option value="manual_correction">Manual Correction</option>
+                    <option value="damage">Damage</option>
+                    <option value="wastage">Wastage</option>
+                    <option value="delivery">Delivery</option>
+                    <option value="transfer">Transfer</option>
+                </select>
+            </div>
+            <div class="col-12">
+                <label for="notes" class="form-label">Notes</label>
+                <textarea id="notes" name="notes" rows="3" class="form-control" placeholder="Optional notes..."></textarea>
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">
+                    <i class="material-icons me-2">save</i>Apply Adjustment
+                </button>
+                <a href="{{ url_for('inventory.location_inventory') }}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

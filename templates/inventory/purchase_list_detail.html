@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase List - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Purchase List</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('inventory.edit_purchase_list', list_id=purchase_list.id) }}" class="btn btn-primary me-2">
+            <i class="material-icons me-1">edit</i>Edit List
+        </a>
+        <a href="{{ url_for('inventory.purchase_lists') }}" class="btn btn-outline-secondary">
+            <i class="material-icons me-1">arrow_back</i>Back to Lists
+        </a>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-lg-8">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="material-icons me-2">assignment</i>List Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="small text-muted">Name</div>
+                        <div class="h5 mb-0">{{ purchase_list.name }}</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="small text-muted">Location</div>
+                        <div class="h5 mb-0">{{ purchase_list.location_name }}</div>
+                    </div>
+                </div>
+                {% if purchase_list.description %}
+                <div class="mb-3">
+                    <div class="small text-muted">Description</div>
+                    <div>{{ purchase_list.description }}</div>
+                </div>
+                {% endif %}
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="small text-muted">Status</div>
+                        <span class="badge bg-{% if purchase_list.status == 'approved' %}success{% elif purchase_list.status == 'submitted' %}info{% elif purchase_list.status == 'procured' %}primary{% elif purchase_list.status == 'cancelled' %}secondary{% else %}warning text-dark{% endif %}">
+                            {{ purchase_list.status|capitalize }}
+                        </span>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="small text-muted">Priority</div>
+                        <span class="badge bg-{% if purchase_list.priority == 'urgent' %}danger{% elif purchase_list.priority == 'high' %}warning text-dark{% elif purchase_list.priority == 'low' %}secondary{% else %}primary{% endif %}">
+                            {{ purchase_list.priority|capitalize }}
+                        </span>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="small text-muted">Required By</div>
+                        <div>{{ purchase_list.required_by_date or '—' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="material-icons me-2">analytics</i>Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6 mb-3">
+                        <div class="small text-muted">Estimated Total</div>
+                        <div class="h4 mb-0">${{ "%.2f"|format(purchase_list.total_estimated_cost or 0) }}</div>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="small text-muted">Items</div>
+                        <div class="h4 mb-0">{{ items|length }}</div>
+                    </div>
+                </div>
+                <div class="small text-muted">Created By</div>
+                <div class="mb-2">{% if purchase_list.first_name %}{{ purchase_list.first_name }} {{ purchase_list.last_name }}{% else %}—{% endif %}</div>
+                <div class="small text-muted">Created At</div>
+                <div>{{ purchase_list.created_at if purchase_list.created_at else '—' }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0"><i class="material-icons me-2">list</i>List Items</h5>
+    </div>
+    <div class="card-body">
+        {% if items %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Unit</th>
+                        <th class="text-end">Requested</th>
+                        <th class="text-end">Approved</th>
+                        <th class="text-end">Procured</th>
+                        <th class="text-end">Cost/Unit</th>
+                        <th class="text-end">Total</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for it in items %}
+                    <tr>
+                        <td>{{ it.item_name }}</td>
+                        <td>{{ it.unit }}</td>
+                        <td class="text-end">{{ it.quantity_requested }}</td>
+                        <td class="text-end">{{ it.quantity_approved or '—' }}</td>
+                        <td class="text-end">{{ it.quantity_procured or 0 }}</td>
+                        <td class="text-end">${{ "%.2f"|format(it.cost_per_unit or 0) }}</td>
+                        <td class="text-end">${{ "%.2f"|format(it.total_cost or 0) }}</td>
+                        <td>
+                            <span class="badge bg-{% if it.status == 'approved' %}success{% elif it.status == 'procured' %}primary{% elif it.status == 'partial' %}warning text-dark{% elif it.status == 'cancelled' %}secondary{% else %}info{% endif %}">
+                                {{ it.status|capitalize }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="material-icons text-muted" style="font-size: 3rem;">inventory_2</i>
+            <h6 class="text-muted mt-2">No items in this purchase list</h6>
+            <a href="{{ url_for('inventory.edit_purchase_list', list_id=purchase_list.id) }}" class="btn btn-primary mt-2">
+                <i class="material-icons me-1">add</i>Add Items
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

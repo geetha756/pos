@@ -320,6 +320,53 @@
         box-shadow: none;
     }
 
+    /* Sidebar overflow handling to avoid horizontal scrollbars */
+    .sidebar {
+        overflow-x: hidden;
+    }
+
+    .sidebar .offcanvas-body {
+        overflow-x: hidden;
+    }
+
+    /* Ensure nav links truncate and don't force width overflow */
+    .sidebar .nav .nav-link {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Prevent nested nav lists from exceeding container width */
+    .sidebar .nav.flex-column.ms-3 {
+        width: 100%;
+    }
+
+    /* Match expand/collapse button background with nav item state */
+    .sidebar .nav .nav-item .btn-link {
+        background-color: transparent;
+        color: inherit;
+        border: none;
+        line-height: 1;
+        border-radius: 4px;
+    }
+
+    .sidebar .nav .nav-item .btn-link:focus {
+        box-shadow: none;
+    }
+
+    /* When the main nav link is active or hovered, keep toggle background in sync */
+    .sidebar .nav .nav-item .nav-link.active + .btn-link,
+    .sidebar .nav .nav-item .nav-link:hover + .btn-link,
+    .sidebar .nav .nav-item .btn-link:hover {
+        background-color: #e9ecef; /* match active gray */
+    }
+
+    /* Ensure active nav-link background is consistent */
+    .sidebar .nav .nav-link.active {
+        background-color: #e9ecef;
+        border-radius: 0 4px 4px 0; /* no rounding on the left */
+    }
+
     /* Hide scrollbars specifically for orders table when modal/dropdown is active */
     .modal-open .orders-table .table-responsive::-webkit-scrollbar,
     .modal-open .orders-table .table-responsive {
@@ -350,6 +397,32 @@
     a:hover {
         color: #333333;
         text-decoration: underline;
+    }
+
+    /* Sidebar nav - professional hover, no underline */
+    .sidebar .nav .nav-link {
+        transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+        position: relative;
+    }
+
+    .sidebar .nav .nav-link:hover,
+    .sidebar .nav .nav-link:focus {
+        text-decoration: none;
+        background-color: #e7f1ff; /* subtle brand hover */
+        color: #0d6efd; /* bootstrap primary */
+        box-shadow: inset 3px 0 0 0 #0d6efd; /* left accent bar */
+        border-radius: 0 4px 4px 0; /* keep left edge flush */
+    }
+
+    /* Hover the whole header row (link + toggle) for sections with subnav */
+    .sidebar .nav .nav-item > .d-flex:hover {
+        background-color: #e7f1ff;
+        border-radius: 0 4px 4px 0;
+    }
+
+    /* Keep toggle button in sync on hover */
+    .sidebar .nav .nav-item > .d-flex:hover .btn-link {
+        background-color: #e7f1ff;
     }
 
     /* Dark action button colors - different colors for different actions */
@@ -497,6 +570,22 @@
         --bs-modal-backdrop-zindex: 1040;
     }
 
+    /* Apply active gray to the entire header row (link + toggle) when section is active */
+    .sidebar .nav .nav-item .bg-nav-active {
+        background-color: #e9ecef;
+        border-radius: 0 4px 4px 0; /* no rounding on the left */
+    }
+
+    /* Center the expand/collapse chevron inside its area and keep sizes consistent */
+    .sidebar .nav .nav-item .btn-link {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+    }
+
     </style>
 
     {% block extra_head %}{% endblock %}
@@ -620,25 +709,78 @@
                                 Payroll
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <div class="d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('inventory') %} bg-nav-active{% endif %}">
+                                <a class="nav-link flex-grow-1 d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('inventory') and not request.endpoint.startswith('inventory.suppliers') %} active{% endif %}"
+                                   href="{{ url_for('inventory.location_inventory') }}">
+<i class="material-icons">inventory</i>
+                                    Inventory
+                                </a>
+                                <button class="btn btn-link p-0 ms-auto" type="button" data-bs-toggle="collapse"
+                                        data-bs-target="#nav-inventory" aria-expanded="{{ 'true' if request.endpoint and request.endpoint.startswith('inventory') else 'false' }}"
+                                        aria-controls="nav-inventory" title="Toggle">
+                                    <i class="material-icons">expand_more</i>
+                                </button>
+                            </div>
+                            <div id="nav-inventory" class="collapse{% if request.endpoint and request.endpoint.startswith('inventory') %} show{% endif %}">
+                            <ul class="nav flex-column ms-3">
+                                <li class="nav-item">
+                                    <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.location_inventory') %} active{% endif %}" href="{{ url_for('inventory.location_inventory') }}">
+                                        <i class="material-icons" style="font-size: 16px;">location_on</i>
+                                        Location Inventory
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.master_inventory') %} active{% endif %}" href="{{ url_for('inventory.master_inventory') }}">
+                                        <i class="material-icons" style="font-size: 16px;">inventory_2</i>
+                                        Master Inventory
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.purchase_lists') %} active{% endif %}" href="{{ url_for('inventory.purchase_lists') }}">
+                                        <i class="material-icons" style="font-size: 16px;">shopping_cart</i>
+                                        Purchase Lists
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.daily_usage') %} active{% endif %}" href="{{ url_for('inventory.daily_usage') }}">
+                                        <i class="material-icons" style="font-size: 16px;">today</i>
+                                        Daily Usage
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.leftover_food') %} active{% endif %}" href="{{ url_for('inventory.leftover_food') }}">
+                                        <i class="material-icons" style="font-size: 16px;">restaurant</i>
+                                        Leftover Food
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.suppliers') %} active{% endif %}" href="{{ url_for('inventory.suppliers') }}">
+                                        <i class="material-icons" style="font-size: 16px;">business</i>
+                                        Suppliers
+                                    </a>
+                                </li>
+                            </ul>
+                            </div>
+                        </li>
                     </ul>
 
                     <!-- User Profile Section - Fixed at bottom left of viewport -->
-                    <div class="p-3 border-top" style="background-color: #f0f0f0; position: fixed; bottom: 0; left: 0; width: 220px; z-index: 1000;" id="user-section">
+                    <div class="p-2 border-top" style="background-color: #f0f0f0; position: fixed; bottom: 0; left: 0; width: 220px; z-index: 1000;" id="user-section">
                         <div class="d-flex align-items-center">
                             {% if session.user_picture %}
-                                <img src="{{ session.user_picture }}" alt="Profile" class="rounded-circle me-3" width="48" height="48" style="object-fit: cover;">
+                                <img src="{{ session.user_picture }}" alt="Profile" class="rounded-circle me-2" width="32" height="32" style="object-fit: cover;">
                             {% else %}
-                                <i class="material-icons me-3" style="font-size: 48px; color: #666;">account_circle</i>
+                                <i class="material-icons me-2" style="font-size: 24px; color: #666;">account_circle</i>
                             {% endif %}
                             <div class="flex-grow-1">
-                                <div class="d-flex align-items-center fw-bold text-dark" style="font-size: 1.25rem;">
+                                <div class="fw-bold text-dark" style="font-size: 1rem;">
                                     {{ session.user_name or 'User' }}
-                                    <span class="mx-2 text-muted">|</span>
-                                    <a href="{{ url_for('auth.logout') }}" class="text-danger text-decoration-none d-flex align-items-center" title="Logout">
-                                        <i class="material-icons" style="font-size: 20px; line-height: 1;">logout</i>
-                                    </a>
                                 </div>
                             </div>
+                            <a href="{{ url_for('auth.logout') }}" class="text-danger text-decoration-none d-flex align-items-center" title="Logout">
+                                <i class="material-icons" style="font-size: 18px; line-height: 1;">logout</i>
+                            </a>
                         </div>
                     </div>
 

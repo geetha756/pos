@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase Lists - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Purchase Lists</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('inventory.add_purchase_list') }}" class="btn btn-success">
+            <i class="material-icons me-2">add</i>New Purchase List
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label for="search" class="form-label">Search Lists</label>
+                <input type="text" class="form-control" id="search" name="search" value="{{ search }}" placeholder="Search by name...">
+            </div>
+            <div class="col-md-3">
+                <label for="location_id" class="form-label">Location</label>
+                <select class="form-select" id="location_id" name="location_id">
+                    <option value="">All Locations</option>
+                    {% for location in locations %}
+                    <option value="{{ location.id }}" {% if location.id|string == selected_location %}selected{% endif %}>{{ location.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="status" class="form-label">Status</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">All Statuses</option>
+                    <option value="draft" {% if selected_status == 'draft' %}selected{% endif %}>Draft</option>
+                    <option value="submitted" {% if selected_status == 'submitted' %}selected{% endif %}>Submitted</option>
+                    <option value="approved" {% if selected_status == 'approved' %}selected{% endif %}>Approved</option>
+                    <option value="procured" {% if selected_status == 'procured' %}selected{% endif %}>Procured</option>
+                    <option value="cancelled" {% if selected_status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="material-icons me-1">search</i>Filter
+                    </button>
+                    <a href="{{ url_for('inventory.purchase_lists') }}" class="btn btn-outline-secondary">
+                        <i class="material-icons me-1">clear</i>Clear
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Purchase Lists -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="material-icons me-2">shopping_cart</i>
+            Purchase Lists
+            <span class="badge bg-primary ms-2">{{ lists|length }}</span>
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if lists %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>List Name</th>
+                        <th>Location</th>
+                        <th>Status</th>
+                        <th>Items</th>
+                        <th>Total Cost</th>
+                        <th>Created By</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for list in lists %}
+                    <tr>
+                        <td>
+                            <strong>{{ list.name }}</strong>
+                            {% if list.description %}
+                            <br><small class="text-muted">{{ list.description[:50] }}{% if list.description|length > 50 %}...{% endif %}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ list.location_name }}</td>
+                        <td>
+                            <span class="badge bg-{% if list.status == 'draft' %}secondary{% elif list.status == 'submitted' %}info{% elif list.status == 'approved' %}warning{% elif list.status == 'procured' %}success{% else %}danger{% endif %}">
+                                {{ list.status.title() }}
+                            </span>
+                        </td>
+                        <td>{{ list.item_count }} items</td>
+                        <td>${{ "%.2f"|format(list.total_estimated_cost or 0) }}</td>
+                        <td>{{ list.first_name }} {{ list.last_name }}</td>
+                        <td>{{ list.created_at.strftime('%Y-%m-%d') if list.created_at else 'N/A' }}</td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('inventory.view_purchase_list', list_id=list.id) }}" class="btn btn-sm btn-light text-info">View</a>
+                                {% if list.status in ['draft', 'submitted'] %}
+                                <a href="{{ url_for('inventory.edit_purchase_list', list_id=list.id) }}" class="btn btn-sm btn-light text-primary">Edit</a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="material-icons" style="font-size: 4rem; color: #ccc;">shopping_cart</i>
+            <h4 class="mt-3 text-muted">No purchase lists found</h4>
+            <p class="text-muted">Create your first purchase list to start managing inventory orders.</p>
+            <a href="{{ url_for('inventory.add_purchase_list') }}" class="btn btn-success">
+                <i class="material-icons me-2">add</i>Create First List
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

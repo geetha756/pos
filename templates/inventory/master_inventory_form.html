@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}{% if item %}Edit{% else %}Add{% endif %} Master Inventory Item - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">{% if item %}Edit{% else %}Add{% endif %} Master Inventory Item</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('inventory.master_inventory') }}" class="btn btn-outline-secondary">
+            <i class="material-icons me-2">arrow_back</i>Back to Inventory
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="material-icons me-2">{% if item %}edit{% else %}add{% endif %}</i>
+                    {% if item %}Edit{% else %}Add{% endif %} Item Details
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="name" class="form-label">Item Name *</label>
+                            <input type="text" class="form-control" id="name" name="name"
+                                   value="{{ item.name if item else '' }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="category" class="form-label">Category *</label>
+                            <select class="form-select" id="category" name="category" required>
+                                <option value="">Select Category</option>
+                                <option value="ingredients" {% if item and item.category == 'ingredients' %}selected{% endif %}>Ingredients</option>
+                                <option value="packaging" {% if item and item.category == 'packaging' %}selected{% endif %}>Packaging</option>
+                                <option value="equipment" {% if item and item.category == 'equipment' %}selected{% endif %}>Equipment</option>
+                                <option value="supplies" {% if item and item.category == 'supplies' %}selected{% endif %}>Supplies</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="unit" class="form-label">Unit *</label>
+                            <select class="form-select" id="unit" name="unit" required>
+                                <option value="">Select Unit</option>
+                                <option value="pieces" {% if item and item.unit == 'pieces' %}selected{% endif %}>Pieces</option>
+                                <option value="kg" {% if item and item.unit == 'kg' %}selected{% endif %}>Kilograms (kg)</option>
+                                <option value="liter" {% if item and item.unit == 'liter' %}selected{% endif %}>Liters</option>
+                                <option value="boxes" {% if item and item.unit == 'boxes' %}selected{% endif %}>Boxes</option>
+                                <option value="cans" {% if item and item.unit == 'cans' %}selected{% endif %}>Cans</option>
+                                <option value="packets" {% if item and item.unit == 'packets' %}selected{% endif %}>Packets</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="default_cost_per_unit" class="form-label">Default Cost per Unit ($)</label>
+                            <input type="number" class="form-control" id="default_cost_per_unit" name="default_cost_per_unit"
+                                   value="{{ item.default_cost_per_unit if item else '' }}" step="0.01" min="0">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="min_order_quantity" class="form-label">Minimum Order Quantity</label>
+                            <input type="number" class="form-control" id="min_order_quantity" name="min_order_quantity"
+                                   value="{{ item.min_order_quantity if item else 1 }}" step="0.01" min="0">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="barcode" class="form-label">Barcode</label>
+                            <input type="text" class="form-control" id="barcode" name="barcode"
+                                   value="{{ item.barcode if item else '' }}">
+                        </div>
+                        <div class="col-12">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3">{{ item.description if item else '' }}</textarea>
+                        </div>
+                        <div class="col-12">
+                            <label for="supplier_id" class="form-label">Supplier</label>
+                            <select class="form-select" id="supplier_id" name="supplier_id">
+                                <option value="">Select Supplier (Optional)</option>
+                                {% for supplier in suppliers %}
+                                <option value="{{ supplier.id }}"
+                                        {% if item and item.supplier_id and item.supplier_id == supplier.id %}selected{% endif %}>
+                                    {{ supplier.name }}{% if supplier.contact_person %} ({{ supplier.contact_person }}){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="material-icons me-2">{% if item %}save{% else %}add{% endif %}</i>
+                            {% if item %}Update{% else %}Add{% endif %} Item
+                        </button>
+                        <a href="{{ url_for('inventory.master_inventory') }}" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Help & Guidelines</h6>
+            </div>
+            <div class="card-body">
+                <h6>Item Categories:</h6>
+                <ul class="small mb-3">
+                    <li><strong>Ingredients:</strong> Food items and cooking ingredients</li>
+                    <li><strong>Packaging:</strong> Boxes, bags, containers, etc.</li>
+                    <li><strong>Equipment:</strong> Kitchen tools and equipment</li>
+                    <li><strong>Supplies:</strong> Cleaning materials, disposables</li>
+                </ul>
+
+                <h6>Best Practices:</h6>
+                <ul class="small">
+                    <li>Use clear, descriptive names</li>
+                    <li>Set accurate cost per unit</li>
+                    <li>Include supplier contact information</li>
+                    <li>Add barcodes for inventory tracking</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

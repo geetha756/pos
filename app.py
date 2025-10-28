@@ -41,6 +41,7 @@ def create_app():
     from routes.departments import departments_bp
     from routes.positions import positions_bp
     from routes.payroll import payroll_bp
+    from routes.inventory import inventory_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -52,6 +53,7 @@ def create_app():
     app.register_blueprint(departments_bp, url_prefix='/departments')
     app.register_blueprint(positions_bp, url_prefix='/positions')
     app.register_blueprint(payroll_bp, url_prefix='/payroll')
+    app.register_blueprint(inventory_bp, url_prefix='/inventory')
 
     return app
 

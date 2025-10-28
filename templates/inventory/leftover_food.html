@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Leftover Food Tracking - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Leftover Food</h1>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label for="date" class="form-label">Date</label>
+                <input type="date" class="form-control" id="date" name="date" value="{{ selected_date }}">
+            </div>
+            <div class="col-md-4">
+                <label for="location_id" class="form-label">Location</label>
+                <select class="form-select" id="location_id" name="location_id">
+                    <option value="">All Locations</option>
+                    {% for loc in locations %}
+                    <option value="{{ loc.id }}" {% if selected_location and selected_location == loc.id %}selected{% endif %}>{{ loc.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-secondary w-100">
+                    <i class="material-icons me-1">search</i>Filter
+                </button>
+            </div>
+            <div class="col-md-3 text-md-end">
+                <a href="{{ url_for('inventory.record_leftover_food', date=selected_date, location_id=selected_location or (locations[0].id if locations else None)) }}" class="btn btn-primary">
+                    <i class="material-icons me-1">edit</i>Record Leftover
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0"><i class="material-icons me-2">restaurant</i>Records</h5>
+    </div>
+    <div class="card-body">
+        {% if leftover_records %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Location</th>
+                        <th>Menu Item</th>
+                        <th>Prepared</th>
+                        <th>Sold</th>
+                        <th>Leftover</th>
+                        <th>Disposal</th>
+                        <th>Recorded By</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in leftover_records %}
+                    <tr>
+                        <td>{{ r.location_name }}</td>
+                        <td>{{ r.menu_item_name }}</td>
+                        <td>{{ r.quantity_prepared }}</td>
+                        <td>{{ r.quantity_sold }}</td>
+                        <td>{{ r.quantity_leftover }}</td>
+                        <td>{{ r.disposal_method or '-' }}</td>
+                        <td>{% if r.first_name %}{{ r.first_name }} {{ r.last_name }}{% else %}-{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="material-icons text-muted" style="font-size: 3rem;">restaurant</i>
+            <h6 class="text-muted mt-2">No leftover food records for selected date</h6>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

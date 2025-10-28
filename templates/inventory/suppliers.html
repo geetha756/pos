@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Suppliers - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Suppliers</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('inventory.add_supplier') }}" class="btn btn-primary">
+            <i class="material-icons me-2">add</i>Add Supplier
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="row mb-3">
+    <div class="col-md-8">
+        <form method="GET" class="row g-2">
+            <div class="col-md-6">
+                <input type="text" class="form-control" name="search" value="{{ search }}"
+                       placeholder="Search suppliers..." autocomplete="off">
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" name="status">
+                    <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if selected_status == 'inactive' %}selected{% endif %}>Inactive</option>
+                    <option value="all" {% if selected_status == 'all' %}selected{% endif %}>All</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-outline-secondary w-100">
+                    <i class="material-icons me-1">search</i>Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Suppliers Table -->
+<div class="card">
+    <div class="card-body">
+        {% if suppliers %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Contact Person</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Items</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for supplier in suppliers %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('inventory.view_supplier', supplier_id=supplier.id) }}"
+                               class="text-decoration-none">
+                                {{ supplier.name }}
+                            </a>
+                        </td>
+                        <td>{{ supplier.contact_person or '-' }}</td>
+                        <td>
+                            {% if supplier.email %}
+                            <a href="mailto:{{ supplier.email }}">{{ supplier.email }}</a>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>{{ supplier.phone or '-' }}</td>
+                        <td>
+                            <span class="badge bg-primary">{{ supplier.active_items_count }}</span>
+                            {% if supplier.items_count > supplier.active_items_count %}
+                            <small class="text-muted">({{ supplier.items_count }} total)</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if supplier.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('inventory.view_supplier', supplier_id=supplier.id) }}"
+                                   class="btn btn-sm btn-light text-info">View</a>
+                                <a href="{{ url_for('inventory.edit_supplier', supplier_id=supplier.id) }}"
+                                   class="btn btn-sm btn-light text-primary">Edit</a>
+                                <form method="POST"
+                                      action="{{ url_for('inventory.toggle_supplier_status', supplier_id=supplier.id) }}"
+                                      style="display: inline;">
+                                    <button type="submit" class="btn btn-sm btn-light text-warning"
+                                            onclick="return confirm('Are you sure you want to {% if supplier.is_active %}deactivate{% else %}activate{% endif %} this supplier?')">
+                                        {% if supplier.is_active %}Deactivate{% else %}Activate{% endif %}
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="material-icons text-muted" style="font-size: 4rem;">business</i>
+            <h5 class="text-muted mt-3">No suppliers found</h5>
+            <p class="text-muted">{% if search or selected_status != 'active' %}Try adjusting your filters{% else %}Start by adding your first supplier{% endif %}</p>
+            {% if not search and selected_status == 'active' %}
+            <a href="{{ url_for('inventory.add_supplier') }}" class="btn btn-primary">
+                <i class="material-icons me-2">add</i>Add First Supplier
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

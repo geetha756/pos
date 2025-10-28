@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+
+{% block title %}{{ supplier.name }} - Supplier Details - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <h1 class="h2">{{ supplier.name }}</h1>
+        {% if supplier.contact_person %}
+        <p class="text-muted mb-0">{{ supplier.contact_person }}</p>
+        {% endif %}
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('inventory.edit_supplier', supplier_id=supplier.id) }}" class="btn btn-primary me-2">
+            <i class="material-icons me-2">edit</i>Edit Supplier
+        </a>
+        <a href="{{ url_for('inventory.suppliers') }}" class="btn btn-outline-secondary">
+            <i class="material-icons me-2">arrow_back</i>Back to Suppliers
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Supplier Items -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="material-icons me-2">inventory</i>
+                    Supplier Items ({{ items|length }})
+                </h5>
+                <a href="{{ url_for('inventory.master_inventory') }}?search={{ supplier.name }}"
+                   class="btn btn-sm btn-outline-primary">
+                    View in Inventory
+                </a>
+            </div>
+            <div class="card-body">
+                {% if items %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Item Name</th>
+                                <th>Category</th>
+                                <th>Unit</th>
+                                <th>Cost per Unit</th>
+                                <th>Locations</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('inventory.master_inventory') }}#item-{{ item.id }}"
+                                       class="text-decoration-none">
+                                        {{ item.name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ item.category }}</span>
+                                </td>
+                                <td>{{ item.unit }}</td>
+                                <td>${{ "%.2f"|format(item.default_cost_per_unit or 0) }}</td>
+                                <td>
+                                    <span class="badge bg-info">{{ item.location_count }}</span>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('inventory.edit_master_item', item_id=item.id) }}"
+                                       class="btn btn-sm btn-outline-secondary" title="Edit Item">
+                                        <i class="material-icons">edit</i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="material-icons text-muted" style="font-size: 3rem;">inventory_2</i>
+                    <h6 class="text-muted mt-2">No items from this supplier</h6>
+                    <p class="text-muted small">Items supplied by this vendor will appear here</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- Supplier Information -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="material-icons me-2">business</i>
+                    Supplier Information
+                </h6>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-5">Status:</dt>
+                    <dd class="col-sm-7">
+                        {% if supplier.is_active %}
+                        <span class="badge bg-success">Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </dd>
+
+                    {% if supplier.email %}
+                    <dt class="col-sm-5">Email:</dt>
+                    <dd class="col-sm-7">
+                        <a href="mailto:{{ supplier.email }}">{{ supplier.email }}</a>
+                    </dd>
+                    {% endif %}
+
+                    {% if supplier.phone %}
+                    <dt class="col-sm-5">Phone:</dt>
+                    <dd class="col-sm-7">
+                        <a href="tel:{{ supplier.phone }}">{{ supplier.phone }}</a>
+                    </dd>
+                    {% endif %}
+
+                    {% if supplier.address %}
+                    <dt class="col-sm-5">Address:</dt>
+                    <dd class="col-sm-7">{{ supplier.address }}</dd>
+                    {% endif %}
+
+                    {% if supplier.city %}
+                    <dt class="col-sm-5">City:</dt>
+                    <dd class="col-sm-7">{{ supplier.city }}</dd>
+                    {% endif %}
+
+                    {% if supplier.state %}
+                    <dt class="col-sm-5">State:</dt>
+                    <dd class="col-sm-7">{{ supplier.state }}</dd>
+                    {% endif %}
+
+                    {% if supplier.zip_code %}
+                    <dt class="col-sm-5">ZIP Code:</dt>
+                    <dd class="col-sm-7">{{ supplier.zip_code }}</dd>
+                    {% endif %}
+
+                    {% if supplier.payment_terms %}
+                    <dt class="col-sm-5">Payment Terms:</dt>
+                    <dd class="col-sm-7">{{ supplier.payment_terms }}</dd>
+                    {% endif %}
+
+                    {% if supplier.notes %}
+                    <dt class="col-sm-5">Notes:</dt>
+                    <dd class="col-sm-7">{{ supplier.notes }}</dd>
+                    {% endif %}
+
+                    <dt class="col-sm-5">Created:</dt>
+                    <dd class="col-sm-7">{{ supplier.created_at.strftime('%B %d, %Y') if supplier.created_at else '-' }}</dd>
+
+                    {% if supplier.updated_at %}
+                    <dt class="col-sm-5">Updated:</dt>
+                    <dd class="col-sm-7">{{ supplier.updated_at.strftime('%B %d, %Y') if supplier.updated_at else '-' }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="material-icons me-2">analytics</i>
+                    Statistics
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="h4 mb-1">{{ items|length }}</div>
+                        <small class="text-muted">Items</small>
+                    </div>
+                    <div class="col-6">
+                        <div class="h4 mb-1">
+                            {% set total_locations = items | sum(attribute='location_count') %}
+                            {{ total_locations }}
+                        </div>
+                        <small class="text-muted">Total Locations</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

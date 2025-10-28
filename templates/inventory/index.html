@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory Management - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Inventory Management</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('inventory.master_inventory') }}" class="btn btn-outline-primary">Master Inventory</a>
+            <a href="{{ url_for('inventory.purchase_lists') }}" class="btn btn-outline-success">Purchase Lists</a>
+        </div>
+        <button type="button" class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1" data-bs-toggle="dropdown">
+            <i class="material-icons">more_vert</i>
+            More
+        </button>
+        <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{{ url_for('inventory.location_inventory') }}">Location Inventory</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('inventory.daily_usage') }}">Daily Usage</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('inventory.leftover_food') }}">Leftover Food</a></li>
+        </ul>
+    </div>
+</div>
+
+<!-- Inventory Statistics -->
+<div class="row mb-4">
+    <!-- Master Items -->
+    <div class="col-md-6 col-lg-3 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="material-icons me-2">inventory</i>
+                    Master Items
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="stats-card stats-card-primary">
+                    <div class="stats-content">
+                        <div class="stats-header">
+                            <div class="stats-text">
+                                <div class="stats-title">Total Items</div>
+                            </div>
+                            <div class="stats-icon">
+                                <i class="material-icons">inventory_2</i>
+                            </div>
+                        </div>
+                        <div class="stats-value">{{ stats.total_master_items }}</div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <a href="{{ url_for('inventory.master_inventory') }}" class="btn btn-primary btn-sm w-100">Manage Items</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Purchase Lists -->
+    <div class="col-md-6 col-lg-3 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="material-icons me-2">shopping_cart</i>
+                    Purchase Lists
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="stats-card stats-card-success">
+                    <div class="stats-content">
+                        <div class="stats-header">
+                            <div class="stats-text">
+                                <div class="stats-title">Active Lists</div>
+                            </div>
+                            <div class="stats-icon">
+                                <i class="material-icons">assignment</i>
+                            </div>
+                        </div>
+                        <div class="stats-value">{{ stats.active_purchase_lists }}</div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <a href="{{ url_for('inventory.purchase_lists') }}" class="btn btn-success btn-sm w-100">View Lists</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Low Stock Alerts -->
+    <div class="col-md-6 col-lg-3 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="material-icons me-2">warning</i>
+                    Stock Alerts
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="stats-card stats-card-warning">
+                    <div class="stats-content">
+                        <div class="stats-header">
+                            <div class="stats-text">
+                                <div class="stats-title">Low Stock Items</div>
+                            </div>
+                            <div class="stats-icon">
+                                <i class="material-icons">warning</i>
+                            </div>
+                        </div>
+                        <div class="stats-value">{{ stats.low_stock_items }}</div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <a href="{{ url_for('inventory.location_inventory') }}?alert_only=1" class="btn btn-warning btn-sm w-100">View Alerts</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Today's Activity -->
+    <div class="col-md-6 col-lg-3 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="material-icons me-2">today</i>
+                    Today's Activity
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="stats-card stats-card-info">
+                    <div class="stats-content">
+                        <div class="stats-header">
+                            <div class="stats-text">
+                                <div class="stats-title">Usage Records</div>
+                            </div>
+                            <div class="stats-icon">
+                                <i class="material-icons">schedule</i>
+                            </div>
+                        </div>
+                        <div class="stats-value">{{ stats.today_usage_records }}</div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <a href="{{ url_for('inventory.daily_usage') }}" class="btn btn-info btn-sm w-100">View Activity</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-2">
+                    <div class="col-md-3">
+                        <a href="{{ url_for('inventory.add_master_item') }}" class="btn btn-primary w-100">
+                            <i class="material-icons me-2">add</i>Add Master Item
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('inventory.add_purchase_list') }}" class="btn btn-success w-100">
+                            <i class="material-icons me-2">shopping_cart</i>New Purchase List
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('inventory.record_daily_usage') }}" class="btn btn-warning w-100">
+                            <i class="material-icons me-2">edit</i>Record Daily Usage
+                        </a>
+                    </div>
+                    <div class="col-md-3">
+                        <a href="{{ url_for('inventory.record_leftover_food') }}" class="btn btn-info w-100">
+                            <i class="material-icons me-2">restaurant</i>Record Leftover Food
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Alerts -->
+{% if alerts %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="material-icons me-2">notifications</i>
+                    Recent Stock Alerts
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Location</th>
+                                <th>Item</th>
+                                <th>Alert Type</th>
+                                <th>Current Stock</th>
+                                <th>Created</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for alert in alerts %}
+                            <tr class="{% if alert.severity == 'critical' %}table-danger{% elif alert.severity == 'high' %}table-warning{% else %}table-info{% endif %}">
+                                <td>{{ alert.location_name }}</td>
+                                <td>{{ alert.item_name }}</td>
+                                <td>
+                                    <span class="badge bg-{% if alert.alert_type == 'out_of_stock' %}danger{% elif alert.alert_type == 'low_stock' %}warning{% else %}info{% endif %}">
+                                        {{ alert.alert_type.replace('_', ' ').title() }}
+                                    </span>
+                                </td>
+                                <td>{{ alert.current_stock or 0 }}</td>
+                                <td>{{ alert.created_at.strftime('%Y-%m-%d %H:%M') if alert.created_at else 'N/A' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

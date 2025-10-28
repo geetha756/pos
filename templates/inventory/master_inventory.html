@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}Master Inventory - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Master Inventory</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('inventory.add_master_item') }}" class="btn btn-primary">
+            <i class="material-icons me-2">add</i>Add Item
+        </a>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-4">
+                <label for="search" class="form-label">Search Items</label>
+                <input type="text" class="form-control" id="search" name="search" value="{{ search }}" placeholder="Search by name or description...">
+            </div>
+            <div class="col-md-3">
+                <label for="category" class="form-label">Category</label>
+                <select class="form-select" id="category" name="category">
+                    <option value="">All Categories</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.category }}" {% if cat.category == selected_category %}selected{% endif %}>{{ cat.category }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="material-icons me-1">search</i>Filter
+                </button>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <a href="{{ url_for('inventory.master_inventory') }}" class="btn btn-outline-secondary w-100">
+                    <i class="material-icons me-1">clear</i>Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Inventory Items -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="material-icons me-2">inventory</i>
+            Inventory Items
+            <span class="badge bg-primary ms-2">{{ items|length }}</span>
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if items %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Category</th>
+                        <th>Unit</th>
+                        <th>Cost/Unit</th>
+                        <th>Supplier</th>
+                        <th>Locations</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>
+                            <strong>{{ item.name }}</strong>
+                            {% if item.description %}
+                            <br><small class="text-muted">{{ item.description[:50] }}{% if item.description|length > 50 %}...{% endif %}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ item.category }}</span>
+                        </td>
+                        <td>{{ item.unit }}</td>
+                        <td>${{ "%.2f"|format(item.default_cost_per_unit) }}</td>
+                        <td>
+                            {% if item.supplier_name %}
+                                {{ item.supplier_name }}
+                                {% if item.supplier_contact %}
+                                <br><small class="text-muted">{{ item.supplier_contact }}</small>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ item.location_count }} locations</span>
+                        </td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{{ url_for('inventory.edit_master_item', item_id=item.id) }}" class="btn btn-sm btn-light text-primary">Edit</a>
+                                <a href="#" class="btn btn-sm btn-light text-danger" onclick="confirmDelete('{{ item.name }}', '{{ url_for('inventory.delete_master_item', item_id=item.id) }}'); return false;">Delete</a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="material-icons" style="font-size: 4rem; color: #ccc;">inventory</i>
+            <h4 class="mt-3 text-muted">No inventory items found</h4>
+            <p class="text-muted">Start by adding your first master inventory item.</p>
+            <a href="{{ url_for('inventory.add_master_item') }}" class="btn btn-primary">
+                <i class="material-icons me-2">add</i>Add First Item
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+function confirmDelete(itemName, deleteUrl) {
+    if (confirm(`Are you sure you want to deactivate "${itemName}"? This will remove it from all purchase lists and location inventories.`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = deleteUrl;
+
+        // Add CSRF token if needed
+        const csrfToken = document.querySelector('meta[name="csrf-token"]');
+        if (csrfToken) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'csrf_token';
+            input.value = csrfToken.getAttribute('content');
+            form.appendChild(input);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+
+{% endblock %}

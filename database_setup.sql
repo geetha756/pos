@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS order_items (
 
 -- Create user_sessions table (for authentication logging)
 CREATE TABLE IF NOT EXISTS user_sessions (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_email VARCHAR(255) NOT NULL,
     user_name VARCHAR(255),
     login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -447,6 +447,207 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO sipnsnack_user;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO sipnsnack_user;
 
 -- ============================================
+-- 7. INVENTORY MANAGEMENT SYSTEM TABLES
+-- ============================================
+
+-- Create suppliers table
+CREATE TABLE IF NOT EXISTS suppliers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL UNIQUE,
+    contact_person VARCHAR(255),
+    email VARCHAR(255),
+    phone VARCHAR(20),
+    address TEXT,
+    city VARCHAR(100),
+    state VARCHAR(100),
+    zip_code VARCHAR(20),
+    payment_terms VARCHAR(100), -- e.g., "Net 30", "COD", etc.
+    notes TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create master inventory table (central catalog of all purchasable items)
+CREATE TABLE IF NOT EXISTS master_inventory (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    category VARCHAR(100) NOT NULL, -- 'ingredients', 'packaging', 'equipment', 'supplies', etc.
+    unit VARCHAR(50) NOT NULL, -- 'kg', 'liter', 'pieces', 'boxes', 'cans', etc.
+    supplier_id UUID REFERENCES suppliers(id),
+    min_order_quantity DECIMAL(10,2) DEFAULT 1,
+    default_cost_per_unit DECIMAL(10,2),
+    is_active BOOLEAN DEFAULT TRUE,
+    barcode VARCHAR(100) UNIQUE,
+    image_data TEXT, -- Base64 encoded image data
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Ensure supplier_id exists on existing installations and drop legacy columns if present
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'master_inventory' AND column_name = 'supplier_id'
+    ) THEN
+        ALTER TABLE master_inventory ADD COLUMN supplier_id UUID REFERENCES suppliers(id);
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'master_inventory' AND column_name = 'supplier_name'
+    ) THEN
+        ALTER TABLE master_inventory DROP COLUMN supplier_name;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'master_inventory' AND column_name = 'supplier_contact'
+    ) THEN
+        ALTER TABLE master_inventory DROP COLUMN supplier_contact;
+    END IF;
+END $$;
+
+-- Create purchase lists table (shopping lists created for specific locations)
+CREATE TABLE IF NOT EXISTS purchase_lists (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    location_id UUID REFERENCES locations(id) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_by UUID REFERENCES staff(id) NOT NULL,
+    status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'submitted', 'approved', 'procured', 'cancelled')),
+    total_estimated_cost DECIMAL(12,2) DEFAULT 0,
+    priority VARCHAR(10) DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
+    required_by_date DATE,
+    approved_by UUID REFERENCES staff(id),
+    approved_at TIMESTAMP,
+    procured_at TIMESTAMP,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Ensure unique purchase list name per location (avoid duplicates across runs)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE table_name = 'purchase_lists' AND constraint_type = 'UNIQUE'
+          AND constraint_name = 'unique_purchase_list_location_name'
+    ) THEN
+        ALTER TABLE purchase_lists
+        ADD CONSTRAINT unique_purchase_list_location_name UNIQUE (location_id, name);
+    END IF;
+END $$;
+
+-- Create purchase list items table (items in each purchase list)
+CREATE TABLE IF NOT EXISTS purchase_list_items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    purchase_list_id UUID REFERENCES purchase_lists(id) ON DELETE CASCADE NOT NULL,
+    master_inventory_id UUID REFERENCES master_inventory(id) NOT NULL,
+    quantity_requested DECIMAL(10,2) NOT NULL,
+    quantity_approved DECIMAL(10,2),
+    quantity_procured DECIMAL(10,2) DEFAULT 0,
+    cost_per_unit DECIMAL(10,2),
+    total_cost DECIMAL(12,2),
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'procured', 'partial', 'cancelled')),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(purchase_list_id, master_inventory_id)
+);
+
+-- Create location inventory table (current stock levels at each location)
+CREATE TABLE IF NOT EXISTS location_inventory (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    location_id UUID REFERENCES locations(id) NOT NULL,
+    master_inventory_id UUID REFERENCES master_inventory(id) NOT NULL,
+    current_stock DECIMAL(10,2) DEFAULT 0,
+    minimum_stock_level DECIMAL(10,2) DEFAULT 0,
+    maximum_stock_level DECIMAL(10,2) DEFAULT 0,
+    reorder_point DECIMAL(10,2) DEFAULT 0,
+    last_restock_date DATE,
+    last_restock_quantity DECIMAL(10,2),
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(location_id, master_inventory_id)
+);
+
+-- Create inventory transactions table (all stock movements)
+CREATE TABLE IF NOT EXISTS inventory_transactions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    location_id UUID REFERENCES locations(id) NOT NULL,
+    master_inventory_id UUID REFERENCES master_inventory(id) NOT NULL,
+    transaction_type VARCHAR(20) NOT NULL CHECK (transaction_type IN ('restock', 'usage', 'adjustment', 'waste', 'transfer')),
+    quantity DECIMAL(10,2) NOT NULL, -- Positive for additions, negative for reductions
+    previous_stock DECIMAL(10,2) NOT NULL,
+    new_stock DECIMAL(10,2) NOT NULL,
+    reference_id UUID, -- Can reference purchase_list_items.id, orders.id, etc.
+    reference_type VARCHAR(50), -- 'purchase_list', 'order', 'manual_adjustment', etc.
+    recorded_by UUID REFERENCES staff(id) NOT NULL,
+    transaction_date DATE DEFAULT CURRENT_DATE,
+    transaction_time TIME DEFAULT CURRENT_TIME,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create daily inventory usage table (end-of-day stock taking)
+CREATE TABLE IF NOT EXISTS daily_inventory_usage (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    location_id UUID REFERENCES locations(id) NOT NULL,
+    master_inventory_id UUID REFERENCES master_inventory(id) NOT NULL,
+    date DATE NOT NULL,
+    opening_stock DECIMAL(10,2) NOT NULL,
+    closing_stock DECIMAL(10,2) NOT NULL,
+    used_quantity DECIMAL(10,2) NOT NULL, -- Calculated: opening - closing - adjustments
+    wastage_quantity DECIMAL(10,2) DEFAULT 0,
+    recorded_by UUID REFERENCES staff(id) NOT NULL,
+    status VARCHAR(20) DEFAULT 'recorded' CHECK (status IN ('recorded', 'verified', 'adjusted')),
+    verified_by UUID REFERENCES staff(id),
+    verified_at TIMESTAMP,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(location_id, master_inventory_id, date)
+);
+
+-- Create leftover food tracking table
+CREATE TABLE IF NOT EXISTS leftover_food_tracking (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    location_id UUID REFERENCES locations(id) NOT NULL,
+    master_menu_id UUID REFERENCES master_menu(id) NOT NULL,
+    date DATE NOT NULL,
+    quantity_prepared DECIMAL(10,2) NOT NULL,
+    quantity_sold DECIMAL(10,2) NOT NULL,
+    quantity_leftover DECIMAL(10,2) NOT NULL,
+    disposal_method VARCHAR(50) CHECK (disposal_method IN ('donated', 'discarded', 'reused', 'sold_at_discount')),
+    estimated_value DECIMAL(8,2) DEFAULT 0,
+    recorded_by UUID REFERENCES staff(id) NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(location_id, master_menu_id, date)
+);
+
+-- Create inventory alerts table
+CREATE TABLE IF NOT EXISTS inventory_alerts (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    location_id UUID REFERENCES locations(id) NOT NULL,
+    master_inventory_id UUID REFERENCES master_inventory(id) NOT NULL,
+    alert_type VARCHAR(20) NOT NULL CHECK (alert_type IN ('low_stock', 'out_of_stock', 'expiring', 'reorder')),
+    current_stock DECIMAL(10,2),
+    threshold_value DECIMAL(10,2),
+    severity VARCHAR(10) DEFAULT 'medium' CHECK (severity IN ('low', 'medium', 'high', 'critical')),
+    message TEXT NOT NULL,
+    is_resolved BOOLEAN DEFAULT FALSE,
+    resolved_at TIMESTAMP,
+    resolved_by UUID REFERENCES staff(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================
 -- 7. PAYROLL SYSTEM TABLES
 -- ============================================
 
@@ -623,7 +824,62 @@ CREATE TABLE IF NOT EXISTS leave_balances (
 );
 
 -- ============================================
--- 8. PAYROLL SYSTEM INDEXES
+-- 8. INVENTORY SYSTEM INDEXES
+-- ============================================
+
+-- Suppliers indexes
+CREATE INDEX IF NOT EXISTS idx_suppliers_name ON suppliers(name);
+CREATE INDEX IF NOT EXISTS idx_suppliers_email ON suppliers(email);
+CREATE INDEX IF NOT EXISTS idx_suppliers_active ON suppliers(is_active);
+
+-- Master inventory indexes
+CREATE INDEX IF NOT EXISTS idx_master_inventory_category ON master_inventory(category);
+CREATE INDEX IF NOT EXISTS idx_master_inventory_supplier_id ON master_inventory(supplier_id);
+CREATE INDEX IF NOT EXISTS idx_master_inventory_barcode ON master_inventory(barcode);
+CREATE INDEX IF NOT EXISTS idx_master_inventory_active ON master_inventory(is_active);
+
+-- Purchase lists indexes
+CREATE INDEX IF NOT EXISTS idx_purchase_lists_location ON purchase_lists(location_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_lists_status ON purchase_lists(status);
+CREATE INDEX IF NOT EXISTS idx_purchase_lists_created_by ON purchase_lists(created_by);
+CREATE INDEX IF NOT EXISTS idx_purchase_lists_priority ON purchase_lists(priority);
+
+-- Purchase list items indexes
+CREATE INDEX IF NOT EXISTS idx_purchase_list_items_list ON purchase_list_items(purchase_list_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_list_items_inventory ON purchase_list_items(master_inventory_id);
+CREATE INDEX IF NOT EXISTS idx_purchase_list_items_status ON purchase_list_items(status);
+
+-- Location inventory indexes
+CREATE INDEX IF NOT EXISTS idx_location_inventory_location ON location_inventory(location_id);
+CREATE INDEX IF NOT EXISTS idx_location_inventory_item ON location_inventory(master_inventory_id);
+CREATE INDEX IF NOT EXISTS idx_location_inventory_stock ON location_inventory(current_stock);
+
+-- Inventory transactions indexes
+CREATE INDEX IF NOT EXISTS idx_inventory_transactions_location ON inventory_transactions(location_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_transactions_item ON inventory_transactions(master_inventory_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_transactions_type ON inventory_transactions(transaction_type);
+CREATE INDEX IF NOT EXISTS idx_inventory_transactions_date ON inventory_transactions(transaction_date);
+
+-- Daily inventory usage indexes
+CREATE INDEX IF NOT EXISTS idx_daily_inventory_usage_location ON daily_inventory_usage(location_id);
+CREATE INDEX IF NOT EXISTS idx_daily_inventory_usage_item ON daily_inventory_usage(master_inventory_id);
+CREATE INDEX IF NOT EXISTS idx_daily_inventory_usage_date ON daily_inventory_usage(date);
+CREATE INDEX IF NOT EXISTS idx_daily_inventory_usage_status ON daily_inventory_usage(status);
+
+-- Leftover food tracking indexes
+CREATE INDEX IF NOT EXISTS idx_leftover_food_location ON leftover_food_tracking(location_id);
+CREATE INDEX IF NOT EXISTS idx_leftover_food_menu ON leftover_food_tracking(master_menu_id);
+CREATE INDEX IF NOT EXISTS idx_leftover_food_date ON leftover_food_tracking(date);
+
+-- Inventory alerts indexes
+CREATE INDEX IF NOT EXISTS idx_inventory_alerts_location ON inventory_alerts(location_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_alerts_item ON inventory_alerts(master_inventory_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_alerts_type ON inventory_alerts(alert_type);
+CREATE INDEX IF NOT EXISTS idx_inventory_alerts_severity ON inventory_alerts(severity);
+CREATE INDEX IF NOT EXISTS idx_inventory_alerts_resolved ON inventory_alerts(is_resolved);
+
+-- ============================================
+-- 9. PAYROLL SYSTEM INDEXES
 -- ============================================
 
 -- Timesheets indexes
@@ -649,7 +905,89 @@ CREATE INDEX IF NOT EXISTS idx_breaks_timesheet ON breaks(timesheet_id);
 CREATE INDEX IF NOT EXISTS idx_breaks_times ON breaks(start_time, end_time);
 
 -- ============================================
--- 9. PAYROLL SYSTEM SAMPLE DATA
+-- 9. INVENTORY SYSTEM SAMPLE DATA
+-- ============================================
+
+-- Insert sample suppliers
+INSERT INTO suppliers (name, contact_person, email, phone, address, city, state, zip_code, payment_terms, notes) VALUES
+('Rice Suppliers Inc', 'Rajesh Kumar', 'rajesh@ricesuppliers.com', '+1-555-0101', '123 Rice Mill Rd', 'Houston', 'TX', '77001', 'Net 30', 'Premium basmati rice supplier'),
+('Sugar Corp', 'Maria Garcia', 'maria@sugarcorp.com', '+1-555-0102', '456 Sugar Factory Blvd', 'Orlando', 'FL', '32801', 'Net 15', 'Refined sugar and sweeteners'),
+('Tea Estates Ltd', 'Ahmed Hassan', 'ahmed@teaestates.com', '+1-555-0103', '789 Tea Plantation Ave', 'Seattle', 'WA', '98101', 'Net 30', 'South Indian tea leaves and powder'),
+('Coffee Traders', 'Lisa Chen', 'lisa@coffeetraders.com', '+1-555-0104', '321 Coffee Bean St', 'Portland', 'OR', '97201', 'Net 30', 'South Indian filter coffee'),
+('Dairy Products Inc', 'John Smith', 'john@dairyproducts.com', '+1-555-0105', '654 Milk Processing Ln', 'Madison', 'WI', '53701', 'Net 15', 'Milk powder and dairy ingredients'),
+('Oil Refineries', 'Carlos Rodriguez', 'carlos@oilrefineries.com', '+1-555-0106', '987 Oil Extraction Rd', 'Dallas', 'TX', '75201', 'Net 30', 'Vegetable cooking oils'),
+('Salt Works', 'Emma Wilson', 'emma@saltworks.com', '+1-555-0107', '147 Salt Mine Blvd', 'Salt Lake City', 'UT', '84101', 'Net 15', 'Iodized table salt'),
+('Spice Traders', 'David Kumar', 'david@spicetraders.com', '+1-555-0108', '258 Spice Market St', 'Atlanta', 'GA', '30301', 'Net 30', 'Indian spices and seasonings'),
+('Packaging Supplies', 'Sarah Johnson', 'sarah@packaging.com', '+1-555-0112', '369 Package Factory Ave', 'Chicago', 'IL', '60601', 'Net 30', 'Paper plates, cups, and packaging'),
+('Cleaning Supplies Co', 'Mike Davis', 'mike@cleaningsupplies.com', '+1-555-0116', '741 Clean St', 'Detroit', 'MI', '48201', 'Net 15', 'Cleaning and maintenance supplies'),
+('Fresh Produce Market', 'Anna Lee', 'anna@freshproduce.com', '+1-555-0119', '852 Market Square', 'Phoenix', 'AZ', '85001', 'COD', 'Fresh vegetables and fruits')
+ON CONFLICT DO NOTHING;
+
+-- Insert sample master inventory items
+INSERT INTO master_inventory (name, description, category, unit, supplier_id, min_order_quantity, default_cost_per_unit, barcode) VALUES
+('Rice (Basmati)', 'Premium basmati rice for biryani and rice dishes', 'ingredients', 'kg', (SELECT id FROM suppliers WHERE name = 'Rice Suppliers Inc' LIMIT 1), 10.00, 2.50, 'RICE001'),
+('Sugar', 'Refined white sugar for beverages and desserts', 'ingredients', 'kg', (SELECT id FROM suppliers WHERE name = 'Sugar Corp' LIMIT 1), 5.00, 1.20, 'SUGAR001'),
+('Tea Powder', 'Premium tea powder for South Indian tea', 'ingredients', 'kg', (SELECT id FROM suppliers WHERE name = 'Tea Estates Ltd' LIMIT 1), 2.00, 8.50, 'TEA001'),
+('Coffee Powder', 'South Indian filter coffee powder', 'ingredients', 'kg', (SELECT id FROM suppliers WHERE name = 'Coffee Traders' LIMIT 1), 1.00, 12.00, 'COFFEE001'),
+('Milk Powder', 'Dairy milk powder for tea and coffee', 'ingredients', 'kg', (SELECT id FROM suppliers WHERE name = 'Dairy Products Inc' LIMIT 1), 2.00, 6.00, 'MILK001'),
+('Cooking Oil', 'Vegetable cooking oil', 'ingredients', 'liter', (SELECT id FROM suppliers WHERE name = 'Oil Refineries' LIMIT 1), 5.00, 3.50, 'OIL001'),
+('Salt', 'Iodized table salt', 'ingredients', 'kg', (SELECT id FROM suppliers WHERE name = 'Salt Works' LIMIT 1), 1.00, 0.50, 'SALT001'),
+('Turmeric Powder', 'Ground turmeric spice', 'ingredients', 'kg', (SELECT id FROM suppliers WHERE name = 'Spice Traders' LIMIT 1), 0.50, 4.00, 'TURMERIC001'),
+('Red Chili Powder', 'Ground red chili spice', 'ingredients', 'kg', (SELECT id FROM suppliers WHERE name = 'Spice Traders' LIMIT 1), 0.50, 5.50, 'CHILI001'),
+('Coriander Powder', 'Ground coriander spice', 'ingredients', 'kg', (SELECT id FROM suppliers WHERE name = 'Spice Traders' LIMIT 1), 0.50, 3.50, 'CORIANDER001'),
+('Garam Masala', 'Mixed spice blend', 'ingredients', 'kg', (SELECT id FROM suppliers WHERE name = 'Spice Traders' LIMIT 1), 0.25, 15.00, 'GARAM001'),
+('Paper Plates (Small)', 'Disposable paper plates 6 inch', 'packaging', 'pieces', (SELECT id FROM suppliers WHERE name = 'Packaging Supplies' LIMIT 1), 100.00, 0.08, 'PLATES001'),
+('Paper Cups (200ml)', 'Disposable paper cups for tea/coffee', 'packaging', 'pieces', (SELECT id FROM suppliers WHERE name = 'Packaging Supplies' LIMIT 1), 200.00, 0.05, 'CUPS001'),
+('Plastic Spoons', 'Disposable plastic spoons', 'packaging', 'pieces', (SELECT id FROM suppliers WHERE name = 'Packaging Supplies' LIMIT 1), 500.00, 0.02, 'SPOONS001'),
+('Napkins', 'Paper napkins', 'packaging', 'pieces', (SELECT id FROM suppliers WHERE name = 'Packaging Supplies' LIMIT 1), 1000.00, 0.01, 'NAPKINS001'),
+('Cleaning Solution', 'Multi-purpose cleaning solution', 'supplies', 'liter', (SELECT id FROM suppliers WHERE name = 'Cleaning Supplies Co' LIMIT 1), 5.00, 4.00, 'CLEAN001'),
+('Dish Soap', 'Dish washing liquid', 'supplies', 'liter', (SELECT id FROM suppliers WHERE name = 'Cleaning Supplies Co' LIMIT 1), 2.00, 3.00, 'SOAP001'),
+('Garbage Bags', 'Plastic garbage bags', 'supplies', 'pieces', (SELECT id FROM suppliers WHERE name = 'Cleaning Supplies Co' LIMIT 1), 100.00, 0.15, 'BAGS001'),
+('Vegetables (Mixed)', 'Fresh mixed vegetables', 'ingredients', 'kg', (SELECT id FROM suppliers WHERE name = 'Fresh Produce Market' LIMIT 1), 5.00, 2.00, 'VEG001'),
+('Onions', 'Fresh onions', 'ingredients', 'kg', (SELECT id FROM suppliers WHERE name = 'Fresh Produce Market' LIMIT 1), 10.00, 1.50, 'ONIONS001'),
+('Potatoes', 'Fresh potatoes', 'ingredients', 'kg', (SELECT id FROM suppliers WHERE name = 'Fresh Produce Market' LIMIT 1), 20.00, 1.00, 'POTATO001'),
+('Tomatoes', 'Fresh tomatoes', 'ingredients', 'kg', (SELECT id FROM suppliers WHERE name = 'Fresh Produce Market' LIMIT 1), 5.00, 2.50, 'TOMATO001')
+ON CONFLICT DO NOTHING;
+
+-- Insert sample location inventory for each location
+INSERT INTO location_inventory (location_id, master_inventory_id, current_stock, minimum_stock_level, maximum_stock_level, reorder_point) VALUES
+-- Downtown Branch inventory
+((SELECT id FROM locations WHERE name = 'Downtown Branch'), (SELECT id FROM master_inventory WHERE name = 'Rice (Basmati)'), 25.0, 10.0, 50.0, 15.0),
+((SELECT id FROM locations WHERE name = 'Downtown Branch'), (SELECT id FROM master_inventory WHERE name = 'Sugar'), 8.0, 5.0, 20.0, 8.0),
+((SELECT id FROM locations WHERE name = 'Downtown Branch'), (SELECT id FROM master_inventory WHERE name = 'Tea Powder'), 2.5, 1.0, 5.0, 2.0),
+((SELECT id FROM locations WHERE name = 'Downtown Branch'), (SELECT id FROM master_inventory WHERE name = 'Coffee Powder'), 1.2, 0.5, 3.0, 1.0),
+((SELECT id FROM locations WHERE name = 'Downtown Branch'), (SELECT id FROM master_inventory WHERE name = 'Paper Cups (200ml)'), 1500.0, 500.0, 2000.0, 800.0),
+
+-- Mall Location inventory
+((SELECT id FROM locations WHERE name = 'Mall Location'), (SELECT id FROM master_inventory WHERE name = 'Rice (Basmati)'), 30.0, 10.0, 50.0, 15.0),
+((SELECT id FROM locations WHERE name = 'Mall Location'), (SELECT id FROM master_inventory WHERE name = 'Sugar'), 12.0, 5.0, 20.0, 8.0),
+((SELECT id FROM locations WHERE name = 'Mall Location'), (SELECT id FROM master_inventory WHERE name = 'Tea Powder'), 3.0, 1.0, 5.0, 2.0),
+((SELECT id FROM locations WHERE name = 'Mall Location'), (SELECT id FROM master_inventory WHERE name = 'Coffee Powder'), 1.8, 0.5, 3.0, 1.0),
+((SELECT id FROM locations WHERE name = 'Mall Location'), (SELECT id FROM master_inventory WHERE name = 'Paper Cups (200ml)'), 2000.0, 500.0, 2000.0, 800.0),
+
+-- Airport Terminal inventory
+((SELECT id FROM locations WHERE name = 'Airport Terminal'), (SELECT id FROM master_inventory WHERE name = 'Rice (Basmati)'), 20.0, 10.0, 50.0, 15.0),
+((SELECT id FROM locations WHERE name = 'Airport Terminal'), (SELECT id FROM master_inventory WHERE name = 'Sugar'), 6.0, 5.0, 20.0, 8.0),
+((SELECT id FROM locations WHERE name = 'Airport Terminal'), (SELECT id FROM master_inventory WHERE name = 'Tea Powder'), 1.5, 1.0, 5.0, 2.0),
+((SELECT id FROM locations WHERE name = 'Airport Terminal'), (SELECT id FROM master_inventory WHERE name = 'Coffee Powder'), 0.8, 0.5, 3.0, 1.0),
+((SELECT id FROM locations WHERE name = 'Airport Terminal'), (SELECT id FROM master_inventory WHERE name = 'Paper Cups (200ml)'), 1000.0, 500.0, 2000.0, 800.0)
+ON CONFLICT DO NOTHING;
+
+-- Insert sample purchase list
+INSERT INTO purchase_lists (location_id, name, description, created_by, status, total_estimated_cost, priority) VALUES
+((SELECT id FROM locations WHERE name = 'Downtown Branch'), 'Weekly Stock Replenishment', 'Regular weekly inventory replenishment for Downtown Branch', (SELECT id FROM staff WHERE employee_id = 'EMP001'), 'approved', 250.00, 'normal')
+ON CONFLICT DO NOTHING;
+
+-- Insert sample purchase list items
+INSERT INTO purchase_list_items (purchase_list_id, master_inventory_id, quantity_requested, quantity_approved, cost_per_unit, total_cost, status) VALUES
+((SELECT id FROM purchase_lists WHERE name = 'Weekly Stock Replenishment'), (SELECT id FROM master_inventory WHERE name = 'Rice (Basmati)'), 15.0, 15.0, 2.50, 37.50, 'procured'),
+((SELECT id FROM purchase_lists WHERE name = 'Weekly Stock Replenishment'), (SELECT id FROM master_inventory WHERE name = 'Sugar'), 5.0, 5.0, 1.20, 6.00, 'procured'),
+((SELECT id FROM purchase_lists WHERE name = 'Weekly Stock Replenishment'), (SELECT id FROM master_inventory WHERE name = 'Tea Powder'), 1.0, 1.0, 8.50, 8.50, 'procured'),
+((SELECT id FROM purchase_lists WHERE name = 'Weekly Stock Replenishment'), (SELECT id FROM master_inventory WHERE name = 'Paper Cups (200ml)'), 500.0, 500.0, 0.05, 25.00, 'pending')
+ON CONFLICT DO NOTHING;
+
+-- ============================================
+-- 10. PAYROLL SYSTEM SAMPLE DATA
 -- ============================================
 
 -- Insert employee types
@@ -731,7 +1069,7 @@ ON CONFLICT DO NOTHING;
 -- ============================================
 -- Database: sipnsnack
 -- User: sipnsnack_user
--- Tables created: 17
+-- Tables created: 28 (17 existing + 11 inventory tables)
 -- Unique constraints added
 -- Sample data inserted
 --
