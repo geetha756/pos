@@ -14,39 +14,42 @@
 </div>
 
 <!-- Search and Sort Controls -->
-<div class="row mb-3">
+<div class="row mb-3" data-testid="search-controls">
     <div class="col-md-8">
-        <form method="GET" class="d-flex gap-2" id="searchForm">
+        <form method="GET" class="d-flex gap-2" id="searchForm" data-testid="search-form" role="search">
             <div class="input-group flex-grow-1">
-                <span class="input-group-text" style="background-color: #007bff; color: white;"><i class="ri-search-line icon"></i></span>
-                <input type="text" class="form-control" id="searchInput" name="search"
+                <span class="input-group-text" style="background-color: #007bff; color: white;" data-testid="search-icon">
+                    <i class="ri-search-line icon" aria-hidden="true"></i>
+                </span>
+                <input type="text" class="form-control" id="searchInput" name="search" data-testid="search-input"
                        placeholder="Search by name, description, or category..."
-                       value="{{ search_query }}">
-                <button type="button" class="btn btn-danger" id="clearSearch">
-                    <i class="ri-close-line icon" style="color: white;"></i>
+                       value="{{ search_query }}" aria-label="Search menu items" autocomplete="off">
+                <button type="button" class="btn btn-danger" id="clearSearch" data-testid="clear-search-btn"
+                        aria-label="Clear search" title="Clear search">
+                    <i class="ri-close-line icon" style="color: white;" aria-hidden="true"></i>
                 </button>
             </div>
-            <button type="submit" class="btn btn-primary">Search</button>
+            <button type="submit" class="btn btn-primary" data-testid="search-submit-btn">Search</button>
         </form>
     </div>
     <div class="col-md-4">
-        <div class="d-flex gap-2">
-            <select class="form-select" id="sortSelect" name="sort">
+        <div class="d-flex gap-2" data-testid="sort-controls">
+            <select class="form-select" id="sortSelect" name="sort" data-testid="sort-select" aria-label="Sort menu items by">
                 <option value="category_name" {{ 'selected' if sort_by == 'category_name' else '' }}>Category & Name</option>
                 <option value="name" {{ 'selected' if sort_by == 'name' else '' }}>Name</option>
                 <option value="status" {{ 'selected' if sort_by == 'status' else '' }}>Status</option>
                 <option value="created" {{ 'selected' if sort_by == 'created' else '' }}>Created Date</option>
             </select>
-            <div class="btn-group" role="group">
-                <input type="radio" class="btn-check" id="sortAsc" name="order" value="asc"
+            <div class="btn-group" role="group" data-testid="sort-order-group" aria-label="Sort order">
+                <input type="radio" class="btn-check" id="sortAsc" name="order" value="asc" data-testid="sort-asc-radio"
                        {{ 'checked' if sort_order == 'asc' else '' }} autocomplete="off">
-                <label class="btn btn-success" for="sortAsc">
-                    <i class="ri-arrow-up-line icon" style="color: white;"></i>
+                <label class="btn btn-success" for="sortAsc" data-testid="sort-asc-label" aria-label="Sort ascending">
+                    <i class="ri-arrow-up-line icon" style="color: white;" aria-hidden="true"></i>
                 </label>
-                <input type="radio" class="btn-check" id="sortDesc" name="order" value="desc"
+                <input type="radio" class="btn-check" id="sortDesc" name="order" value="desc" data-testid="sort-desc-radio"
                        {{ 'checked' if sort_order == 'desc' else '' }} autocomplete="off">
-                <label class="btn btn-warning" for="sortDesc">
-                    <i class="ri-arrow-down-line icon" style="color: white;"></i>
+                <label class="btn btn-warning" for="sortDesc" data-testid="sort-desc-label" aria-label="Sort descending">
+                    <i class="ri-arrow-down-line icon" style="color: white;" aria-hidden="true"></i>
                 </label>
             </div>
         </div>
@@ -66,60 +69,67 @@
 <div class="card">
     <div class="card-body">
         {% if menu_items %}
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
+        <div class="table-responsive" data-testid="menu-items-table-container">
+            <table class="table table-striped table-hover" data-testid="menu-items-table" role="table" aria-label="Menu items list">
                 <thead>
-                    <tr>
-                        <th>Image</th>
-                        <th>Name</th>
-                        <th>Description</th>
-                        <th>Category</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                    <tr data-testid="menu-items-table-header">
+                        <th scope="col" data-testid="header-image">Image</th>
+                        <th scope="col" data-testid="header-name">Name</th>
+                        <th scope="col" data-testid="header-description">Description</th>
+                        <th scope="col" data-testid="header-category">Category</th>
+                        <th scope="col" data-testid="header-status">Status</th>
+                        <th scope="col" data-testid="header-actions">Actions</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody data-testid="menu-items-table-body">
                     {% for item in menu_items %}
-                    <tr>
-                        <td>
+                    <tr data-testid="menu-item-row-{{ item.id }}" data-item-id="{{ item.id }}">
+                        <td data-testid="item-image-{{ item.id }}">
                             {% if item.image_data %}
-                            <img src="{{ item.image_data }}" alt="{{ item.name }}"
-                                 class="rounded border" style="width: 60px; height: 60px; object-fit: cover; background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                            <img src="{{ item.image_data }}" alt="Image of {{ item.name }}"
+                                 class="rounded border" style="width: 60px; height: 60px; object-fit: cover; background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
+                                 data-testid="item-image-img-{{ item.id }}">
                             {% else %}
                             <div class="bg-light rounded border d-flex align-items-center justify-content-center"
-                                 style="width: 60px; height: 60px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                <i class="ri-image-line icon text-muted"></i>
+                                 style="width: 60px; height: 60px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
+                                 data-testid="item-image-placeholder-{{ item.id }}">
+                                <i class="ri-image-line icon text-muted" aria-hidden="true"></i>
                             </div>
                             {% endif %}
                         </td>
-                        <td>{{ item.name }}</td>
-                        <td>{{ item.description or '-' }}</td>
-                        <td>{{ item.category or '-' }}</td>
-                        <td>
-                            <span class="badge bg-{{ 'success' if item.is_active else 'secondary' }}">
+                        <td data-testid="item-name-{{ item.id }}">{{ item.name }}</td>
+                        <td data-testid="item-description-{{ item.id }}">{{ item.description or '-' }}</td>
+                        <td data-testid="item-category-{{ item.id }}">{{ item.category or '-' }}</td>
+                        <td data-testid="item-status-{{ item.id }}">
+                            <span class="badge bg-{{ 'success' if item.is_active else 'secondary' }}"
+                                  data-testid="item-status-badge-{{ item.id }}">
                                 {{ 'Active' if item.is_active else 'Inactive' }}
                             </span>
                         </td>
-                        <td>
+                        <td data-testid="item-actions-{{ item.id }}">
                             <div class="d-flex gap-1">
                                 <a href="{{ url_for('master_menu.edit', item_id=item.id) }}" class="btn btn-sm btn-light text-primary"
-                                   data-bs-toggle="tooltip" data-bs-placement="top" title="Edit">
-<i class="bi bi-pencil-square"></i> Edit
+                                   data-bs-toggle="tooltip" data-bs-placement="top" title="Edit menu item: {{ item.name }}"
+                                   data-testid="edit-btn-{{ item.id }}" aria-label="Edit {{ item.name }}">
+                                    <i class="bi bi-pencil-square" aria-hidden="true"></i> Edit
                                 </a>
                                 <button type="button" class="btn btn-sm btn-light text-secondary toggle-status-btn"
                                         data-item-id="{{ item.id }}"
                                         data-item-status="{{ 'true' if item.is_active else 'false' }}"
                                         data-bs-toggle="tooltip" data-bs-placement="top"
-                                        title="{{ 'Deactivate' if item.is_active else 'Activate' | e }}"
-                                        id="toggle-btn-{{ item.id }}">
-                                    <i class="bi {{ 'bi-toggle-on' if item.is_active else 'bi-toggle-off' }}"></i> {{ 'Deactivate' if item.is_active else 'Activate' | e }}
+                                        title="{{ 'Deactivate' if item.is_active else 'Activate' | e }} menu item: {{ item.name }}"
+                                        id="toggle-btn-{{ item.id }}" data-testid="toggle-status-btn-{{ item.id }}"
+                                        aria-label="{{ 'Deactivate' if item.is_active else 'Activate' | e }} {{ item.name }}">
+                                    <i class="bi {{ 'bi-toggle-on' if item.is_active else 'bi-toggle-off' }}" aria-hidden="true"></i>
+                                    {{ 'Deactivate' if item.is_active else 'Activate' | e }}
                                 </button>
                                 <button type="button" class="btn btn-sm btn-light text-danger delete-item-btn"
                                         data-item-id="{{ item.id }}"
                                         data-item-name="{{ item.name|replace("'", "\\'")|replace('"', '\\"')|replace('\n', ' ')|replace('\r', ' ') }}"
-                                        data-bs-toggle="tooltip" data-bs-placement="top" title="Delete"
-                                        id="delete-btn-{{ item.id }}">
-<i class="bi bi-trash"></i> Delete
+                                        data-bs-toggle="tooltip" data-bs-placement="top" title="Delete menu item: {{ item.name }}"
+                                        id="delete-btn-{{ item.id }}" data-testid="delete-btn-{{ item.id }}"
+                                        aria-label="Delete {{ item.name }}">
+                                    <i class="bi bi-trash" aria-hidden="true"></i> Delete
                                 </button>
                             </div>
                         </td>

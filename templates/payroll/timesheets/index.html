@@ -12,17 +12,17 @@
                     <h1 class="h3 mb-0">Timesheet Management</h1>
                     <p class="text-muted">Track employee working hours, breaks, and time entries</p>
                 </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-success" onclick="clockInOut()">
-                        <i class="ri-play-line icon me-2"></i>
+                <div class="d-flex gap-2" data-testid="timesheet-actions">
+                    <button class="btn btn-success" onclick="clockInOut()" data-testid="clock-in-out-btn" aria-label="Clock in or out">
+                        <i class="ri-play-line icon me-2" aria-hidden="true"></i>
                         Clock In/Out
                     </button>
-                    <button class="btn btn-primary" onclick="startBreak()">
-                        <i class="ri-pause-line icon me-2"></i>
+                    <button class="btn btn-primary" onclick="startBreak()" data-testid="start-break-btn" aria-label="Start break">
+                        <i class="ri-pause-line icon me-2" aria-hidden="true"></i>
                         Start Break
                     </button>
-                    <button class="btn btn-warning" onclick="endBreak()">
-                        <i class="ri-play-line icon me-2"></i>
+                    <button class="btn btn-warning" onclick="endBreak()" data-testid="end-break-btn" aria-label="End break">
+                        <i class="ri-play-line icon me-2" aria-hidden="true"></i>
                         End Break
                     </button>
                 </div>

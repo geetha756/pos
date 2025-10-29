@@ -55,25 +55,25 @@
                 </div>
 
                 <!-- Quick Actions Section -->
-                <div class="row g-2">
+                <div class="row g-2" data-testid="operations-quick-actions">
                     <div class="col-6">
-                        <a href="{{ url_for('master_menu.add') }}" class="btn btn-primary btn-sm w-100">
-                            <i class="ri-add-line icon me-1"></i>Add Menu Item
+                        <a href="{{ url_for('master_menu.add') }}" class="btn btn-primary btn-sm w-100" data-testid="add-menu-item-btn">
+                            <i class="ri-add-line icon me-1" aria-hidden="true"></i>Add Menu Item
                         </a>
                     </div>
                     <div class="col-6">
-                        <a href="{{ url_for('locations.add') }}" class="btn btn-success btn-sm w-100">
-                            <i class="ri-add-line icon me-1"></i>Add Location
+                        <a href="{{ url_for('locations.add') }}" class="btn btn-success btn-sm w-100" data-testid="add-location-btn">
+                            <i class="ri-add-line icon me-1" aria-hidden="true"></i>Add Location
                         </a>
                     </div>
                     <div class="col-6">
-                        <a href="{{ url_for('location_menu.index') }}" class="btn btn-warning btn-sm w-100">
-                            <i class="ri-shopping-cart-2-line icon me-1"></i>Manage Menus
+                        <a href="{{ url_for('location_menu.index') }}" class="btn btn-warning btn-sm w-100" data-testid="manage-menus-btn">
+                            <i class="ri-shopping-cart-2-line icon me-1" aria-hidden="true"></i>Manage Menus
                         </a>
                     </div>
                     <div class="col-6">
-                        <a href="{{ url_for('orders.index') }}" class="btn btn-info btn-sm w-100">
-                            <i class="ri-bar-chart-2-line icon me-1"></i>View Orders
+                        <a href="{{ url_for('orders.index') }}" class="btn btn-info btn-sm w-100" data-testid="view-orders-btn">
+                            <i class="ri-bar-chart-2-line icon me-1" aria-hidden="true"></i>View Orders
                         </a>
                     </div>
                 </div>
@@ -130,20 +130,20 @@
                 </div>
 
                 <!-- Quick Actions Section -->
-                <div class="row g-2">
+                <div class="row g-2" data-testid="staff-quick-actions">
                     <div class="col-6">
-                        <a href="{{ url_for('staff.index') }}" class="btn btn-warning btn-sm w-100">
-                            <i class="ri-team-line icon me-1"></i>Manage Staff
+                        <a href="{{ url_for('staff.index') }}" class="btn btn-warning btn-sm w-100" data-testid="manage-staff-btn">
+                            <i class="ri-team-line icon me-1" aria-hidden="true"></i>Manage Staff
                         </a>
                     </div>
                     <div class="col-6">
-                        <a href="{{ url_for('payroll.timesheets') }}" class="btn btn-primary btn-sm w-100">
-                            <i class="ri-time-line icon me-1"></i>View Timesheets
+                        <a href="{{ url_for('payroll.timesheets') }}" class="btn btn-primary btn-sm w-100" data-testid="view-timesheets-btn">
+                            <i class="ri-time-line icon me-1" aria-hidden="true"></i>View Timesheets
                         </a>
                     </div>
                     <div class="col-6">
-                        <button onclick="clockInOut()" class="btn btn-success btn-sm w-100">
-                            <i class="ri-play-line icon me-1"></i>Clock In/Out
+                        <button onclick="clockInOut()" class="btn btn-success btn-sm w-100" data-testid="clock-in-out-btn" aria-label="Clock in or out">
+                            <i class="ri-play-line icon me-1" aria-hidden="true"></i>Clock In/Out
                         </button>
                     </div>
                 </div>
@@ -200,20 +200,20 @@
                 </div>
 
                 <!-- Quick Actions Section -->
-                <div class="row g-2">
+                <div class="row g-2" data-testid="organization-quick-actions">
                     <div class="col-6">
-                        <a href="{{ url_for('departments.index') }}" class="btn btn-secondary btn-sm w-100">
-                            <i class="ri-building-2-line icon me-1"></i>Departments
+                        <a href="{{ url_for('departments.index') }}" class="btn btn-secondary btn-sm w-100" data-testid="departments-btn">
+                            <i class="ri-building-2-line icon me-1" aria-hidden="true"></i>Departments
                         </a>
                     </div>
                     <div class="col-6">
-                        <a href="{{ url_for('positions.index') }}" class="btn btn-dark btn-sm w-100">
-                            <i class="ri-briefcase-3-line icon me-1"></i>Positions
+                        <a href="{{ url_for('positions.index') }}" class="btn btn-dark btn-sm w-100" data-testid="positions-btn">
+                            <i class="ri-briefcase-3-line icon me-1" aria-hidden="true"></i>Positions
                         </a>
                     </div>
                     <div class="col-6">
-                        <a href="{{ url_for('staff.index') }}" class="btn btn-info btn-sm w-100">
-                            <i class="ri-group-line icon me-1"></i>View Employees
+                        <a href="{{ url_for('staff.index') }}" class="btn btn-info btn-sm w-100" data-testid="view-employees-btn">
+                            <i class="ri-group-line icon me-1" aria-hidden="true"></i>View Employees
                         </a>
                     </div>
                 </div>
@@ -270,20 +270,20 @@
                 </div>
 
                 <!-- Quick Actions Section -->
-                <div class="row g-2">
+                <div class="row g-2" data-testid="payroll-quick-actions">
                     <div class="col-6">
-                        <a href="{{ url_for('payroll.index') }}" class="btn btn-danger btn-sm w-100">
-                            <i class="ri-time-line icon me-1"></i>Payroll System
+                        <a href="{{ url_for('payroll.index') }}" class="btn btn-danger btn-sm w-100" data-testid="payroll-system-btn">
+                            <i class="ri-time-line icon me-1" aria-hidden="true"></i>Payroll System
                         </a>
                     </div>
                     <div class="col-6">
-                        <a href="{{ url_for('payroll.leave') }}" class="btn btn-warning btn-sm w-100">
-                            <i class="ri-calendar-event-line icon me-1"></i>Manage Leave
+                        <a href="{{ url_for('payroll.leave') }}" class="btn btn-warning btn-sm w-100" data-testid="manage-leave-btn">
+                            <i class="ri-calendar-event-line icon me-1" aria-hidden="true"></i>Manage Leave
                         </a>
                     </div>
                     <div class="col-6">
-                        <button onclick="clockInOut()" class="btn btn-primary btn-sm w-100">
-                            <i class="ri-timer-line icon me-1"></i>Clock In/Out
+                        <button onclick="clockInOut()" class="btn btn-primary btn-sm w-100" data-testid="payroll-clock-in-out-btn" aria-label="Clock in or out">
+                            <i class="ri-timer-line icon me-1" aria-hidden="true"></i>Clock In/Out
                         </button>
                     </div>
                 </div>
@@ -340,25 +340,25 @@
                 </div>
 
                 <!-- Quick Actions Section -->
-                <div class="row g-2">
+                <div class="row g-2" data-testid="users-quick-actions">
                     <div class="col-6">
-                        <a href="{{ url_for('users.index') }}" class="btn btn-info btn-sm w-100">
-                            <i class="ri-team-line icon me-1"></i>Manage Users
+                        <a href="{{ url_for('users.index') }}" class="btn btn-info btn-sm w-100" data-testid="manage-users-btn">
+                            <i class="ri-team-line icon me-1" aria-hidden="true"></i>Manage Users
                         </a>
                     </div>
                     <div class="col-6">
-                        <a href="{{ url_for('users.add') }}" class="btn btn-success btn-sm w-100">
-                            <i class="ri-user-add-line icon me-1"></i>Add User
+                        <a href="{{ url_for('users.add') }}" class="btn btn-success btn-sm w-100" data-testid="add-user-btn">
+                            <i class="ri-user-add-line icon me-1" aria-hidden="true"></i>Add User
                         </a>
                     </div>
                     <div class="col-6">
-                        <a href="{{ url_for('users.position_permissions') }}" class="btn btn-secondary btn-sm w-100">
-                            <i class="ri-sliders-line icon me-1"></i>Permissions
+                        <a href="{{ url_for('users.position_permissions') }}" class="btn btn-secondary btn-sm w-100" data-testid="permissions-btn">
+                            <i class="ri-sliders-line icon me-1" aria-hidden="true"></i>Permissions
                         </a>
                     </div>
                     <div class="col-6">
-                        <a href="{{ url_for('users.audit_logs') }}" class="btn btn-warning btn-sm w-100">
-                            <i class="ri-list-unordered icon me-1"></i>Audit Logs
+                        <a href="{{ url_for('users.audit_logs') }}" class="btn btn-warning btn-sm w-100" data-testid="audit-logs-btn">
+                            <i class="ri-list-unordered icon me-1" aria-hidden="true"></i>Audit Logs
                         </a>
                     </div>
                 </div>
@@ -415,25 +415,25 @@
                 </div>
 
                 <!-- Quick Actions Section -->
-                <div class="row g-2">
+                <div class="row g-2" data-testid="inventory-quick-actions">
                     <div class="col-6">
-                        <a href="{{ url_for('inventory.location_inventory') }}" class="btn btn-danger btn-sm w-100">
-                            <i class="ri-map-pin-line icon me-1"></i>Location Inv.
+                        <a href="{{ url_for('inventory.location_inventory') }}" class="btn btn-danger btn-sm w-100" data-testid="location-inventory-btn">
+                            <i class="ri-map-pin-line icon me-1" aria-hidden="true"></i>Location Inv.
                         </a>
                     </div>
                     <div class="col-6">
-                        <a href="{{ url_for('inventory.master_inventory') }}" class="btn btn-primary btn-sm w-100">
-                            <i class="ri-archive-stack-line icon me-1"></i>Master Inv.
+                        <a href="{{ url_for('inventory.master_inventory') }}" class="btn btn-primary btn-sm w-100" data-testid="master-inventory-btn">
+                            <i class="ri-archive-stack-line icon me-1" aria-hidden="true"></i>Master Inv.
                         </a>
                     </div>
                     <div class="col-6">
-                        <a href="{{ url_for('inventory.purchase_lists') }}" class="btn btn-success btn-sm w-100">
-                            <i class="ri-shopping-cart-2-line icon me-1"></i>Purchase Lists
+                        <a href="{{ url_for('inventory.purchase_lists') }}" class="btn btn-success btn-sm w-100" data-testid="purchase-lists-btn">
+                            <i class="ri-shopping-cart-2-line icon me-1" aria-hidden="true"></i>Purchase Lists
                         </a>
                     </div>
                     <div class="col-6">
-                        <a href="{{ url_for('inventory.suppliers') }}" class="btn btn-secondary btn-sm w-100">
-                            <i class="ri-building-2-line icon me-1"></i>Suppliers
+                        <a href="{{ url_for('inventory.suppliers') }}" class="btn btn-secondary btn-sm w-100" data-testid="suppliers-btn">
+                            <i class="ri-building-2-line icon me-1" aria-hidden="true"></i>Suppliers
                         </a>
                     </div>
                 </div>

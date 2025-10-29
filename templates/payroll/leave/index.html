@@ -203,11 +203,15 @@
                                     </small>
                                 </div>
                                 <div class="d-flex gap-1">
-                                    <button class="btn btn-sm btn-outline-success" onclick="approveRequest('{{ request.id }}')" title="Approve">
-                                        <i class="ri-check-line icon"></i>
+                                    <button class="btn btn-sm btn-outline-success" onclick="approveRequest('{{ request.id }}')"
+                                            title="Approve leave request" data-testid="approve-btn-{{ request.id }}"
+                                            aria-label="Approve leave request for {{ request.employee_name }}">
+                                        <i class="ri-check-line icon" aria-hidden="true"></i>
                                     </button>
-                                    <button class="btn btn-sm btn-outline-danger" onclick="rejectRequest('{{ request.id }}')" title="Reject">
-                                        <i class="ri-close-line icon"></i>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="rejectRequest('{{ request.id }}')"
+                                            title="Reject leave request" data-testid="reject-btn-{{ request.id }}"
+                                            aria-label="Reject leave request for {{ request.employee_name }}">
+                                        <i class="ri-close-line icon" aria-hidden="true"></i>
                                     </button>
                                 </div>
                             </div>

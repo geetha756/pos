@@ -1,27 +1,27 @@
 {% extends 'base.html' %}
 {% block title %}Add User{% endblock %}
 {% block content %}
-<div class="container-fluid mt-3">
-    <h2 class="mb-3">Add User</h2>
+<div class="container-fluid mt-3" data-testid="add-user-page">
+    <h2 class="mb-3" id="add-user-heading" data-testid="add-user-heading">Add User</h2>
     <div class="card">
         <div class="card-body">
-            <form method="post">
+            <form method="post" data-testid="add-user-form" role="form" aria-labelledby="add-user-heading">
                 <div class="row g-3">
                     <div class="col-md-4">
-                        <label class="form-label">Email</label>
-                        <input class="form-control" type="email" name="email" required>
+                        <label class="form-label" data-testid="email-label">Email</label>
+                        <input class="form-control" type="email" name="email" data-testid="email-input" required aria-required="true">
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">Full Name</label>
-                        <input class="form-control" type="text" name="full_name">
+                        <label class="form-label" data-testid="full-name-label">Full Name</label>
+                        <input class="form-control" type="text" name="full_name" data-testid="full-name-input">
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">Picture URL</label>
-                        <input class="form-control" type="url" name="picture_url">
+                        <label class="form-label" data-testid="picture-url-label">Picture URL</label>
+                        <input class="form-control" type="url" name="picture_url" data-testid="picture-url-input">
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">Position</label>
-                        <select class="form-select" name="position_id">
+                        <label class="form-label" data-testid="position-label">Position</label>
+                        <select class="form-select" name="position_id" data-testid="position-select">
                             <option value="">- None -</option>
                             {% for p in positions %}
                             <option value="{{ p.id }}">{{ p.title }}</option>
@@ -29,8 +29,8 @@
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">Department</label>
-                        <select class="form-select" name="department_id">
+                        <label class="form-label" data-testid="department-label">Department</label>
+                        <select class="form-select" name="department_id" data-testid="department-select">
                             <option value="">- None -</option>
                             {% for d in departments %}
                             <option value="{{ d.id }}">{{ d.name }}</option>
@@ -39,8 +39,8 @@
                     </div>
                 </div>
                 <div class="mt-3">
-                    <a href="{{ url_for('users.index') }}" class="btn btn-secondary">Cancel</a>
-                    <button class="btn btn-primary" type="submit">Create</button>
+                    <a href="{{ url_for('users.index') }}" class="btn btn-secondary" data-testid="add-user-cancel">Cancel</a>
+                    <button class="btn btn-primary" type="submit" data-testid="add-user-submit">Create</button>
                 </div>
             </form>
         </div>

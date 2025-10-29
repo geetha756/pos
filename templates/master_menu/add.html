@@ -4,10 +4,10 @@
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Add Menu Item</h1>
+    <h1 class="h2" id="add-menu-item-heading" data-testid="add-menu-item-heading">Add Menu Item</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
-        <a href="{{ url_for('master_menu.index') }}" class="btn btn-secondary">
-<i class="ri-arrow-right-s-line icon me-2"></i>
+        <a href="{{ url_for('master_menu.index') }}" class="btn btn-secondary" data-testid="back-to-menu-link">
+            <i class="ri-arrow-right-s-line icon me-2"></i>
             Back to Menu
         </a>
     </div>
@@ -17,21 +17,23 @@
     <div class="col-md-8">
         <div class="card">
             <div class="card-body">
-                <form method="POST">
+                <form method="POST" data-testid="add-menu-item-form" role="form" aria-labelledby="add-menu-item-heading">
                     <div class="mb-3">
-                        <label for="name" class="form-label">Item Name *</label>
-                        <input type="text" class="form-control" id="name" name="name" required onblur="checkMenuItemName()">
-                        <div id="name-feedback" class="invalid-feedback"></div>
+                        <label for="name" class="form-label" data-testid="item-name-label">Item Name *</label>
+                        <input type="text" class="form-control" id="name" name="name" data-testid="item-name-input"
+                               required onblur="checkMenuItemName()" aria-describedby="name-feedback" autocomplete="off">
+                        <div id="name-feedback" class="invalid-feedback" data-testid="name-feedback"></div>
                     </div>
 
                     <div class="mb-3">
-                        <label for="description" class="form-label">Description</label>
-                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                        <label for="description" class="form-label" data-testid="description-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" data-testid="description-textarea"
+                                  rows="3" autocomplete="off"></textarea>
                     </div>
 
                     <div class="mb-3">
-                        <label for="category" class="form-label">Category</label>
-                        <select class="form-select" id="category" name="category">
+                        <label for="category" class="form-label" data-testid="category-label">Category</label>
+                        <select class="form-select" id="category" name="category" data-testid="category-select">
                             <option value="">Select Category</option>
                             <option value="Appetizers">Appetizers</option>
                             <option value="Main Course">Main Course</option>
@@ -44,37 +46,39 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="image_file" class="form-label">Menu Item Image</label>
-                        <input type="file" class="form-control" id="image_file" name="image_file"
-                               accept="image/*" onchange="previewImage(this)">
-                        <div class="form-text">Select an image file to upload (JPEG, PNG, GIF, etc.). Image will be resized and optimized automatically.</div>
+                        <label for="image_file" class="form-label" data-testid="image-file-label">Menu Item Image</label>
+                        <input type="file" class="form-control" id="image_file" name="image_file" data-testid="image-file-input"
+                               accept="image/*" onchange="previewImage(this)" aria-describedby="image-help-text">
+                        <div class="form-text" id="image-help-text" data-testid="image-help-text">
+                            Select an image file to upload (JPEG, PNG, GIF, etc.). Image will be resized and optimized automatically.
+                        </div>
 
                         <!-- New image preview -->
-                        <div id="new_image_container" class="mt-2" style="display: none;">
-                            <label class="form-label">Image Preview:</label>
+                        <div id="new_image_container" class="mt-2" style="display: none;" data-testid="image-preview-container">
+                            <label class="form-label" data-testid="image-preview-label">Image Preview:</label>
                             <div>
-                                <img id="new_image_preview" src="" alt="Image preview"
+                                <img id="new_image_preview" src="" alt="Image preview" data-testid="image-preview"
                                      class="rounded border" style="max-width: 150px; max-height: 150px; object-fit: cover; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                             </div>
                         </div>
 
                         <!-- Hidden field to store base64 data -->
-                        <input type="hidden" id="image_data" name="image_data" value="">
+                        <input type="hidden" id="image_data" name="image_data" value="" data-testid="image-data-hidden">
                     </div>
 
                     <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="is_active" name="is_active" checked>
-                        <label class="form-check-label" for="is_active">
+                        <input type="checkbox" class="form-check-input" id="is_active" name="is_active" data-testid="is-active-checkbox" checked>
+                        <label class="form-check-label" for="is_active" data-testid="is-active-label">
                             Active (available for ordering)
                         </label>
                     </div>
 
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
-<i class="ri-add-line icon me-2"></i>
+                        <button type="submit" class="btn btn-primary" data-testid="add-menu-item-submit">
+                            <i class="ri-add-line icon me-2"></i>
                             Add Menu Item
                         </button>
-                        <a href="{{ url_for('master_menu.index') }}" class="btn btn-secondary">Cancel</a>
+                        <a href="{{ url_for('master_menu.index') }}" class="btn btn-secondary" data-testid="add-menu-item-cancel">Cancel</a>
                     </div>
                 </form>
             </div>
