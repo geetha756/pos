@@ -12,10 +12,10 @@
     </div>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('inventory.edit_supplier', supplier_id=supplier.id) }}" class="btn btn-primary me-2">
-            <i class="material-icons me-2">edit</i>Edit Supplier
+            <i class="ri-edit-line icon me-2"></i>Edit Supplier
         </a>
         <a href="{{ url_for('inventory.suppliers') }}" class="btn btn-outline-secondary">
-            <i class="material-icons me-2">arrow_back</i>Back to Suppliers
+            <i class="ri-arrow-left-line icon me-2"></i>Back to Suppliers
         </a>
     </div>
 </div>
@@ -26,7 +26,7 @@
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">
-                    <i class="material-icons me-2">inventory</i>
+                    <i class="ri-archive-line icon me-2"></i>
                     Supplier Items ({{ items|length }})
                 </h5>
                 <a href="{{ url_for('inventory.master_inventory') }}?search={{ supplier.name }}"
@@ -68,7 +68,7 @@
                                 <td>
                                     <a href="{{ url_for('inventory.edit_master_item', item_id=item.id) }}"
                                        class="btn btn-sm btn-outline-secondary" title="Edit Item">
-                                        <i class="material-icons">edit</i>
+                                        <i class="ri-edit-line icon"></i>
                                     </a>
                                 </td>
                             </tr>
@@ -78,7 +78,7 @@
                 </div>
                 {% else %}
                 <div class="text-center py-4">
-                    <i class="material-icons text-muted" style="font-size: 3rem;">inventory_2</i>
+                    <i class="ri-archive-stack-line icon text-muted" style="font-size: 3rem;"></i>
                     <h6 class="text-muted mt-2">No items from this supplier</h6>
                     <p class="text-muted small">Items supplied by this vendor will appear here</p>
                 </div>
@@ -92,7 +92,7 @@
         <div class="card mb-4">
             <div class="card-header">
                 <h6 class="card-title mb-0">
-                    <i class="material-icons me-2">business</i>
+                    <i class="ri-building-2-line icon me-2"></i>
                     Supplier Information
                 </h6>
             </div>
@@ -166,7 +166,7 @@
         <div class="card">
             <div class="card-header">
                 <h6 class="card-title mb-0">
-                    <i class="material-icons me-2">analytics</i>
+                    <i class="ri-line-chart-line icon me-2"></i>
                     Statistics
                 </h6>
             </div>

@@ -7,7 +7,7 @@
     <h1 class="h2">Location Inventory</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('inventory.purchase_lists') }}" class="btn btn-outline-success">
-            <i class="material-icons me-1">shopping_cart</i>Purchase Lists
+            <i class="ri-shopping-cart-2-line icon me-1"></i>Purchase Lists
         </a>
     </div>
 </div>
@@ -43,7 +43,7 @@
             </div>
             <div class="col-md-3 text-md-end">
                 <button type="submit" class="btn btn-outline-secondary w-100">
-                    <i class="material-icons me-1">search</i>Filter
+                    <i class="ri-search-line icon me-1"></i>Filter
                 </button>
             </div>
         </form>
@@ -52,7 +52,7 @@
 
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0"><i class="material-icons me-2">inventory_2</i>Inventory</h5>
+        <h5 class="card-title mb-0"><i class="ri-archive-stack-line icon me-2"></i>Inventory</h5>
         <div class="small text-muted">Showing {{ inventory|length }} items</div>
     </div>
     <div class="card-body">
@@ -104,7 +104,7 @@
         </div>
         {% else %}
         <div class="text-center py-4">
-            <i class="material-icons text-muted" style="font-size: 3rem;">inventory_2</i>
+            <i class="ri-archive-stack-line icon text-muted" style="font-size: 3rem;"></i>
             <h6 class="text-muted mt-2">No inventory records match your filters</h6>
         </div>
         {% endif %}

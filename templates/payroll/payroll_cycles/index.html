@@ -14,11 +14,11 @@
                 </div>
                 <div class="d-flex gap-2">
                     <button class="btn btn-primary" onclick="createPayrollCycle()">
-                        <i class="material-icons me-2">add</i>
+                        <i class="ri-add-line icon me-2"></i>
                         New Cycle
                     </button>
                     <button class="btn btn-outline-success" onclick="processPayroll()">
-                        <i class="material-icons me-2">play_arrow</i>
+                        <i class="ri-play-line icon me-2"></i>
                         Process Payroll
                     </button>
                 </div>
@@ -37,7 +37,7 @@
                             <div class="stats-value">{{ cycles|length }}</div>
                         </div>
                         <div class="stats-icon">
-                            <i class="material-icons">calendar_view_month</i>
+                            <i class="ri-calendar-2-line icon"></i>
                         </div>
                     </div>
                 </div>
@@ -54,7 +54,7 @@
                             </div>
                         </div>
                         <div class="stats-icon">
-                            <i class="material-icons">check_circle</i>
+                            <i class="ri-checkbox-circle-line icon"></i>
                         </div>
                     </div>
                 </div>
@@ -71,7 +71,7 @@
                             </div>
                         </div>
                         <div class="stats-icon">
-                            <i class="material-icons">hourglass_empty</i>
+                            <i class="ri-hourglass-line icon"></i>
                         </div>
                     </div>
                 </div>
@@ -86,7 +86,7 @@
                             <div class="stats-value">${{ "%.0f"|format(cycles|sum(attribute='total_payroll')) }}</div>
                         </div>
                         <div class="stats-icon">
-                            <i class="material-icons">attach_money</i>
+                            <i class="ri-money-dollar-circle-line icon"></i>
                         </div>
                     </div>
                 </div>
@@ -100,7 +100,7 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
-                        <i class="material-icons me-2">calendar_today</i>
+                        <i class="ri-calendar-todo-line icon me-2"></i>
                         Payroll Cycles
                     </h5>
                 </div>
@@ -190,11 +190,11 @@
 
                     {% else %}
                     <div class="text-center py-5">
-                        <i class="material-icons" style="font-size: 64px; color: #dee2e6;">calendar_today</i>
+                        <i class="ri-calendar-todo-line icon" style="font-size: 64px; color: #dee2e6;"></i>
                         <h4 class="mt-3 text-muted">No Payroll Cycles</h4>
                         <p class="text-muted">Create your first payroll cycle to get started with payroll processing.</p>
                         <button class="btn btn-primary" onclick="createPayrollCycle()">
-                            <i class="material-icons me-2">add</i>
+                            <i class="ri-add-line icon me-2"></i>
                             Create First Cycle
                         </button>
                     </div>

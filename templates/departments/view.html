@@ -15,11 +15,11 @@
     </div>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('departments.edit', department_id=department.id) }}" class="btn btn-primary me-2">
-            <i class="material-icons me-2">edit</i>
+            <i class="ri-edit-line icon me-2"></i>
             Edit Department
         </a>
         <a href="{{ url_for('departments.index') }}" class="btn btn-outline-secondary">
-            <i class="material-icons me-2">arrow_back</i>
+            <i class="ri-arrow-left-line icon me-2"></i>
             Back to Departments
         </a>
     </div>
@@ -86,7 +86,7 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Positions in this Department</h5>
                 <a href="{{ url_for('positions.add') }}?department={{ department.id }}" class="btn btn-sm btn-outline-primary">
-                    <i class="material-icons me-1">add</i>
+                    <i class="ri-add-line icon me-1"></i>
                     Add Position
                 </a>
             </div>
@@ -121,7 +121,7 @@
                                 </td>
                                 <td>
                                     <a href="{{ url_for('positions.view', position_id=position.id) }}" class="btn btn-sm btn-outline-info">
-                                        <i class="material-icons">visibility</i>
+                                        <i class="ri-eye-line icon"></i>
                                     </a>
                                 </td>
                             </tr>
@@ -139,7 +139,7 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Staff in this Department</h5>
                 <a href="{{ url_for('staff.add') }}?department={{ department.id }}" class="btn btn-sm btn-outline-success">
-                    <i class="material-icons me-1">person_add</i>
+                    <i class="ri-user-add-line icon me-1"></i>
                     Add Staff
                 </a>
             </div>
@@ -168,7 +168,7 @@
                                 </td>
                                 <td>
                                     <a href="{{ url_for('staff.view', staff_id=member.id) }}" class="btn btn-sm btn-outline-info">
-                                        <i class="material-icons">visibility</i>
+                                        <i class="ri-eye-line icon"></i>
                                     </a>
                                 </td>
                             </tr>

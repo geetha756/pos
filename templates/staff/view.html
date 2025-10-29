@@ -15,11 +15,11 @@
     </div>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('staff.edit', staff_id=staff.id) }}" class="btn btn-primary me-2">
-            <i class="material-icons me-2">edit</i>
+            <i class="ri-edit-line icon me-2"></i>
             Edit Staff Member
         </a>
         <a href="{{ url_for('staff.index') }}" class="btn btn-outline-secondary">
-            <i class="material-icons me-2">arrow_back</i>
+            <i class="ri-arrow-left-line icon me-2"></i>
             Back to Staff
         </a>
     </div>
@@ -264,7 +264,7 @@
                             <div class="fw-bold">{{ subordinate.name }}</div>
                             <small class="text-muted">{{ subordinate.position }}</small>
                         </div>
-                        <i class="material-icons">chevron_right</i>
+                        <i class="ri-arrow-right-s-line icon"></i>
                     </a>
                     {% endfor %}
                 </div>

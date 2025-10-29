@@ -7,7 +7,7 @@
     <h1 class="h2">Purchase Lists</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('inventory.add_purchase_list') }}" class="btn btn-success">
-            <i class="material-icons me-2">add</i>New Purchase List
+            <i class="ri-add-line icon me-2"></i>New Purchase List
         </a>
     </div>
 </div>
@@ -44,10 +44,10 @@
                 <label class="form-label">&nbsp;</label>
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-primary">
-                        <i class="material-icons me-1">search</i>Filter
+                        <i class="ri-search-line icon me-1"></i>Filter
                     </button>
                     <a href="{{ url_for('inventory.purchase_lists') }}" class="btn btn-outline-secondary">
-                        <i class="material-icons me-1">clear</i>Clear
+                        <i class="ri-close-line icon me-1"></i>Clear
                     </a>
                 </div>
             </div>
@@ -59,7 +59,7 @@
 <div class="card">
     <div class="card-header">
         <h5 class="card-title mb-0">
-            <i class="material-icons me-2">shopping_cart</i>
+            <i class="ri-shopping-cart-2-line icon me-2"></i>
             Purchase Lists
             <span class="badge bg-primary ms-2">{{ lists|length }}</span>
         </h5>
@@ -114,11 +114,11 @@
         </div>
         {% else %}
         <div class="text-center py-5">
-            <i class="material-icons" style="font-size: 4rem; color: #ccc;">shopping_cart</i>
+            <i class="ri-shopping-cart-2-line icon" style="font-size: 4rem; color: #ccc;"></i>
             <h4 class="mt-3 text-muted">No purchase lists found</h4>
             <p class="text-muted">Create your first purchase list to start managing inventory orders.</p>
             <a href="{{ url_for('inventory.add_purchase_list') }}" class="btn btn-success">
-                <i class="material-icons me-2">add</i>Create First List
+                <i class="ri-add-line icon me-2"></i>Create First List
             </a>
         </div>
         {% endif %}

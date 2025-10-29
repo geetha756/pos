@@ -7,10 +7,10 @@
     <h1 class="h2">Purchase List</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('inventory.edit_purchase_list', list_id=purchase_list.id) }}" class="btn btn-primary me-2">
-            <i class="material-icons me-1">edit</i>Edit List
+            <i class="ri-edit-line icon me-1"></i>Edit List
         </a>
         <a href="{{ url_for('inventory.purchase_lists') }}" class="btn btn-outline-secondary">
-            <i class="material-icons me-1">arrow_back</i>Back to Lists
+            <i class="ri-arrow-left-line icon me-1"></i>Back to Lists
         </a>
     </div>
 </div>
@@ -19,7 +19,7 @@
     <div class="col-lg-8">
         <div class="card h-100">
             <div class="card-header">
-                <h5 class="card-title mb-0"><i class="material-icons me-2">assignment</i>List Details</h5>
+                <h5 class="card-title mb-0"><i class="ri-clipboard-line icon me-2"></i>List Details</h5>
             </div>
             <div class="card-body">
                 <div class="row mb-3">
@@ -62,7 +62,7 @@
     <div class="col-lg-4">
         <div class="card h-100">
             <div class="card-header">
-                <h5 class="card-title mb-0"><i class="material-icons me-2">analytics</i>Summary</h5>
+                <h5 class="card-title mb-0"><i class="ri-line-chart-line icon me-2"></i>Summary</h5>
             </div>
             <div class="card-body">
                 <div class="row text-center">
@@ -86,7 +86,7 @@
 
 <div class="card">
     <div class="card-header">
-        <h5 class="card-title mb-0"><i class="material-icons me-2">list</i>List Items</h5>
+        <h5 class="card-title mb-0"><i class="ri-list-unordered icon me-2"></i>List Items</h5>
     </div>
     <div class="card-body">
         {% if items %}
@@ -126,10 +126,10 @@
         </div>
         {% else %}
         <div class="text-center py-4">
-            <i class="material-icons text-muted" style="font-size: 3rem;">inventory_2</i>
+            <i class="ri-archive-stack-line icon text-muted" style="font-size: 3rem;"></i>
             <h6 class="text-muted mt-2">No items in this purchase list</h6>
             <a href="{{ url_for('inventory.edit_purchase_list', list_id=purchase_list.id) }}" class="btn btn-primary mt-2">
-                <i class="material-icons me-1">add</i>Add Items
+                <i class="ri-add-line icon me-1"></i>Add Items
             </a>
         </div>
         {% endif %}

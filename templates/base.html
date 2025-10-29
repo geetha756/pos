@@ -6,16 +6,16 @@
     <meta name="description" content="Restaurant Chain Management Portal">
     <title>{% block title %}Sip & Snack Portal{% endblock %}</title>
 
-    <!-- Google Fonts - Roboto -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon.png') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.png') }}">
+
+    <!-- Local Fonts - Roboto -->
+    <link href="{{ url_for('static', filename='css/roboto.css') }}" rel="stylesheet">
 
     <!-- Bootstrap CSS -->
     <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
-    <!-- Google Material Icons - High Quality Version -->
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons:wght@400&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined:wght@400&display=swap" rel="stylesheet">
+    <!-- Remix Icon -->
+    <link href="{{ url_for('static', filename='vendor/remixicon/remixicon.css') }}" rel="stylesheet">
     <!-- Dashboard CSS -->
     <link href="{{ url_for('static', filename='css/dashboard.css') }}" rel="stylesheet">
 
@@ -212,63 +212,37 @@
         z-index: 1030;
     }
 
-    /* High-quality Material Icons in action buttons - inherit color from parent */
-    .btn .material-icons {
-        vertical-align: middle;
-        margin-top: -2px;
-        display: inline-block;
+    /* Icon utility class for Remix Icon */
+    .icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
         line-height: 1;
-        font-weight: normal;
-        font-style: normal;
-        font-variant: normal;
-        text-transform: none;
-        letter-spacing: normal;
-        word-wrap: normal;
-        white-space: nowrap;
-        direction: ltr;
-        -webkit-font-smoothing: antialiased;
-        text-rendering: optimizeLegibility;
-        -moz-osx-font-smoothing: grayscale;
         color: inherit;
     }
 
-    /* Specific high-quality settings for different button sizes */
-    .btn-sm .material-icons {
+    .icon-sm {
+        font-size: 16px;
+    }
+
+    .icon-lg {
+        font-size: 24px;
+    }
+
+    .btn .icon {
+        vertical-align: middle;
+        margin-top: -2px;
+    }
+
+    .btn-sm .icon {
         font-size: 18px;
         margin-top: -2px;
-        font-weight: 400;
     }
 
-    .dropdown-item .material-icons {
+    .dropdown-item .icon {
         font-size: 20px;
         margin-top: -2px;
-        font-weight: 400;
-    }
-
-    /* Ensure crisp rendering for all Material Icons */
-    .material-icons {
-        font-family: 'Material Icons';
-        font-weight: normal;
-        font-style: normal;
-        font-size: 20px;
-        line-height: 1;
-        letter-spacing: normal;
-        text-transform: none;
-        display: inline-block;
-        white-space: nowrap;
-        word-wrap: normal;
-        direction: ltr;
-        -webkit-font-smoothing: antialiased;
-        text-rendering: optimizeLegibility;
-        -moz-osx-font-smoothing: grayscale;
-        speak: none;
-        font-feature-settings: 'liga';
-        font-variant-ligatures: common-ligatures;
-        -webkit-font-feature-settings: 'liga';
-        transform: translateZ(0); /* Force hardware acceleration for crisp rendering */
-        backface-visibility: hidden;
-        /* Color will be inherited from parent or default to black for non-action elements */
-        color: #000000;
     }
 
     /* Bootstrap Icons - High Quality and Crisp */
@@ -327,18 +301,144 @@
 
     .sidebar .offcanvas-body {
         overflow-x: hidden;
+        overflow-y: auto;
+        -ms-overflow-style: none; /* IE and Edge */
+        scrollbar-width: none; /* Firefox */
+        /* Prevent layout shift when vertical scrollbar appears on expand */
+        scrollbar-gutter: stable both-edges;
+    }
+
+    /* Hide scrollbar in WebKit-based browsers while retaining scrollability */
+    .sidebar .offcanvas-body::-webkit-scrollbar {
+        width: 0;
+    }
+
+    .sidebar .sidebar-header {
+        background-color: #f3f4f6;
+        padding: 1.25rem 1rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.4);
+        box-shadow: inset 0 -1px 0 rgba(15, 23, 42, 0.08);
+    }
+
+    .sidebar .sidebar-logo-link {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        width: 100%;
+        text-decoration: none;
+        color: #111827;
+        position: relative;
+        z-index: 1;
+    }
+
+    .sidebar .sidebar-logo-mark {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: #1f2937;
+        box-shadow: 0 14px 28px rgba(15, 23, 42, 0.35), 0 2px 6px rgba(15, 23, 42, 0.18);
+        overflow: hidden;
+    }
+
+    .sidebar .sidebar-logo-mark img {
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
+        filter: drop-shadow(0 4px 10px rgba(15, 23, 42, 0.4));
+    }
+
+    .sidebar .sidebar-logo-text {
+        display: flex;
+        flex-direction: column;
+        gap: 0.125rem;
+        min-width: 0;
+    }
+
+    .sidebar .sidebar-logo-text .brand-title {
+        font-size: 0.98rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        color: #0f172a;
+        margin: 0;
+    }
+
+    .sidebar .sidebar-logo-text .brand-subtitle {
+        font-size: 0.62rem;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: rgba(30, 41, 59, 0.65);
+        font-weight: 500;
+        margin: 0;
+        white-space: nowrap;
     }
 
     /* Ensure nav links truncate and don't force width overflow */
     .sidebar .nav .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        text-decoration: none; /* never underline sidebar links */
+        min-width: 0; /* Allow flex items to shrink below content size */
+        padding: 0.5rem 0.5rem 0.5rem 0.75rem; /* Tighten right padding to keep toggle visible */
+        width: 100%;
+    }
+
+    /* Ensure nav-link text content truncates properly */
+    .sidebar .nav .nav-link .nav-link-label {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    /* Ensure parent flex container doesn't overflow */
+    .sidebar .nav .nav-item > .d-flex {
+        min-width: 0; /* Allow flex container to shrink */
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        width: 100%;
+        padding-right: 0.25rem; /* Reserve space for scrollbar */
+    }
+
+    /* Ensure nav-link in flex container can shrink */
+    .sidebar .nav .nav-item > .d-flex > .nav-link {
+        min-width: 0;
+        flex: 1 1 auto;
+        overflow: hidden;
+    }
+
+    /* Ensure icons don't cause overflow */
+    .sidebar .nav .nav-link .icon {
+        flex-shrink: 0; /* Don't shrink icons */
     }
 
     /* Prevent nested nav lists from exceeding container width */
     .sidebar .nav.flex-column.ms-3 {
         width: 100%;
+        min-width: 0; /* Allow nested nav to shrink */
+    }
+
+    /* Ensure sub-nav items truncate properly */
+    .sidebar .nav.flex-column.ms-3 .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0; /* Allow to shrink */
+        max-width: 100%;
+        overflow: hidden; /* Ensure text truncates */
+    }
+
+    /* Ensure sub-nav text truncates while keeping icon visible */
+    .sidebar .nav.flex-column.ms-3 .nav-link .icon {
+        flex-shrink: 0; /* Don't shrink icons */
     }
 
     /* Match expand/collapse button background with nav item state */
@@ -348,10 +448,16 @@
         border: none;
         line-height: 1;
         border-radius: 4px;
+        text-decoration: none; /* remove underline on toggle */
+        position: relative; /* keep above link to avoid accidental navigation */
+        z-index: 1;
+        flex-shrink: 0; /* Preserve width for toggle button */
+        margin-right: 0.5rem; /* Keep chevron clear of sidebar edge */
     }
 
     .sidebar .nav .nav-item .btn-link:focus {
         box-shadow: none;
+        text-decoration: none; /* ensure no underline on focus */
     }
 
     /* When the main nav link is active or hovered, keep toggle background in sync */
@@ -359,6 +465,20 @@
     .sidebar .nav .nav-item .nav-link:hover + .btn-link,
     .sidebar .nav .nav-item .btn-link:hover {
         background-color: #e9ecef; /* match active gray */
+        text-decoration: none; /* ensure no underline on hover */
+    }
+
+    /* Keep expand chevron steady and provide smooth rotation without reflow */
+    .sidebar .nav .nav-item .btn-link .icon {
+        transition: transform 0.2s ease;
+        will-change: transform;
+        display: inline-block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    .sidebar .nav .nav-item .btn-link[aria-expanded="true"] .icon {
+        transform: rotate(180deg);
     }
 
     /* Ensure active nav-link background is consistent */
@@ -418,6 +538,12 @@
     .sidebar .nav .nav-item > .d-flex:hover {
         background-color: #e7f1ff;
         border-radius: 0 4px 4px 0;
+    }
+
+    /* Prevent underline on sidebar links even on hover/focus */
+    .sidebar .nav .nav-link:hover,
+    .sidebar .nav .nav-link:focus {
+        text-decoration: none;
     }
 
     /* Keep toggle button in sync on hover */
@@ -584,6 +710,8 @@
         align-items: center;
         justify-content: center;
         padding: 0;
+        flex-shrink: 0; /* Never shrink the button */
+        min-width: 32px; /* Ensure button always has space */
     }
 
     </style>
@@ -648,111 +776,117 @@
                 <div class="offcanvas-body d-md-flex flex-column p-0 overflow-y-auto" style="padding-bottom: 80px;">
 
                     <!-- Sidebar Header with Logo -->
-                    <div class="p-3 border-bottom bg-white">
-                        <div class="d-flex align-items-center">
-                            <img src="{{ url_for('static', filename='img/sn15-logo-transparent.png') }}" alt="Sip & Snack Portal Logo" style="max-width: 100%; max-height: 60px; object-fit: contain;">
-                        </div>
+                    <div class="sidebar-header">
+                        <a href="{{ url_for('main.dashboard') }}" class="sidebar-logo-link" title="Go to Dashboard">
+                            <span class="sidebar-logo-mark">
+                                <img src="{{ url_for('static', filename='img/sn15-logo-transparent.png') }}" alt="Sip & Snack Portal Logo">
+                            </span>
+                            <span class="sidebar-logo-text">
+                                <span class="brand-title">Sip &amp; Snack</span>
+                                <span class="brand-subtitle">Studio</span>
+                            </span>
+                        </a>
                     </div>
 
                     <ul class="nav flex-column">
                         <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint == 'main.dashboard' %} active{% endif %}" href="{{ url_for('main.dashboard') }}">
-<i class="material-icons">home</i>
-                                Dashboard
+                                <i class="ri-dashboard-line icon"></i>
+                                <span class="nav-link-label">Dashboard</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('master_menu') %} active{% endif %}" href="{{ url_for('master_menu.index') }}">
-<i class="material-icons">restaurant_menu</i>
-                                Master Menu
+                                <i class="ri-restaurant-2-line icon"></i>
+                                <span class="nav-link-label">Master Menu</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('locations') %} active{% endif %}" href="{{ url_for('locations.index') }}">
-<i class="material-icons">location_on</i>
-                                Locations
+                                <i class="ri-map-pin-line icon"></i>
+                                <span class="nav-link-label">Locations</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('location_menu') %} active{% endif %}" href="{{ url_for('location_menu.index') }}">
-<i class="material-icons">shopping_cart</i>
-                                Location Menu
+                                <i class="ri-store-2-line icon"></i>
+                                <span class="nav-link-label">Location Menu</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('orders') %} active{% endif %}" href="{{ url_for('orders.index') }}">
-<i class="material-icons">bar_chart</i>
-                                Orders
+                                <i class="ri-bar-chart-line icon"></i>
+                                <span class="nav-link-label">Orders</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('staff') %} active{% endif %}" href="{{ url_for('staff.index') }}">
-<i class="material-icons">people</i>
-                                Staff
+                                <i class="ri-team-line icon"></i>
+                                <span class="nav-link-label">Staff</span>
                             </a>
                         </li>
                         
                         <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('payroll') %} active{% endif %}" href="{{ url_for('payroll.index') }}">
-<i class="material-icons">schedule</i>
-                                Payroll
+                                <i class="ri-calendar-check-line icon"></i>
+                                <span class="nav-link-label">Payroll</span>
                             </a>
                         </li>
                         <li class="nav-item">
                             <div class="d-flex align-items-center gap-2{% if request.endpoint and (request.endpoint.startswith('users') or request.endpoint.startswith('departments') or request.endpoint.startswith('positions')) %} bg-nav-active{% endif %}">
                                 <a class="nav-link flex-grow-1 d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('users') and not (request.endpoint.startswith('users.position_permissions') or request.endpoint.startswith('users.department_permissions') or request.endpoint.startswith('users.audit_logs') or request.endpoint.startswith('users.add')) %} active{% endif %}"
                                    href="{{ url_for('users.index') }}">
-<i class="material-icons">manage_accounts</i>
-                                    Users & Access
+                                    <i class="ri-user-settings-line icon"></i>
+                                    <span class="nav-link-label">Users & Access</span>
                                 </a>
                                 <button class="btn btn-link p-0 ms-auto" type="button" data-bs-toggle="collapse"
                                         data-bs-target="#nav-users" aria-expanded="{{ 'true' if request.endpoint and (request.endpoint.startswith('users') or request.endpoint.startswith('departments') or request.endpoint.startswith('positions')) else 'false' }}"
                                         aria-controls="nav-users" title="Toggle">
-                                    <i class="material-icons">expand_more</i>
+                                    <i class="ri-arrow-down-s-line icon"></i>
                                 </button>
                             </div>
                             <div id="nav-users" class="collapse{% if request.endpoint and (request.endpoint.startswith('users') or request.endpoint.startswith('departments') or request.endpoint.startswith('positions')) %} show{% endif %}">
                             <ul class="nav flex-column ms-3">
                                 <li class="nav-item">
                                     <a class="nav-link{% if request.endpoint and request.endpoint.startswith('users') and not (request.endpoint.startswith('users.position_permissions') or request.endpoint.startswith('users.department_permissions') or request.endpoint.startswith('users.audit_logs') or request.endpoint.startswith('users.add')) %} active{% endif %}" href="{{ url_for('users.index') }}">
-                                        <i class="material-icons" style="font-size: 16px;">people</i>
-                                        Users
+                                        <i class="ri-group-line icon icon-sm"></i>
+                                        <span class="nav-link-label">Users</span>
                                     </a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link{% if request.endpoint == 'users.add' %} active{% endif %}" href="{{ url_for('users.add') }}">
-                                        <i class="material-icons" style="font-size: 16px;">person_add</i>
-                                        Add User
+                                        <i class="ri-user-add-line icon icon-sm"></i>
+                                        <span class="nav-link-label">Add User</span>
                                     </a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link{% if request.endpoint and request.endpoint.startswith('departments') %} active{% endif %}" href="{{ url_for('departments.index') }}">
-                                        <i class="material-icons" style="font-size: 16px;">business</i>
-                                        Departments
+                                        <i class="ri-building-2-line icon icon-sm"></i>
+                                        <span class="nav-link-label">Departments</span>
                                     </a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link{% if request.endpoint and request.endpoint.startswith('positions') %} active{% endif %}" href="{{ url_for('positions.index') }}">
-                                        <i class="material-icons" style="font-size: 16px;">work</i>
-                                        Positions
+                                        <i class="ri-briefcase-3-line icon icon-sm"></i>
+                                        <span class="nav-link-label">Positions</span>
                                     </a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link{% if request.endpoint and request.endpoint.startswith('users.position_permissions') %} active{% endif %}" href="{{ url_for('users.position_permissions') }}">
-                                        <i class="material-icons" style="font-size: 16px;">tune</i>
-                                        Position Permissions
+                                        <i class="ri-sliders-line icon icon-sm"></i>
+                                        <span class="nav-link-label">Position Permissions</span>
                                     </a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link{% if request.endpoint and request.endpoint.startswith('users.department_permissions') %} active{% endif %}" href="{{ url_for('users.department_permissions') }}">
-                                        <i class="material-icons" style="font-size: 16px;">tune</i>
-                                        Department Permissions
+                                        <i class="ri-shield-check-line icon icon-sm"></i>
+                                        <span class="nav-link-label">Department Permissions</span>
                                     </a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link{% if request.endpoint and request.endpoint.startswith('users.audit_logs') %} active{% endif %}" href="{{ url_for('users.audit_logs') }}">
-                                        <i class="material-icons" style="font-size: 16px;">list</i>
-                                        Audit Logs
+                                        <i class="ri-file-list-3-line icon icon-sm"></i>
+                                        <span class="nav-link-label">Audit Logs</span>
                                     </a>
                                 </li>
                             </ul>
@@ -762,51 +896,51 @@
                             <div class="d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('inventory') %} bg-nav-active{% endif %}">
                                 <a class="nav-link flex-grow-1 d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('inventory') and not request.endpoint.startswith('inventory.suppliers') %} active{% endif %}"
                                    href="{{ url_for('inventory.location_inventory') }}">
-<i class="material-icons">inventory</i>
-                                    Inventory
+                                    <i class="ri-archive-line icon"></i>
+                                    <span class="nav-link-label">Inventory</span>
                                 </a>
                                 <button class="btn btn-link p-0 ms-auto" type="button" data-bs-toggle="collapse"
                                         data-bs-target="#nav-inventory" aria-expanded="{{ 'true' if request.endpoint and request.endpoint.startswith('inventory') else 'false' }}"
                                         aria-controls="nav-inventory" title="Toggle">
-                                    <i class="material-icons">expand_more</i>
+                                    <i class="ri-arrow-down-s-line icon"></i>
                                 </button>
                             </div>
                             <div id="nav-inventory" class="collapse{% if request.endpoint and request.endpoint.startswith('inventory') %} show{% endif %}">
                             <ul class="nav flex-column ms-3">
                                 <li class="nav-item">
                                     <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.location_inventory') %} active{% endif %}" href="{{ url_for('inventory.location_inventory') }}">
-                                        <i class="material-icons" style="font-size: 16px;">location_on</i>
-                                        Location Inventory
+                                        <i class="ri-map-pin-2-line icon icon-sm"></i>
+                                        <span class="nav-link-label">Location Inventory</span>
                                     </a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.master_inventory') %} active{% endif %}" href="{{ url_for('inventory.master_inventory') }}">
-                                        <i class="material-icons" style="font-size: 16px;">inventory_2</i>
-                                        Master Inventory
+                                        <i class="ri-archive-2-line icon icon-sm"></i>
+                                        <span class="nav-link-label">Master Inventory</span>
                                     </a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.purchase_lists') %} active{% endif %}" href="{{ url_for('inventory.purchase_lists') }}">
-                                        <i class="material-icons" style="font-size: 16px;">shopping_cart</i>
-                                        Purchase Lists
+                                        <i class="ri-shopping-cart-2-line icon icon-sm"></i>
+                                        <span class="nav-link-label">Purchase Lists</span>
                                     </a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.daily_usage') %} active{% endif %}" href="{{ url_for('inventory.daily_usage') }}">
-                                        <i class="material-icons" style="font-size: 16px;">today</i>
-                                        Daily Usage
+                                        <i class="ri-time-line icon icon-sm"></i>
+                                        <span class="nav-link-label">Daily Usage</span>
                                     </a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.leftover_food') %} active{% endif %}" href="{{ url_for('inventory.leftover_food') }}">
-                                        <i class="material-icons" style="font-size: 16px;">restaurant</i>
-                                        Leftover Food
+                                        <i class="ri-restaurant-line icon icon-sm"></i>
+                                        <span class="nav-link-label">Leftover Food</span>
                                     </a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.suppliers') %} active{% endif %}" href="{{ url_for('inventory.suppliers') }}">
-                                        <i class="material-icons" style="font-size: 16px;">business</i>
-                                        Suppliers
+                                        <i class="ri-truck-line icon icon-sm"></i>
+                                        <span class="nav-link-label">Suppliers</span>
                                     </a>
                                 </li>
                             </ul>
@@ -820,7 +954,7 @@
                             {% if session.user_picture %}
                                 <img src="{{ session.user_picture }}" alt="Profile" class="rounded-circle me-2" width="32" height="32" style="object-fit: cover;">
                             {% else %}
-                                <i class="material-icons me-2" style="font-size: 24px; color: #666;">account_circle</i>
+                                <i class="ri-user-3-line icon" style="font-size: 24px; color: #666;"></i>
                             {% endif %}
                             <div class="flex-grow-1">
                                 <div class="fw-bold text-dark" style="font-size: 1rem;">
@@ -828,7 +962,7 @@
                                 </div>
                             </div>
                             <a href="{{ url_for('auth.logout') }}" class="text-danger text-decoration-none d-flex align-items-center" title="Logout">
-                                <i class="material-icons" style="font-size: 18px; line-height: 1;">logout</i>
+                                <i class="ri-logout-box-line icon" style="font-size: 18px; line-height: 1;"></i>
                             </a>
                         </div>
                     </div>
@@ -856,6 +990,50 @@
 
     <!-- Bootstrap JS -->
     <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+
+    <script>
+        // Handle collapse icon rotation for sidebar navigation
+        document.addEventListener('DOMContentLoaded', function() {
+            // Find all collapse buttons in the sidebar
+            const collapseButtons = document.querySelectorAll('.sidebar .btn-link[data-bs-toggle="collapse"]');
+            
+            collapseButtons.forEach(function(button) {
+                const targetId = button.getAttribute('data-bs-target');
+                const collapseElement = document.querySelector(targetId);
+                const icon = button.querySelector('.icon');
+                
+                if (!collapseElement || !icon) return;
+                
+                // Function to update icon rotation based on expanded state
+                function updateIconRotation() {
+                    const isExpanded = collapseElement.classList.contains('show');
+                    if (isExpanded) {
+                        icon.style.transform = 'rotate(180deg)';
+                        icon.style.visibility = 'visible';
+                        icon.style.display = 'block';
+                    } else {
+                        icon.style.transform = 'rotate(0deg)';
+                        icon.style.visibility = 'visible';
+                        icon.style.display = 'block';
+                    }
+                }
+                
+                // Listen for collapse events
+                collapseElement.addEventListener('shown.bs.collapse', function() {
+                    button.setAttribute('aria-expanded', 'true');
+                    updateIconRotation();
+                });
+                
+                collapseElement.addEventListener('hidden.bs.collapse', function() {
+                    button.setAttribute('aria-expanded', 'false');
+                    updateIconRotation();
+                });
+                
+                // Set initial state
+                updateIconRotation();
+            });
+        });
+    </script>
 
     {% block extra_js %}{% endblock %}
 </body>

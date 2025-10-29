@@ -7,10 +7,10 @@
     <h1 class="h2">Edit Purchase List</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('inventory.view_purchase_list', list_id=purchase_list.id) }}" class="btn btn-outline-secondary me-2">
-            <i class="material-icons me-1">visibility</i>View
+            <i class="ri-eye-line icon me-1"></i>View
         </a>
         <a href="{{ url_for('inventory.purchase_lists') }}" class="btn btn-outline-secondary">
-            <i class="material-icons me-1">arrow_back</i>Back to Lists
+            <i class="ri-arrow-left-line icon me-1"></i>Back to Lists
         </a>
     </div>
 </div>
@@ -19,7 +19,7 @@
     <div class="col-lg-8">
         <div class="card h-100">
             <div class="card-header">
-                <h5 class="card-title mb-0"><i class="material-icons me-2">list</i>Items in List</h5>
+                <h5 class="card-title mb-0"><i class="ri-list-unordered icon me-2"></i>Items in List</h5>
             </div>
             <div class="card-body">
                 {% if items %}
@@ -48,7 +48,7 @@
                                 <td>
                                     <form method="POST" action="{{ url_for('inventory.remove_purchase_item', list_id=purchase_list.id, item_id=it.master_inventory_id) }}" onsubmit="return confirm('Remove this item from the list?')">
                                         <button type="submit" class="btn btn-sm btn-outline-danger">
-                                            <i class="material-icons">delete</i>
+                                            <i class="ri-delete-bin-line icon"></i>
                                         </button>
                                     </form>
                                 </td>
@@ -59,7 +59,7 @@
                 </div>
                 {% else %}
                 <div class="text-center py-4">
-                    <i class="material-icons text-muted" style="font-size: 3rem;">inventory_2</i>
+                    <i class="ri-archive-stack-line icon text-muted" style="font-size: 3rem;"></i>
                     <h6 class="text-muted mt-2">No items yet</h6>
                     <p class="text-muted small">Use the Add Item section to add items to this list</p>
                 </div>
@@ -71,7 +71,7 @@
     <div class="col-lg-4">
         <div class="card mb-3">
             <div class="card-header">
-                <h5 class="card-title mb-0"><i class="material-icons me-2">add</i>Add Item</h5>
+                <h5 class="card-title mb-0"><i class="ri-add-line icon me-2"></i>Add Item</h5>
             </div>
             <div class="card-body">
                 <form method="POST" class="row g-2">
@@ -91,7 +91,7 @@
                     </div>
                     <div class="col-12">
                         <button type="submit" class="btn btn-primary w-100">
-                            <i class="material-icons me-1">add</i>Add to List
+                            <i class="ri-add-line icon me-1"></i>Add to List
                         </button>
                     </div>
                 </form>
@@ -100,7 +100,7 @@
 
         <div class="card">
             <div class="card-header">
-                <h5 class="card-title mb-0"><i class="material-icons me-2">edit</i>Update Status</h5>
+                <h5 class="card-title mb-0"><i class="ri-edit-line icon me-2"></i>Update Status</h5>
             </div>
             <div class="card-body">
                 <form method="POST" class="row g-2">
@@ -117,7 +117,7 @@
                     </div>
                     <div class="col-12">
                         <button type="submit" class="btn btn-secondary w-100">
-                            <i class="material-icons me-1">save</i>Update Status
+                            <i class="ri-save-line icon me-1"></i>Update Status
                         </button>
                     </div>
                 </form>

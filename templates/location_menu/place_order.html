@@ -10,11 +10,11 @@
     </div>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('location_menu.manage', location_id=location.id) }}" class="btn btn-secondary me-2">
-            <i class="material-icons me-2">arrow_back</i>
+            <i class="ri-arrow-left-line icon me-2"></i>
             Back to Menu
         </a>
         <button type="button" class="btn btn-primary" onclick="showOrderSummary()">
-            <i class="material-icons me-2">shopping_cart</i>
+            <i class="ri-shopping-cart-2-line icon me-2"></i>
             View Cart (<span id="cartCount">0</span>)
         </button>
     </div>
@@ -47,7 +47,7 @@
                                                     data-name="{{ item.name }}"
                                                     data-price="{{ item.price }}"
                                                     data-masterid="{{ item.master_menu_id }}">
-                                                <i class="material-icons">add</i>
+                                                <i class="ri-add-line icon"></i>
                                                 Add
                                             </button>
                                         </div>
@@ -63,11 +63,11 @@
         {% else %}
         <div class="card">
             <div class="card-body text-center py-5">
-                <i class="material-icons text-muted" style="font-size: 4rem;">restaurant_menu</i>
+                <i class="ri-restaurant-line icon text-muted" style="font-size: 4rem;"></i>
                 <h5 class="card-title text-muted mt-3">No Menu Items Available</h5>
                 <p class="card-text text-muted">There are no menu items available for ordering at this location.</p>
                 <a href="{{ url_for('location_menu.manage', location_id=location.id) }}" class="btn btn-primary">
-                    <i class="material-icons me-2">settings</i>
+                    <i class="ri-settings-3-line icon me-2"></i>
                     Manage Menu
                 </a>
             </div>
@@ -80,7 +80,7 @@
         <div class="card sticky-top" style="top: 20px;">
             <div class="card-header">
                 <h6 class="card-title mb-0">
-                    <i class="material-icons me-2">shopping_cart</i>
+                    <i class="ri-shopping-cart-2-line icon me-2"></i>
                     Your Order (<span id="cartItemCount">0</span> items)
                 </h6>
             </div>
@@ -103,7 +103,7 @@
                 </div>
 
                 <button type="button" class="btn btn-success w-100" id="placeOrderBtn" onclick="placeOrder()" disabled>
-                    <i class="material-icons me-2">send</i>
+                    <i class="ri-send-plane-line icon me-2"></i>
                     Place Order
                 </button>
             </div>
@@ -216,14 +216,14 @@ function updateCartDisplay() {
             '</div>' +
             '<div class="d-flex align-items-center">' +
                 '<button type="button" class="btn btn-outline-secondary btn-sm me-1" onclick="updateQuantity(\'' + locationMenuId + '\', ' + (item.quantity - 1) + ')">' +
-                    '<i class="material-icons">remove</i>' +
+                    '<i class="ri-subtract-line icon"></i>' +
                 '</button>' +
                 '<span class="mx-2">' + item.quantity + '</span>' +
                 '<button type="button" class="btn btn-outline-secondary btn-sm me-2" onclick="updateQuantity(\'' + locationMenuId + '\', ' + (item.quantity + 1) + ')">' +
-                    '<i class="material-icons">add</i>' +
+                    '<i class="ri-add-line icon"></i>' +
                 '</button>' +
                 '<button type="button" class="btn btn-outline-danger btn-sm" onclick="removeFromCart(\'' + locationMenuId + '\')">' +
-                    '<i class="material-icons">delete</i>' +
+                    '<i class="ri-delete-bin-line icon"></i>' +
                 '</button>' +
             '</div>' +
         '</div>' +

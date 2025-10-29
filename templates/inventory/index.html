@@ -11,7 +11,7 @@
             <a href="{{ url_for('inventory.purchase_lists') }}" class="btn btn-outline-success">Purchase Lists</a>
         </div>
         <button type="button" class="btn btn-outline-secondary dropdown-toggle d-flex align-items-center gap-1" data-bs-toggle="dropdown">
-            <i class="material-icons">more_vert</i>
+            <i class="ri-more-2-line icon"></i>
             More
         </button>
         <ul class="dropdown-menu">
@@ -29,7 +29,7 @@
         <div class="card h-100">
             <div class="card-header">
                 <h5 class="card-title mb-0">
-                    <i class="material-icons me-2">inventory</i>
+                    <i class="ri-archive-line icon me-2"></i>
                     Master Items
                 </h5>
             </div>
@@ -41,7 +41,7 @@
                                 <div class="stats-title">Total Items</div>
                             </div>
                             <div class="stats-icon">
-                                <i class="material-icons">inventory_2</i>
+                                <i class="ri-archive-stack-line icon"></i>
                             </div>
                         </div>
                         <div class="stats-value">{{ stats.total_master_items }}</div>
@@ -59,7 +59,7 @@
         <div class="card h-100">
             <div class="card-header">
                 <h5 class="card-title mb-0">
-                    <i class="material-icons me-2">shopping_cart</i>
+                    <i class="ri-shopping-cart-2-line icon me-2"></i>
                     Purchase Lists
                 </h5>
             </div>
@@ -71,7 +71,7 @@
                                 <div class="stats-title">Active Lists</div>
                             </div>
                             <div class="stats-icon">
-                                <i class="material-icons">assignment</i>
+                                <i class="ri-clipboard-line icon"></i>
                             </div>
                         </div>
                         <div class="stats-value">{{ stats.active_purchase_lists }}</div>
@@ -89,7 +89,7 @@
         <div class="card h-100">
             <div class="card-header">
                 <h5 class="card-title mb-0">
-                    <i class="material-icons me-2">warning</i>
+                    <i class="ri-error-warning-line icon me-2"></i>
                     Stock Alerts
                 </h5>
             </div>
@@ -101,7 +101,7 @@
                                 <div class="stats-title">Low Stock Items</div>
                             </div>
                             <div class="stats-icon">
-                                <i class="material-icons">warning</i>
+                                <i class="ri-error-warning-line icon"></i>
                             </div>
                         </div>
                         <div class="stats-value">{{ stats.low_stock_items }}</div>
@@ -119,7 +119,7 @@
         <div class="card h-100">
             <div class="card-header">
                 <h5 class="card-title mb-0">
-                    <i class="material-icons me-2">today</i>
+                    <i class="ri-calendar-todo-line icon me-2"></i>
                     Today's Activity
                 </h5>
             </div>
@@ -131,7 +131,7 @@
                                 <div class="stats-title">Usage Records</div>
                             </div>
                             <div class="stats-icon">
-                                <i class="material-icons">schedule</i>
+                                <i class="ri-time-line icon"></i>
                             </div>
                         </div>
                         <div class="stats-value">{{ stats.today_usage_records }}</div>
@@ -156,22 +156,22 @@
                 <div class="row g-2">
                     <div class="col-md-3">
                         <a href="{{ url_for('inventory.add_master_item') }}" class="btn btn-primary w-100">
-                            <i class="material-icons me-2">add</i>Add Master Item
+                            <i class="ri-add-line icon me-2"></i>Add Master Item
                         </a>
                     </div>
                     <div class="col-md-3">
                         <a href="{{ url_for('inventory.add_purchase_list') }}" class="btn btn-success w-100">
-                            <i class="material-icons me-2">shopping_cart</i>New Purchase List
+                            <i class="ri-shopping-cart-2-line icon me-2"></i>New Purchase List
                         </a>
                     </div>
                     <div class="col-md-3">
                         <a href="{{ url_for('inventory.record_daily_usage') }}" class="btn btn-warning w-100">
-                            <i class="material-icons me-2">edit</i>Record Daily Usage
+                            <i class="ri-edit-line icon me-2"></i>Record Daily Usage
                         </a>
                     </div>
                     <div class="col-md-3">
                         <a href="{{ url_for('inventory.record_leftover_food') }}" class="btn btn-info w-100">
-                            <i class="material-icons me-2">restaurant</i>Record Leftover Food
+                            <i class="ri-restaurant-2-line icon me-2"></i>Record Leftover Food
                         </a>
                     </div>
                 </div>
@@ -187,7 +187,7 @@
         <div class="card">
             <div class="card-header">
                 <h5 class="card-title mb-0">
-                    <i class="material-icons me-2">notifications</i>
+                    <i class="ri-notification-3-line icon me-2"></i>
                     Recent Stock Alerts
                 </h5>
             </div>

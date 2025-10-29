@@ -18,33 +18,33 @@
                 </div>
                 <div class="d-flex gap-2">
                     <a href="{{ url_for('payroll.payroll_cycles') }}" class="btn btn-outline-secondary">
-                        <i class="material-icons me-2">arrow_back</i>
+                        <i class="ri-arrow-left-line icon me-2"></i>
                         Back to Cycles
                     </a>
                     {% if cycle.status == 'draft' %}
                     <button class="btn btn-success" onclick="startProcessing()">
-                        <i class="material-icons me-2">play_arrow</i>
+                        <i class="ri-play-line icon me-2"></i>
                         Start Processing
                     </button>
                     {% endif %}
                     {% if cycle.status == 'processing' %}
                     <button class="btn btn-warning" onclick="completeCycle()">
-                        <i class="material-icons me-2">check_circle</i>
+                        <i class="ri-checkbox-circle-line icon me-2"></i>
                         Mark Complete
                     </button>
                     {% endif %}
                     <div class="dropdown">
                         <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            <i class="material-icons me-2">print</i>
+                            <i class="ri-printer-line icon me-2"></i>
                             Export
                         </button>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="#" onclick="exportReport('pdf')">
-                                <i class="material-icons me-2">picture_as_pdf</i>PDF Report</a></li>
+                                <i class="ri-file-pdf-line icon me-2"></i>PDF Report</a></li>
                             <li><a class="dropdown-item" href="#" onclick="exportReport('csv')">
-                                <i class="material-icons me-2">table_chart</i>CSV Data</a></li>
+                                <i class="ri-table-line icon me-2"></i>CSV Data</a></li>
                             <li><a class="dropdown-item" href="#" onclick="exportReport('excel')">
-                                <i class="material-icons me-2">description</i>Excel File</a></li>
+                                <i class="ri-file-text-line icon me-2"></i>Excel File</a></li>
                         </ul>
                     </div>
                 </div>
@@ -58,7 +58,7 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
-                        <i class="material-icons me-2">info</i>
+                        <i class="ri-information-line icon me-2"></i>
                         Cycle Information
                     </h5>
                 </div>
@@ -67,7 +67,7 @@
                         <div class="col-md-6">
                             <div class="border rounded p-3">
                                 <div class="d-flex align-items-center">
-                                    <i class="material-icons text-primary me-3">calendar_today</i>
+                                    <i class="ri-calendar-todo-line icon text-primary me-3"></i>
                                     <div>
                                         <h6 class="mb-1">Status</h6>
                                         <span class="badge bg-{{ 'success' if cycle.status == 'completed' else 'warning' if cycle.status == 'processing' else 'secondary' }} fs-6">
@@ -80,7 +80,7 @@
                         <div class="col-md-6">
                             <div class="border rounded p-3">
                                 <div class="d-flex align-items-center">
-                                    <i class="material-icons text-success me-3">group</i>
+                                    <i class="ri-group-line icon text-success me-3"></i>
                                     <div>
                                         <h6 class="mb-1">Total Employees</h6>
                                         <span class="h4 text-success">{{ totals.total_employees }}</span>
@@ -91,7 +91,7 @@
                         <div class="col-md-6">
                             <div class="border rounded p-3">
                                 <div class="d-flex align-items-center">
-                                    <i class="material-icons text-info me-3">access_time</i>
+                                    <i class="ri-time-line icon text-info me-3"></i>
                                     <div>
                                         <h6 class="mb-1">Total Hours</h6>
                                         <span class="h4 text-info">{{ "%.1f"|format(totals.total_regular_hours + totals.total_overtime_hours) }}</span>
@@ -102,7 +102,7 @@
                         <div class="col-md-6">
                             <div class="border rounded p-3">
                                 <div class="d-flex align-items-center">
-                                    <i class="material-icons text-warning me-3">attach_money</i>
+                                    <i class="ri-money-dollar-circle-line icon text-warning me-3"></i>
                                     <div>
                                         <h6 class="mb-1">Total Payroll</h6>
                                         <span class="h4 text-warning">${{ "%.2f"|format(totals.total_gross_pay) }}</span>
@@ -122,7 +122,7 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
-                        <i class="material-icons me-2">analytics</i>
+                        <i class="ri-line-chart-line icon me-2"></i>
                         Payroll Breakdown
                     </h5>
                 </div>
@@ -139,13 +139,13 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
-                        <i class="material-icons me-2">receipt</i>
+                        <i class="ri-receipt-line icon me-2"></i>
                         Payroll Entries
                     </h5>
                     <div class="d-flex gap-2">
                         <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="Search employees..." style="width: 200px;">
                         <button class="btn btn-sm btn-outline-primary" onclick="exportEntries()">
-                            <i class="material-icons me-1">download</i>
+                            <i class="ri-download-line icon me-1"></i>
                             Export
                         </button>
                     </div>
@@ -196,18 +196,18 @@
                                         <div class="btn-group" role="group">
                                             <button class="btn btn-sm btn-outline-primary"
                                                     onclick="viewEntryDetails('{{ entry.id }}')" title="View Details">
-                                                <i class="material-icons">visibility</i>
+                                                <i class="ri-eye-line icon"></i>
                                             </button>
                                             {% if entry.status in ['calculated', 'approved'] %}
                                             <button class="btn btn-sm btn-outline-success"
                                                     onclick="approveEntry('{{ entry.id }}')" title="Approve">
-                                                <i class="material-icons">check</i>
+                                                <i class="ri-check-line icon"></i>
                                             </button>
                                             {% endif %}
                                             {% if entry.status == 'approved' %}
                                             <button class="btn btn-sm btn-outline-info"
                                                     onclick="markAsPaid('{{ entry.id }}')" title="Mark as Paid">
-                                                <i class="material-icons">payment</i>
+                                                <i class="ri-bank-card-line icon"></i>
                                             </button>
                                             {% endif %}
                                         </div>
@@ -231,12 +231,12 @@
                     </div>
                     {% else %}
                     <div class="text-center py-5">
-                        <i class="material-icons" style="font-size: 64px; color: #dee2e6;">receipt</i>
+                        <i class="ri-receipt-line icon" style="font-size: 64px; color: #dee2e6;"></i>
                         <h4 class="mt-3 text-muted">No Payroll Entries</h4>
                         <p class="text-muted">Payroll has not been processed for this cycle yet.</p>
                         {% if cycle.status == 'draft' %}
                         <button class="btn btn-primary" onclick="startProcessing()">
-                            <i class="material-icons me-2">play_arrow</i>
+                            <i class="ri-play-line icon me-2"></i>
                             Start Processing
                         </button>
                         {% endif %}
@@ -282,7 +282,7 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
 <script>
 // Chart initialization
 {% if entries %}

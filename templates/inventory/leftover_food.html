@@ -25,12 +25,12 @@
             </div>
             <div class="col-md-2">
                 <button type="submit" class="btn btn-outline-secondary w-100">
-                    <i class="material-icons me-1">search</i>Filter
+                    <i class="ri-search-line icon me-1"></i>Filter
                 </button>
             </div>
             <div class="col-md-3 text-md-end">
                 <a href="{{ url_for('inventory.record_leftover_food', date=selected_date, location_id=selected_location or (locations[0].id if locations else None)) }}" class="btn btn-primary">
-                    <i class="material-icons me-1">edit</i>Record Leftover
+                    <i class="ri-edit-line icon me-1"></i>Record Leftover
                 </a>
             </div>
         </form>
@@ -39,7 +39,7 @@
 
 <div class="card">
     <div class="card-header">
-        <h5 class="card-title mb-0"><i class="material-icons me-2">restaurant</i>Records</h5>
+        <h5 class="card-title mb-0"><i class="ri-restaurant-2-line icon me-2"></i>Records</h5>
     </div>
     <div class="card-body">
         {% if leftover_records %}
@@ -73,7 +73,7 @@
         </div>
         {% else %}
         <div class="text-center py-4">
-            <i class="material-icons text-muted" style="font-size: 3rem;">restaurant</i>
+            <i class="ri-restaurant-2-line icon text-muted" style="font-size: 3rem;"></i>
             <h6 class="text-muted mt-2">No leftover food records for selected date</h6>
         </div>
         {% endif %}

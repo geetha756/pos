@@ -13,7 +13,7 @@
                     <p class="text-muted">{{ timesheet.employee_name }} - {{ timesheet.date.strftime('%B %d, %Y') }}</p>
                 </div>
                 <a href="{{ url_for('payroll.timesheets') }}" class="btn btn-outline-secondary">
-                    <i class="material-icons me-2">arrow_back</i>
+                    <i class="ri-arrow-left-line icon me-2"></i>
                     Back to Timesheets
                 </a>
             </div>
@@ -26,7 +26,7 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
-                        <i class="material-icons me-2">edit</i>
+                        <i class="ri-edit-line icon me-2"></i>
                         Timesheet Information
                     </h5>
                 </div>
@@ -100,7 +100,7 @@
                                             </div>
                                         </div>
                                         <div class="mt-2 text-muted small">
-                                            <i class="material-icons me-1" style="font-size: 16px;">info</i>
+                                            <i class="ri-information-line icon me-1" style="font-size: 16px;"></i>
                                             Hours will be automatically recalculated when you save changes to clock in/out times.
                                         </div>
                                     </div>
@@ -113,7 +113,7 @@
                         <div class="row mb-4">
                             <div class="col-12">
                                 <h6 class="fw-bold mb-3">
-                                    <i class="material-icons me-2">pause</i>
+                                    <i class="ri-pause-line icon me-2"></i>
                                     Recorded Breaks
                                 </h6>
                                 <div class="table-responsive">
@@ -158,7 +158,7 @@
                                 <div class="d-flex justify-content-end gap-2">
                                     <a href="{{ url_for('payroll.timesheets') }}" class="btn btn-outline-secondary">Cancel</a>
                                     <button type="submit" class="btn btn-primary">
-                                        <i class="material-icons me-2">save</i>
+                                        <i class="ri-save-line icon me-2"></i>
                                         Update Timesheet
                                     </button>
                                 </div>

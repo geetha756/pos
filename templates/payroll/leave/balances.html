@@ -15,12 +15,12 @@
                 <div class="d-flex gap-2">
                     <form method="POST" action="{{ url_for('payroll.recalculate_leave_balances') }}" style="display: inline;">
                         <button type="submit" class="btn btn-outline-info">
-                            <i class="material-icons me-2">refresh</i>
+                            <i class="ri-refresh-line icon me-2"></i>
                             Recalculate All
                         </button>
                     </form>
                     <a href="{{ url_for('payroll.leave') }}" class="btn btn-outline-secondary">
-                        <i class="material-icons me-2">arrow_back</i>
+                        <i class="ri-arrow-left-line icon me-2"></i>
                         Back to Leave
                     </a>
                 </div>
@@ -76,7 +76,7 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
-                        <i class="material-icons me-2">account_balance_wallet</i>
+                        <i class="ri-wallet-3-line icon me-2"></i>
                         Employee Leave Balances
                     </h5>
                 </div>
@@ -128,11 +128,11 @@
                                             <button class="btn btn-sm btn-outline-primary"
                                                     onclick="editBalances('{{ staff.id }}', '{{ staff.first_name }} {{ staff.last_name }}')"
                                                     title="Edit Balances">
-                                                <i class="material-icons">edit</i>
+                                                <i class="ri-edit-line icon"></i>
                                             </button>
                                             <a href="{{ url_for('payroll.leave_history', staff_id=staff.id) }}"
                                                class="btn btn-sm btn-outline-info" title="View History">
-                                                <i class="material-icons">history</i>
+                                                <i class="ri-history-line icon"></i>
                                             </a>
                                         </div>
                                     </td>
@@ -143,7 +143,7 @@
                     </div>
                     {% else %}
                     <div class="text-center py-5">
-                        <i class="material-icons" style="font-size: 64px; color: #dee2e6;">group</i>
+                        <i class="ri-group-line icon" style="font-size: 64px; color: #dee2e6;"></i>
                         <h4 class="mt-3 text-muted">No Active Employees</h4>
                         <p class="text-muted">No active employees found in the system.</p>
                     </div>

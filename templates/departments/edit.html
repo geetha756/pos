@@ -15,11 +15,11 @@
     </div>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('departments.view', department_id=department.id) }}" class="btn btn-outline-info me-2">
-            <i class="material-icons me-2">visibility</i>
+            <i class="ri-eye-line icon me-2"></i>
             View Details
         </a>
         <a href="{{ url_for('departments.index') }}" class="btn btn-outline-secondary">
-            <i class="material-icons me-2">arrow_back</i>
+            <i class="ri-arrow-left-line icon me-2"></i>
             Back to Departments
         </a>
     </div>
@@ -120,11 +120,11 @@
             <div class="card-body">
                 <div class="d-grid gap-2">
                     <a href="{{ url_for('positions.index') }}?department={{ department.id }}" class="btn btn-outline-primary btn-sm">
-                        <i class="material-icons me-1">work</i>
+                        <i class="ri-briefcase-3-line icon me-1"></i>
                         View Positions
                     </a>
                     <a href="{{ url_for('staff.index') }}?department={{ department.id }}" class="btn btn-outline-success btn-sm">
-                        <i class="material-icons me-1">people</i>
+                        <i class="ri-team-line icon me-1"></i>
                         View Staff
                     </a>
                 </div>
@@ -138,11 +138,11 @@
     <div class="col-12">
         <div class="d-flex justify-content-end gap-2">
             <a href="{{ url_for('departments.index') }}" class="btn btn-outline-secondary">
-                <i class="material-icons me-2">cancel</i>
+                <i class="ri-close-circle-line icon me-2"></i>
                 Cancel
             </a>
             <button type="submit" form="departmentForm" class="btn btn-primary">
-                <i class="material-icons me-2">save</i>
+                <i class="ri-save-line icon me-2"></i>
                 Update Department
             </button>
         </div>

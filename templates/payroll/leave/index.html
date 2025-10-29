@@ -14,22 +14,22 @@
                 </div>
                 <div class="d-flex gap-2">
                     <a href="{{ url_for('payroll.leave_request') }}" class="btn btn-primary">
-                        <i class="material-icons me-2">add</i>
+                        <i class="ri-add-line icon me-2"></i>
                         Request Leave
                     </a>
                     <div class="dropdown">
                         <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                            <i class="material-icons me-2">settings</i>
+                            <i class="ri-settings-3-line icon me-2"></i>
                             Manage
                         </button>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="#" onclick="manageLeaveTypes()">
-                                <i class="material-icons me-2">category</i>Leave Types</a></li>
+                                <i class="ri-apps-2-line icon me-2"></i>Leave Types</a></li>
                             <li><a class="dropdown-item" href="#" onclick="manageHolidays()">
-                                <i class="material-icons me-2">event</i>Holidays</a></li>
+                                <i class="ri-calendar-event-line icon me-2"></i>Holidays</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="#" onclick="updateBalances()">
-                                <i class="material-icons me-2">refresh</i>Update Balances</a></li>
+                                <i class="ri-refresh-line icon me-2"></i>Update Balances</a></li>
                         </ul>
                     </div>
                 </div>
@@ -48,7 +48,7 @@
                             <div class="stats-value">{{ pending_requests|length }}</div>
                         </div>
                         <div class="stats-icon">
-                            <i class="material-icons">pending</i>
+                            <i class="ri-time-line icon"></i>
                         </div>
                     </div>
                 </div>
@@ -65,7 +65,7 @@
                             </div>
                         </div>
                         <div class="stats-icon">
-                            <i class="material-icons">check_circle</i>
+                            <i class="ri-checkbox-circle-line icon"></i>
                         </div>
                     </div>
                 </div>
@@ -82,7 +82,7 @@
                             </div>
                         </div>
                         <div class="stats-icon">
-                            <i class="material-icons">calendar_view_month</i>
+                            <i class="ri-calendar-2-line icon"></i>
                         </div>
                     </div>
                 </div>
@@ -99,7 +99,7 @@
                             </div>
                         </div>
                         <div class="stats-icon">
-                            <i class="material-icons">remove_circle</i>
+                            <i class="ri-subtract-circle-line icon"></i>
                         </div>
                     </div>
                 </div>
@@ -114,7 +114,7 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
-                        <i class="material-icons me-2">account_balance_wallet</i>
+                        <i class="ri-wallet-3-line icon me-2"></i>
                         Leave Balances
                     </h5>
                 </div>
@@ -156,7 +156,7 @@
                                     </td>
                                     <td>
                                         <button class="btn btn-sm btn-outline-primary" onclick="viewLeaveHistory('{{ balance.staff_id }}')" title="View History">
-                                            <i class="material-icons">history</i>
+                                            <i class="ri-history-line icon"></i>
                                         </button>
                                     </td>
                                 </tr>
@@ -166,7 +166,7 @@
                     </div>
                     {% else %}
                     <div class="text-center py-5">
-                        <i class="material-icons" style="font-size: 64px; color: #dee2e6;">account_balance_wallet</i>
+                        <i class="ri-wallet-3-line icon" style="font-size: 64px; color: #dee2e6;"></i>
                         <h4 class="mt-3 text-muted">No Leave Balances</h4>
                         <p class="text-muted">Leave balances will appear here once configured.</p>
                     </div>
@@ -180,7 +180,7 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
-                        <i class="material-icons me-2">pending_actions</i>
+                        <i class="ri-time-line icon me-2"></i>
                         Pending Requests
                     </h5>
                 </div>
@@ -204,10 +204,10 @@
                                 </div>
                                 <div class="d-flex gap-1">
                                     <button class="btn btn-sm btn-outline-success" onclick="approveRequest('{{ request.id }}')" title="Approve">
-                                        <i class="material-icons">check</i>
+                                        <i class="ri-check-line icon"></i>
                                     </button>
                                     <button class="btn btn-sm btn-outline-danger" onclick="rejectRequest('{{ request.id }}')" title="Reject">
-                                        <i class="material-icons">close</i>
+                                        <i class="ri-close-line icon"></i>
                                     </button>
                                 </div>
                             </div>
@@ -216,7 +216,7 @@
                     </div>
                     {% else %}
                     <div class="text-center py-4">
-                        <i class="material-icons" style="font-size: 48px; color: #dee2e6;">event_available</i>
+                        <i class="ri-calendar-check-line icon" style="font-size: 48px; color: #dee2e6;"></i>
                         <p class="mt-3 text-muted">No pending requests</p>
                         <small class="text-muted">All caught up!</small>
                     </div>
@@ -232,7 +232,7 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
-                        <i class="material-icons me-2">calendar_month</i>
+                        <i class="ri-calendar-event-line icon me-2"></i>
                         Leave Calendar
                     </h5>
                     <div class="btn-group" role="group">
@@ -244,7 +244,7 @@
                     <div id="leaveCalendar" class="calendar-container">
                         <!-- Calendar will be rendered here -->
                         <div class="text-center py-5">
-                            <i class="material-icons" style="font-size: 64px; color: #dee2e6;">calendar_month</i>
+                            <i class="ri-calendar-event-line icon" style="font-size: 64px; color: #dee2e6;"></i>
                             <h4 class="mt-3 text-muted">Leave Calendar</h4>
                             <p class="text-muted">Interactive calendar view will be implemented here.</p>
                         </div>

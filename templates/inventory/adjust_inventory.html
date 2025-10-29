@@ -7,7 +7,7 @@
     <h1 class="h2">Adjust Inventory</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('inventory.location_inventory') }}" class="btn btn-outline-secondary">
-            <i class="material-icons me-2">arrow_back</i>Back to Location Inventory
+            <i class="ri-arrow-left-line icon me-2"></i>Back to Location Inventory
         </a>
     </div>
 </div>
@@ -15,7 +15,7 @@
 <div class="card">
     <div class="card-header">
         <h5 class="card-title mb-0">
-            <i class="material-icons me-2">inventory_2</i>
+            <i class="ri-archive-stack-line icon me-2"></i>
             {{ inventory.location_name }} · {{ inventory.item_name }} ({{ inventory.unit }})
         </h5>
     </div>
@@ -67,7 +67,7 @@
             </div>
             <div class="col-12">
                 <button type="submit" class="btn btn-primary">
-                    <i class="material-icons me-2">save</i>Apply Adjustment
+                    <i class="ri-save-line icon me-2"></i>Apply Adjustment
                 </button>
                 <a href="{{ url_for('inventory.location_inventory') }}" class="btn btn-outline-secondary">Cancel</a>
             </div>

@@ -7,7 +7,7 @@
     <h1 class="h2">Master Menu</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('master_menu.add') }}" class="btn btn-primary">
-            <i class="material-icons me-2">add</i>
+            <i class="ri-add-line icon me-2"></i>
             Add Menu Item
         </a>
     </div>
@@ -18,12 +18,12 @@
     <div class="col-md-8">
         <form method="GET" class="d-flex gap-2" id="searchForm">
             <div class="input-group flex-grow-1">
-                <span class="input-group-text" style="background-color: #007bff; color: white;"><i class="material-icons">search</i></span>
+                <span class="input-group-text" style="background-color: #007bff; color: white;"><i class="ri-search-line icon"></i></span>
                 <input type="text" class="form-control" id="searchInput" name="search"
                        placeholder="Search by name, description, or category..."
                        value="{{ search_query }}">
                 <button type="button" class="btn btn-danger" id="clearSearch">
-                    <i class="material-icons" style="color: white;">clear</i>
+                    <i class="ri-close-line icon" style="color: white;"></i>
                 </button>
             </div>
             <button type="submit" class="btn btn-primary">Search</button>
@@ -41,12 +41,12 @@
                 <input type="radio" class="btn-check" id="sortAsc" name="order" value="asc"
                        {{ 'checked' if sort_order == 'asc' else '' }} autocomplete="off">
                 <label class="btn btn-success" for="sortAsc">
-                    <i class="material-icons" style="color: white;">arrow_upward</i>
+                    <i class="ri-arrow-up-line icon" style="color: white;"></i>
                 </label>
                 <input type="radio" class="btn-check" id="sortDesc" name="order" value="desc"
                        {{ 'checked' if sort_order == 'desc' else '' }} autocomplete="off">
                 <label class="btn btn-warning" for="sortDesc">
-                    <i class="material-icons" style="color: white;">arrow_downward</i>
+                    <i class="ri-arrow-down-line icon" style="color: white;"></i>
                 </label>
             </div>
         </div>
@@ -56,7 +56,7 @@
 <!-- Results Summary -->
 {% if search_query %}
 <div class="alert alert-info mb-3">
-    <i class="material-icons me-2">info</i>
+    <i class="ri-information-line icon me-2"></i>
     Found <strong>{{ menu_items|length }}</strong> item{{ 's' if menu_items|length != 1 else '' }}
     matching "<strong>{{ search_query }}</strong>"
     <a href="{{ url_for('master_menu.index') }}" class="alert-link ms-2">Clear search</a>
@@ -88,7 +88,7 @@
                             {% else %}
                             <div class="bg-light rounded border d-flex align-items-center justify-content-center"
                                  style="width: 60px; height: 60px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                                <i class="material-icons text-muted">image</i>
+                                <i class="ri-image-line icon text-muted"></i>
                             </div>
                             {% endif %}
                         </td>
@@ -130,11 +130,11 @@
         </div>
         {% else %}
         <div class="text-center py-5">
-<i class="material-icons mb-3" style="font-size: 48px;">restaurant</i>
+<i class="ri-restaurant-2-line icon mb-3" style="font-size: 48px;"></i>
             <h5 class="text-muted">No menu items found</h5>
             <p class="text-muted">Get started by adding your first menu item.</p>
             <a href="{{ url_for('master_menu.add') }}" class="btn btn-primary">
-                <i class="material-icons me-2">add</i>
+                <i class="ri-add-line icon me-2"></i>
                 Add First Menu Item
             </a>
         </div>

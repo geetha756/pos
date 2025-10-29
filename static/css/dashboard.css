@@ -6,8 +6,10 @@ body {
   color: #000000; /* dark text for light background */
 }
 
-.material-icons {
-  display: inline-block;
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 1rem;
   height: 1rem;
   font-size: 1rem;
@@ -49,7 +51,7 @@ body {
   color: #000000;
 }
 
-.sidebar .nav-link .material-icons {
+.sidebar .nav-link .icon {
   font-size: 1.25rem;
   width: 1.25rem;
   height: 1.25rem;
@@ -62,7 +64,7 @@ body {
   font-weight: 600;
 }
 
-.sidebar .nav-link.active .material-icons {
+.sidebar .nav-link.active .icon {
   color: #000000;
 }
 

@@ -15,11 +15,11 @@
     </div>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('positions.edit', position_id=position.id) }}" class="btn btn-primary me-2">
-            <i class="material-icons me-2">edit</i>
+            <i class="ri-edit-line icon me-2"></i>
             Edit Position
         </a>
         <a href="{{ url_for('positions.index') }}" class="btn btn-outline-secondary">
-            <i class="material-icons me-2">arrow_back</i>
+            <i class="ri-arrow-left-line icon me-2"></i>
             Back to Positions
         </a>
     </div>
@@ -86,7 +86,7 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Staff in this Position</h5>
                 <a href="{{ url_for('staff.add') }}?position={{ position.id }}" class="btn btn-sm btn-outline-success">
-                    <i class="material-icons me-1">person_add</i>
+                    <i class="ri-user-add-line icon me-1"></i>
                     Assign Staff
                 </a>
             </div>
@@ -115,7 +115,7 @@
                                 </td>
                                 <td>
                                     <a href="{{ url_for('staff.view', staff_id=member.id) }}" class="btn btn-sm btn-outline-info">
-                                        <i class="material-icons">visibility</i>
+                                        <i class="ri-eye-line icon"></i>
                                     </a>
                                 </td>
                             </tr>
@@ -130,13 +130,13 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Staff in this Position</h5>
                 <a href="{{ url_for('staff.add') }}?position={{ position.id }}" class="btn btn-sm btn-outline-success">
-                    <i class="material-icons me-1">person_add</i>
+                    <i class="ri-user-add-line icon me-1"></i>
                     Assign First Staff
                 </a>
             </div>
             <div class="card-body">
                 <div class="text-center py-4">
-                    <i class="material-icons mb-2" style="font-size: 32px; color: #6c757d;">people</i>
+                    <i class="ri-team-line icon mb-2" style="font-size: 32px; color: #6c757d;"></i>
                     <p class="text-muted mb-0">No staff currently assigned to this position.</p>
                 </div>
             </div>

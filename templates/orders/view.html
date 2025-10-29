@@ -10,7 +10,7 @@
     </div>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('orders.index') }}" class="btn btn-secondary">
-<i class="material-icons me-2">chevron_right</i>
+<i class="ri-arrow-right-s-line icon me-2"></i>
             Back to Orders
         </a>
     </div>
@@ -131,7 +131,7 @@
 
                 <div class="d-grid gap-2">
                     <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
-<i class="material-icons me-2">print</i>
+<i class="ri-printer-line icon me-2"></i>
                         Print Order
                     </button>
                 </div>
@@ -154,7 +154,7 @@
 
                 <div class="mt-3">
                     <a href="{{ url_for('location_menu.manage', location_id=order.location_id) }}" class="btn btn-outline-primary w-100">
-<i class="material-icons me-2">shopping_cart</i>
+<i class="ri-shopping-cart-2-line icon me-2"></i>
                         View Location Menu
                     </a>
                 </div>

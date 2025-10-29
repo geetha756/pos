@@ -14,15 +14,15 @@
                 </div>
                 <div class="d-flex gap-2">
                     <button class="btn btn-success" onclick="clockInOut()">
-                        <i class="material-icons me-2">play_arrow</i>
+                        <i class="ri-play-line icon me-2"></i>
                         Clock In/Out
                     </button>
                     <button class="btn btn-primary" onclick="startBreak()">
-                        <i class="material-icons me-2">pause</i>
+                        <i class="ri-pause-line icon me-2"></i>
                         Start Break
                     </button>
                     <button class="btn btn-warning" onclick="endBreak()">
-                        <i class="material-icons me-2">play_arrow</i>
+                        <i class="ri-play-line icon me-2"></i>
                         End Break
                     </button>
                 </div>
@@ -36,7 +36,7 @@
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
-                        <i class="material-icons me-2">filter_list</i>
+                        <i class="ri-filter-3-line icon me-2"></i>
                         Filters
                     </h5>
                 </div>
@@ -75,11 +75,11 @@
                         </div>
                         <div class="col-md-3 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary me-2">
-                                <i class="material-icons me-1">search</i>
+                                <i class="ri-search-line icon me-1"></i>
                                 Filter
                             </button>
                             <a href="{{ url_for('payroll.timesheets') }}" class="btn btn-secondary">
-                                <i class="material-icons me-1">clear</i>
+                                <i class="ri-close-line icon me-1"></i>
                                 Clear
                             </a>
                         </div>
@@ -95,16 +95,16 @@
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="card-title mb-0">
-                        <i class="material-icons me-2">schedule</i>
+                        <i class="ri-time-line icon me-2"></i>
                         Timesheets
                     </h5>
                     <div class="d-flex gap-2">
                         <button class="btn btn-sm btn-primary" onclick="exportTimesheets()">
-                            <i class="material-icons me-1">download</i>
+                            <i class="ri-download-line icon me-1"></i>
                             Export
                         </button>
                         <button class="btn btn-sm btn-success" onclick="bulkApprove()">
-                            <i class="material-icons me-1">check_circle</i>
+                            <i class="ri-checkbox-circle-line icon me-1"></i>
                             Bulk Approve
                         </button>
                     </div>
@@ -188,11 +188,11 @@
 
                     {% else %}
                     <div class="text-center py-5">
-                        <i class="material-icons" style="font-size: 64px; color: #dee2e6;">schedule</i>
+                        <i class="ri-time-line icon" style="font-size: 64px; color: #dee2e6;"></i>
                         <h4 class="mt-3 text-muted">No Timesheets Found</h4>
                         <p class="text-muted">No timesheets match your current filters.</p>
                         <a href="{{ url_for('payroll.timesheets') }}" class="btn btn-primary">
-                            <i class="material-icons me-2">clear</i>
+                            <i class="ri-close-line icon me-2"></i>
                             Clear Filters
                         </a>
                     </div>
@@ -513,7 +513,7 @@ function exportTimesheetFromModal(timesheetId) {
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="timesheetModalLabel">
-                    <i class="material-icons me-2">schedule</i>
+                    <i class="ri-time-line icon me-2"></i>
                     Timesheet Details
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>

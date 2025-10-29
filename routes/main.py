@@ -34,7 +34,15 @@ def get_dashboard_stats():
         'total_employees': 0,
         'active_timesheets': 0,
         'pending_leave_requests': 0,
-        'total_payroll_expense': 0.0
+        'total_payroll_expense': 0.0,
+        # Users & Access
+        'users': 0,
+        'active_users': 0,
+        # Inventory
+        'total_master_items': 0,
+        'low_stock_items': 0,
+        'active_purchase_lists': 0,
+        'suppliers': 0
     }
 
     try:
@@ -78,6 +86,13 @@ def get_dashboard_stats():
         result = execute_query_one("SELECT COUNT(*) as count FROM positions WHERE is_active = TRUE")
         stats['positions'] = result['count'] if result else 0
 
+        # Users & Access statistics
+        result = execute_query_one("SELECT COUNT(*) as count FROM users")
+        stats['users'] = result['count'] if result else 0
+
+        result = execute_query_one("SELECT COUNT(*) as count FROM users WHERE is_active = TRUE")
+        stats['active_users'] = result['count'] if result else 0
+
         # Payroll statistics
         # Total employees (from staff table)
         result = execute_query_one("SELECT COUNT(*) as count FROM staff WHERE is_active = TRUE")
@@ -103,6 +118,25 @@ def get_dashboard_stats():
             AND pe.status = 'paid'
         """)
         stats['total_payroll_expense'] = result['total'] if result else 0.0
+
+        # Inventory statistics
+        result = execute_query_one("SELECT COUNT(*) as count FROM master_inventory WHERE is_active = TRUE")
+        stats['total_master_items'] = result['count'] if result else 0
+
+        result = execute_query_one("""
+            SELECT COUNT(*) as count FROM location_inventory
+            WHERE current_stock <= reorder_point
+        """)
+        stats['low_stock_items'] = result['count'] if result else 0
+
+        result = execute_query_one("""
+            SELECT COUNT(*) as count FROM purchase_lists
+            WHERE status IN ('draft', 'submitted', 'approved')
+        """)
+        stats['active_purchase_lists'] = result['count'] if result else 0
+
+        result = execute_query_one("SELECT COUNT(*) as count FROM suppliers WHERE is_active = TRUE")
+        stats['suppliers'] = result['count'] if result else 0
 
     except Exception as e:
         print(f"Error getting dashboard stats: {e}")

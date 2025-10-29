@@ -7,7 +7,7 @@
     <h1 class="h2">{% if supplier %}Edit{% else %}Add{% endif %} Supplier</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('inventory.suppliers') }}" class="btn btn-outline-secondary">
-            <i class="material-icons me-2">arrow_back</i>Back to Suppliers
+            <i class="ri-arrow-left-line icon me-2"></i>Back to Suppliers
         </a>
     </div>
 </div>
@@ -17,7 +17,7 @@
         <div class="card">
             <div class="card-header">
                 <h5 class="card-title mb-0">
-                    <i class="material-icons me-2">{% if supplier %}edit{% else %}add{% endif %}</i>
+                    <i class="icon me-2 {% if supplier %}ri-edit-line{% else %}ri-add-line{% endif %}"></i>
                     {% if supplier %}Edit{% else %}Add{% endif %} Supplier Details
                 </h5>
             </div>
@@ -84,7 +84,7 @@
 
                     <div class="mt-4 d-flex gap-2">
                         <button type="submit" class="btn btn-primary">
-                            <i class="material-icons me-2">{% if supplier %}save{% else %}add{% endif %}</i>
+                            <i class="icon me-2 {% if supplier %}ri-save-line{% else %}ri-add-line{% endif %}"></i>
                             {% if supplier %}Update{% else %}Add{% endif %} Supplier
                         </button>
                         <a href="{{ url_for('inventory.suppliers') }}" class="btn btn-outline-secondary">Cancel</a>
