@@ -1508,11 +1508,11 @@ def payroll_cycles():
             ORDER BY pc.created_at DESC
         """, fetch=True)
 
-        return render_template('payroll/payroll_cycles.html', cycles=cycles or [])
+        return render_template('payroll/payroll_cycles/index.html', cycles=cycles or [])
 
     except Exception as e:
         flash(f'Error loading payroll cycles: {str(e)}', 'error')
-        return render_template('payroll/payroll_cycles.html', cycles=[])
+        return render_template('payroll/payroll_cycles/index.html', cycles=[])
 
 @payroll_bp.route('/payroll-cycles/<cycle_id>')
 @login_required
