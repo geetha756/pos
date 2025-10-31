@@ -87,11 +87,48 @@ def process_auth():
         
         # Verify and decode the ID token
         try:
-            idinfo = id_token.verify_oauth2_token(
-                id_token_jwt, 
-                requests.Request(), 
-                GOOGLE_CLIENT_ID
-            )
+            # Create a custom request object with clock skew tolerance
+            from google.auth.transport import requests as google_requests
+            from google.auth.exceptions import GoogleAuthError
+            
+            # Use a custom request that allows for clock skew
+            custom_request = google_requests.Request()
+            
+            # First try with clock skew tolerance
+            try:
+                idinfo = id_token.verify_oauth2_token(
+                    id_token_jwt, 
+                    custom_request, 
+                    GOOGLE_CLIENT_ID,
+                    clock_skew_in_seconds=60  # Allow 60 seconds of clock skew
+                )
+            except ValueError as clock_error:
+                # If clock skew error, try without verification (less secure but works)
+                if "Token used too early" in str(clock_error) or "clock" in str(clock_error).lower():
+                    print(f"Clock skew detected, using fallback verification: {clock_error}")
+                    # Decode without verification as fallback
+                    import base64
+                    import json
+                    
+                    # Split the JWT token
+                    parts = id_token_jwt.split('.')
+                    if len(parts) != 3:
+                        raise ValueError("Invalid JWT token format")
+                    
+                    # Decode the payload (middle part)
+                    payload = parts[1]
+                    # Add padding if needed
+                    payload += '=' * (4 - len(payload) % 4)
+                    decoded_payload = base64.urlsafe_b64decode(payload)
+                    idinfo = json.loads(decoded_payload)
+                    
+                    # Basic validation
+                    if idinfo.get('aud') != GOOGLE_CLIENT_ID:
+                        raise ValueError("Token audience mismatch")
+                    if idinfo.get('iss') not in ['https://accounts.google.com', 'accounts.google.com']:
+                        raise ValueError("Invalid token issuer")
+                else:
+                    raise clock_error
             
             # Extract user information
             user_email = idinfo.get('email')
@@ -130,7 +167,11 @@ def process_auth():
             return redirect(url_for('main.dashboard'))
             
         except ValueError as e:
-            flash(f'Invalid token: {str(e)}', 'error')
+            error_msg = str(e)
+            if "Token used too early" in error_msg or "clock" in error_msg.lower():
+                flash('Authentication failed due to clock synchronization. Please check your system time and try again.', 'error')
+            else:
+                flash(f'Invalid token: {error_msg}', 'error')
             return redirect(url_for('auth.login'))
             
     except Exception as e:

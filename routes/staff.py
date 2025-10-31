@@ -10,14 +10,18 @@ staff_bp = Blueprint('staff', __name__)
 def index():
     """List all staff members"""
     try:
-        # Get staff with location and manager information
+        # Get staff with location, manager, position, and department information
         staff = execute_query("""
             SELECT s.*,
                    l.name as location_name,
-                   m.first_name || ' ' || m.last_name as manager_name
+                   m.first_name || ' ' || m.last_name as manager_name,
+                   p.title as position,
+                   d.name as department
             FROM staff s
             LEFT JOIN locations l ON s.location_id = l.id
             LEFT JOIN staff m ON s.manager_id = m.id
+            LEFT JOIN positions p ON s.position_id = p.id
+            LEFT JOIN departments d ON s.department_id = d.id
             ORDER BY s.last_name, s.first_name
         """, fetch=True)
 
@@ -193,6 +197,19 @@ def edit(staff_id):
         else:
             staff_member['manager_name'] = None
 
+        # Get position and department info
+        if staff_member['position_id']:
+            position = execute_query_one("SELECT title FROM positions WHERE id = %s", (staff_member['position_id'],))
+            staff_member['position'] = position['title'] if position else None
+        else:
+            staff_member['position'] = None
+
+        if staff_member['department_id']:
+            department = execute_query_one("SELECT name FROM departments WHERE id = %s", (staff_member['department_id'],))
+            staff_member['department'] = department['name'] if department else None
+        else:
+            staff_member['department'] = None
+
         # Get locations, departments, positions and potential managers for dropdowns
         locations = execute_query("SELECT id, name FROM locations ORDER BY name", fetch=True)
         departments = execute_query("SELECT id, name FROM departments WHERE is_active = TRUE ORDER BY name", fetch=True)
@@ -319,12 +336,27 @@ def view(staff_id):
         else:
             staff_member['manager_name'] = None
 
+        # Get position and department info
+        if staff_member['position_id']:
+            position = execute_query_one("SELECT title FROM positions WHERE id = %s", (staff_member['position_id'],))
+            staff_member['position'] = position['title'] if position else None
+        else:
+            staff_member['position'] = None
+
+        if staff_member['department_id']:
+            department = execute_query_one("SELECT name FROM departments WHERE id = %s", (staff_member['department_id'],))
+            staff_member['department'] = department['name'] if department else None
+        else:
+            staff_member['department'] = None
+
         # Get subordinates if this person is a manager
         subordinates = execute_query("""
-            SELECT id, first_name || ' ' || last_name as name, position, department
-            FROM staff
-            WHERE manager_id = %s
-            ORDER BY last_name, first_name
+            SELECT s.id, s.first_name || ' ' || s.last_name as name, p.title as position, d.name as department
+            FROM staff s
+            LEFT JOIN positions p ON s.position_id = p.id
+            LEFT JOIN departments d ON s.department_id = d.id
+            WHERE s.manager_id = %s
+            ORDER BY s.last_name, s.first_name
         """, (staff_id,), fetch=True)
 
         return render_template('staff/view.html', staff=staff_member, subordinates=subordinates or [])

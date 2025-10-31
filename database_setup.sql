@@ -124,7 +124,6 @@ CREATE TABLE IF NOT EXISTS departments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(100) NOT NULL UNIQUE,
     description TEXT,
-    manager_id UUID REFERENCES staff(id),
     budget DECIMAL(10,2),
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -161,7 +160,6 @@ CREATE TABLE staff (
     hire_date DATE NOT NULL,
     salary DECIMAL(10,2),
     is_active BOOLEAN DEFAULT TRUE,
-    manager_id UUID REFERENCES staff(id),
     address TEXT,
     city VARCHAR(100),
     state VARCHAR(100),
@@ -172,6 +170,17 @@ CREATE TABLE staff (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Add manager relationships after base tables exist
+ALTER TABLE departments
+ADD COLUMN IF NOT EXISTS manager_id UUID;
+ALTER TABLE departments
+ADD CONSTRAINT fk_departments_manager FOREIGN KEY (manager_id) REFERENCES staff(id);
+
+ALTER TABLE staff
+ADD COLUMN IF NOT EXISTS manager_id UUID;
+ALTER TABLE staff
+ADD CONSTRAINT fk_staff_manager FOREIGN KEY (manager_id) REFERENCES staff(id);
 
 -- ============================================
 -- 3. ADD UNIQUE CONSTRAINTS
@@ -433,6 +442,7 @@ UPDATE staff SET manager_id = (SELECT id FROM staff WHERE employee_id = 'EMP008'
 
 -- Update department managers
 UPDATE departments SET manager_id = (SELECT id FROM staff WHERE employee_id = 'EMP001') WHERE name = 'Management' AND manager_id IS NULL;
+-- (deduplicated above)
 
 -- ============================================
 -- 6. GRANT PERMISSIONS TO APPLICATION USER
@@ -652,6 +662,7 @@ CREATE TABLE IF NOT EXISTS inventory_alerts (
 -- ============================================
 
 -- Create employee types table (hourly, salary, temporary, consultant)
+-- Create tables without dependencies first
 CREATE TABLE IF NOT EXISTS employee_types (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(50) NOT NULL UNIQUE,
@@ -662,8 +673,22 @@ CREATE TABLE IF NOT EXISTS employee_types (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
--- Create payroll cycles table
+--Create leave request types tables
+CREATE TABLE IF NOT EXISTS leave_types (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL UNIQUE,
+    code VARCHAR(20) NOT NULL UNIQUE,
+    description TEXT,
+    is_paid BOOLEAN DEFAULT FALSE,
+    requires_approval BOOLEAN DEFAULT TRUE,
+    max_days_per_year INTEGER,
+    carry_forward_days INTEGER DEFAULT 0,
+    color VARCHAR(7) DEFAULT '#007bff',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+--Create payroll cycles tables
 CREATE TABLE IF NOT EXISTS payroll_cycles (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(100) NOT NULL,
@@ -675,24 +700,24 @@ CREATE TABLE IF NOT EXISTS payroll_cycles (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(start_date, end_date)
 );
-
--- Create leave types table
-CREATE TABLE IF NOT EXISTS leave_types (
+--Create holidays tables
+CREATE TABLE IF NOT EXISTS holidays (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(100) NOT NULL UNIQUE,
-    code VARCHAR(20) NOT NULL UNIQUE,
+    name VARCHAR(100) NOT NULL,
+    date DATE NOT NULL,
+    is_recurring BOOLEAN DEFAULT FALSE,
     description TEXT,
-    is_paid BOOLEAN DEFAULT FALSE,
-    requires_approval BOOLEAN DEFAULT TRUE,
-    max_days_per_year INTEGER,
-    carry_forward_days INTEGER DEFAULT 0,
-    color VARCHAR(7) DEFAULT '#007bff', -- Hex color for UI
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(date)
 );
 
--- Create leave requests table
+-- Create locations and master_menu (already successful in your script)
+
+-- (Removed duplicate block to avoid re-defining tables already created above)
+
+-- Create remaining tables that depend on staff
 CREATE TABLE IF NOT EXISTS leave_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     staff_id UUID REFERENCES staff(id) NOT NULL,
@@ -709,7 +734,6 @@ CREATE TABLE IF NOT EXISTS leave_requests (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create timesheets table
 CREATE TABLE IF NOT EXISTS timesheets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     staff_id UUID REFERENCES staff(id) NOT NULL,
@@ -730,7 +754,6 @@ CREATE TABLE IF NOT EXISTS timesheets (
     UNIQUE(staff_id, date)
 );
 
--- Create breaks table
 CREATE TABLE IF NOT EXISTS breaks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     timesheet_id UUID REFERENCES timesheets(id) NOT NULL,
@@ -743,14 +766,13 @@ CREATE TABLE IF NOT EXISTS breaks (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create employee pay rates table
 CREATE TABLE IF NOT EXISTS employee_pay_rates (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     staff_id UUID REFERENCES staff(id) NOT NULL,
     employee_type_id UUID REFERENCES employee_types(id) NOT NULL,
     hourly_rate DECIMAL(10,2),
     annual_salary DECIMAL(12,2),
-    overtime_rate DECIMAL(10,2), -- multiplier, e.g., 1.5 for time and half
+    overtime_rate DECIMAL(10,2),
     effective_date DATE NOT NULL,
     end_date DATE,
     is_active BOOLEAN DEFAULT TRUE,
@@ -759,7 +781,6 @@ CREATE TABLE IF NOT EXISTS employee_pay_rates (
     UNIQUE(staff_id, effective_date)
 );
 
--- Create payroll entries table (calculated payroll data)
 CREATE TABLE IF NOT EXISTS payroll_entries (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     staff_id UUID REFERENCES staff(id) NOT NULL,
@@ -781,7 +802,6 @@ CREATE TABLE IF NOT EXISTS payroll_entries (
     UNIQUE(staff_id, payroll_cycle_id)
 );
 
--- Create payments table (actual payment records)
 CREATE TABLE IF NOT EXISTS payments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     payroll_entry_id UUID REFERENCES payroll_entries(id) NOT NULL,
@@ -795,20 +815,6 @@ CREATE TABLE IF NOT EXISTS payments (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create holidays table
-CREATE TABLE IF NOT EXISTS holidays (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(100) NOT NULL,
-    date DATE NOT NULL,
-    is_recurring BOOLEAN DEFAULT FALSE,
-    description TEXT,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(date)
-);
-
--- Create leave balances table
 CREATE TABLE IF NOT EXISTS leave_balances (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     staff_id UUID REFERENCES staff(id) NOT NULL,
@@ -882,25 +888,33 @@ CREATE INDEX IF NOT EXISTS idx_inventory_alerts_resolved ON inventory_alerts(is_
 -- 9. PAYROLL SYSTEM INDEXES
 -- ============================================
 
+-- Core entity indexes
+CREATE INDEX IF NOT EXISTS idx_departments_name ON departments(name);
+CREATE INDEX IF NOT EXISTS idx_departments_manager ON departments(manager_id);
+CREATE INDEX IF NOT EXISTS idx_departments_active ON departments(is_active);
+CREATE INDEX IF NOT EXISTS idx_positions_title ON positions(title);
+CREATE INDEX IF NOT EXISTS idx_positions_department ON positions(department_id);
+CREATE INDEX IF NOT EXISTS idx_positions_active ON positions(is_active);
+CREATE INDEX IF NOT EXISTS idx_staff_employee_id ON staff(employee_id);
+CREATE INDEX IF NOT EXISTS idx_staff_email ON staff(email);
+CREATE INDEX IF NOT EXISTS idx_staff_position_id ON staff(position_id);
+CREATE INDEX IF NOT EXISTS idx_staff_department_id ON staff(department_id);
+CREATE INDEX IF NOT EXISTS idx_staff_location ON staff(location_id);
+CREATE INDEX IF NOT EXISTS idx_staff_manager ON staff(manager_id);
+CREATE INDEX IF NOT EXISTS idx_staff_active ON staff(is_active);
+CREATE INDEX IF NOT EXISTS idx_staff_hire_date ON staff(hire_date);
+
 -- Timesheets indexes
 CREATE INDEX IF NOT EXISTS idx_timesheets_staff_date ON timesheets(staff_id, date);
 CREATE INDEX IF NOT EXISTS idx_timesheets_payroll_cycle ON timesheets(payroll_cycle_id);
 CREATE INDEX IF NOT EXISTS idx_timesheets_status ON timesheets(status);
-
--- Leave requests indexes
 CREATE INDEX IF NOT EXISTS idx_leave_requests_staff ON leave_requests(staff_id);
 CREATE INDEX IF NOT EXISTS idx_leave_requests_dates ON leave_requests(start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_leave_requests_status ON leave_requests(status);
-
--- Payroll entries indexes
 CREATE INDEX IF NOT EXISTS idx_payroll_entries_staff_cycle ON payroll_entries(staff_id, payroll_cycle_id);
 CREATE INDEX IF NOT EXISTS idx_payroll_entries_status ON payroll_entries(status);
-
--- Payments indexes
 CREATE INDEX IF NOT EXISTS idx_payments_payroll_entry ON payments(payroll_entry_id);
 CREATE INDEX IF NOT EXISTS idx_payments_date ON payments(payment_date);
-
--- Breaks indexes
 CREATE INDEX IF NOT EXISTS idx_breaks_timesheet ON breaks(timesheet_id);
 CREATE INDEX IF NOT EXISTS idx_breaks_times ON breaks(start_time, end_time);
 
@@ -997,40 +1011,36 @@ INSERT INTO employee_types (name, code, description, payment_type, is_active) VA
 ('Temporary Help', 'TEMPORARY', 'Temporary seasonal or project-based workers', 'temporary', true),
 ('Consultant', 'CONSULTANT', 'External consultants and contractors', 'consultant', true)
 ON CONFLICT DO NOTHING;
-
--- Insert leave types
-INSERT INTO leave_types (name, code, description, is_paid, requires_approval, max_days_per_year, carry_forward_days, color) VALUES
-('Annual Vacation', 'VACATION', 'Paid annual vacation leave', true, true, 15, 5, '#28a745'),
-('Sick Leave', 'SICK', 'Paid sick leave for illness', true, true, 10, 0, '#dc3545'),
-('Personal Leave', 'PERSONAL', 'Paid personal leave', true, true, 3, 0, '#ffc107'),
-('Unpaid Leave', 'UNPAID', 'Unpaid leave of absence', false, true, NULL, 0, '#6c757d'),
-('Maternity Leave', 'MATERNITY', 'Paid maternity leave', true, true, 84, 0, '#e83e8c'),
-('Paternity Leave', 'PATERNITY', 'Paid paternity leave', true, true, 10, 0, '#17a2b8'),
-('Bereavement Leave', 'BEREAVEMENT', 'Paid bereavement leave', true, false, 3, 0, '#343a40'),
-('Holiday', 'HOLIDAY', 'Company recognized holidays', true, false, NULL, 0, '#007bff'),
-('Jury Duty', 'JURY_DUTY', 'Paid time for jury duty', true, false, NULL, 0, '#6610f2')
 ON CONFLICT DO NOTHING;
 
--- Insert holidays
-INSERT INTO holidays (name, date, is_recurring, description) VALUES
-('New Year''s Day', '2025-01-01', true, 'New Year''s Day holiday'),
-('Martin Luther King Jr. Day', '2025-01-20', true, 'MLK Day holiday'),
-('Memorial Day', '2025-05-26', true, 'Memorial Day holiday'),
-('Independence Day', '2025-07-04', true, 'Fourth of July holiday'),
-('Labor Day', '2025-09-01', true, 'Labor Day holiday'),
-('Thanksgiving Day', '2025-11-27', true, 'Thanksgiving holiday'),
-('Christmas Day', '2025-12-25', true, 'Christmas holiday')
+INSERT INTO positions (title, description, department_id, salary_min, salary_max, is_active) VALUES
+('Store Manager', 'Overall management of store operations', (SELECT id FROM departments WHERE name = 'Management' LIMIT 1), 45000.00, 65000.00, true),
+('Assistant Manager', 'Assistant to store manager', (SELECT id FROM departments WHERE name = 'Management' LIMIT 1), 35000.00, 50000.00, true),
+('Barista', 'Coffee and beverage preparation', (SELECT id FROM departments WHERE name = 'Operations' LIMIT 1), 25000.00, 35000.00, true),
+('Cashier', 'Customer checkout and payment processing', (SELECT id FROM departments WHERE name = 'Operations' LIMIT 1), 22000.00, 30000.00, true),
+('Kitchen Staff', 'Food preparation and kitchen operations', (SELECT id FROM departments WHERE name = 'Kitchen' LIMIT 1), 25000.00, 35000.00, true),
+('Customer Service Rep', 'Customer support and assistance', (SELECT id FROM departments WHERE name = 'Customer Service' LIMIT 1), 28000.00, 38000.00, true),
+('HR Manager', 'Human resources management', (SELECT id FROM departments WHERE name = 'HR' LIMIT 1), 40000.00, 55000.00, true),
+('Finance Manager', 'Financial operations management', (SELECT id FROM departments WHERE name = 'Finance' LIMIT 1), 42000.00, 58000.00, true),
+('IT Support', 'Technical support and systems maintenance', (SELECT id FROM departments WHERE name = 'IT' LIMIT 1), 35000.00, 50000.00, true)
 ON CONFLICT DO NOTHING;
 
--- Insert payroll cycles (for next few months)
-INSERT INTO payroll_cycles (name, start_date, end_date, pay_date, status) VALUES
-('October 2025 Bi-weekly 1', '2025-10-01', '2025-10-14', '2025-10-18', 'draft'),
-('October 2025 Bi-weekly 2', '2025-10-15', '2025-10-28', '2025-11-01', 'draft'),
-('November 2025 Bi-weekly 1', '2025-10-29', '2025-11-11', '2025-11-15', 'draft'),
-('November 2025 Bi-weekly 2', '2025-11-12', '2025-11-25', '2025-11-29', 'draft')
+INSERT INTO staff (employee_id, first_name, last_name, email, phone, position_id, department_id, location_id, hire_date, salary, is_active, address, city, state, zip_code, emergency_contact_name, emergency_contact_phone) VALUES
+('EMP001', 'John', 'Smith', 'john.smith@sn15.com', '+1-555-1001', (SELECT id FROM positions WHERE title = 'Store Manager' LIMIT 1), (SELECT id FROM departments WHERE name = 'Management' LIMIT 1), (SELECT id FROM locations WHERE name = 'Downtown Branch' LIMIT 1), '2023-01-15', 55000.00, true, '123 Oak St', 'New York', 'NY', '10001', 'Jane Smith', '+1-555-2001'),
+('EMP002', 'Sarah', 'Johnson', 'sarah.johnson@sn15.com', '+1-555-1002', (SELECT id FROM positions WHERE title = 'Assistant Manager' LIMIT 1), (SELECT id FROM departments WHERE name = 'Management' LIMIT 1), (SELECT id FROM locations WHERE name = 'Downtown Branch' LIMIT 1), '2023-03-01', 45000.00, true, '456 Maple Ave', 'New York', 'NY', '10002', 'Mike Johnson', '+1-555-2002'),
+('EMP003', 'Mike', 'Davis', 'mike.davis@sn15.com', '+1-555-1003', (SELECT id FROM positions WHERE title = 'Barista' LIMIT 1), (SELECT id FROM departments WHERE name = 'Operations' LIMIT 1), (SELECT id FROM locations WHERE name = 'Downtown Branch' LIMIT 1), '2023-02-15', 32000.00, true, '789 Pine St', 'New York', 'NY', '10003', 'Lisa Davis', '+1-555-2003'),
+('EMP004', 'Emily', 'Wilson', 'emily.wilson@sn15.com', '+1-555-1004', (SELECT id FROM positions WHERE title = 'Cashier' LIMIT 1), (SELECT id FROM departments WHERE name = 'Operations' LIMIT 1), (SELECT id FROM locations WHERE name = 'Downtown Branch' LIMIT 1), '2023-04-01', 28000.00, true, '321 Elm St', 'New York', 'NY', '10004', 'David Wilson', '+1-555-2004'),
+('EMP005', 'Robert', 'Brown', 'robert.brown@sn15.com', '+1-555-1005', (SELECT id FROM positions WHERE title = 'Store Manager' LIMIT 1), (SELECT id FROM departments WHERE name = 'Management' LIMIT 1), (SELECT id FROM locations WHERE name = 'Mall Location' LIMIT 1), '2023-01-20', 55000.00, true, '654 Cedar Ave', 'Los Angeles', 'CA', '90210', 'Maria Brown', '+1-555-2005'),
+('EMP006', 'Lisa', 'Garcia', 'lisa.garcia@sn15.com', '+1-555-1006', (SELECT id FROM positions WHERE title = 'Kitchen Staff' LIMIT 1), (SELECT id FROM departments WHERE name = 'Kitchen' LIMIT 1), (SELECT id FROM locations WHERE name = 'Mall Location' LIMIT 1), '2023-03-15', 30000.00, true, '987 Birch Blvd', 'Los Angeles', 'CA', '90211', 'Carlos Garcia', '+1-555-2006'),
+('EMP007', 'David', 'Miller', 'david.miller@sn15.com', '+1-555-1007', (SELECT id FROM positions WHERE title = 'Barista' LIMIT 1), (SELECT id FROM departments WHERE name = 'Operations' LIMIT 1), (SELECT id FROM locations WHERE name = 'Mall Location' LIMIT 1), '2023-05-01', 32000.00, true, '147 Walnut St', 'Los Angeles', 'CA', '90212', 'Anna Miller', '+1-555-2007'),
+('EMP008', 'Jennifer', 'Martinez', 'jennifer.martinez@sn15.com', '+1-555-1008', (SELECT id FROM positions WHERE title = 'Assistant Manager' LIMIT 1), (SELECT id FROM departments WHERE name = 'Management' LIMIT 1), (SELECT id FROM locations WHERE name = 'Airport Terminal' LIMIT 1), '2023-02-01', 45000.00, true, '258 Spruce Ln', 'Chicago', 'IL', '60601', 'Luis Martinez', '+1-555-2008')
 ON CONFLICT DO NOTHING;
 
--- Insert employee pay rates for sample staff
+-- Update manager_id for staff and departments
+-- (deduplicated above)
+-- Updates retained earlier in the script
+
+-- Insert remaining data
 INSERT INTO employee_pay_rates (staff_id, employee_type_id, hourly_rate, annual_salary, overtime_rate, effective_date, is_active) VALUES
 ((SELECT id FROM staff WHERE employee_id = 'EMP001'), (SELECT id FROM employee_types WHERE code = 'FT_SALARIED'), NULL, 55000.00, NULL, '2023-01-15', true),
 ((SELECT id FROM staff WHERE employee_id = 'EMP002'), (SELECT id FROM employee_types WHERE code = 'FT_SALARIED'), NULL, 45000.00, NULL, '2023-03-01', true),
@@ -1042,7 +1052,6 @@ INSERT INTO employee_pay_rates (staff_id, employee_type_id, hourly_rate, annual_
 ((SELECT id FROM staff WHERE employee_id = 'EMP008'), (SELECT id FROM employee_types WHERE code = 'FT_SALARIED'), NULL, 45000.00, NULL, '2023-02-01', true)
 ON CONFLICT DO NOTHING;
 
--- Insert leave balances for current year
 INSERT INTO leave_balances (staff_id, leave_type_id, year, allocated_days, used_days, remaining_days) VALUES
 ((SELECT id FROM staff WHERE employee_id = 'EMP001'), (SELECT id FROM leave_types WHERE code = 'VACATION'), 2025, 15.0, 5.0, 10.0),
 ((SELECT id FROM staff WHERE employee_id = 'EMP001'), (SELECT id FROM leave_types WHERE code = 'SICK'), 2025, 10.0, 2.0, 8.0),
@@ -1050,7 +1059,6 @@ INSERT INTO leave_balances (staff_id, leave_type_id, year, allocated_days, used_
 ((SELECT id FROM staff WHERE employee_id = 'EMP002'), (SELECT id FROM leave_types WHERE code = 'SICK'), 2025, 10.0, 1.0, 9.0)
 ON CONFLICT DO NOTHING;
 
--- Insert sample timesheets
 INSERT INTO timesheets (staff_id, date, clock_in, clock_out, total_hours, regular_hours, break_hours, status) VALUES
 ((SELECT id FROM staff WHERE employee_id = 'EMP003'), '2025-10-01', '2025-10-01 08:00:00', '2025-10-01 16:30:00', 8.0, 8.0, 0.5, 'approved'),
 ((SELECT id FROM staff WHERE employee_id = 'EMP004'), '2025-10-01', '2025-10-01 09:00:00', '2025-10-01 17:00:00', 8.0, 8.0, 0.5, 'approved'),
@@ -1058,11 +1066,12 @@ INSERT INTO timesheets (staff_id, date, clock_in, clock_out, total_hours, regula
 ((SELECT id FROM staff WHERE employee_id = 'EMP007'), '2025-10-01', '2025-10-01 11:00:00', '2025-10-01 19:00:00', 8.0, 8.0, 0.5, 'approved')
 ON CONFLICT DO NOTHING;
 
--- Insert sample breaks
 INSERT INTO breaks (timesheet_id, break_type, start_time, end_time, duration_minutes, notes) VALUES
 ((SELECT id FROM timesheets WHERE staff_id = (SELECT id FROM staff WHERE employee_id = 'EMP003' LIMIT 1) AND date = '2025-10-01' LIMIT 1), 'lunch', '2025-10-01 12:00:00', '2025-10-01 12:30:00', 30, 'Lunch break'),
 ((SELECT id FROM timesheets WHERE staff_id = (SELECT id FROM staff WHERE employee_id = 'EMP004' LIMIT 1) AND date = '2025-10-01' LIMIT 1), 'lunch', '2025-10-01 12:30:00', '2025-10-01 13:00:00', 30, 'Lunch break')
 ON CONFLICT DO NOTHING;
+
+-- Retain other parts of the original script (e.g., user creation, permissions, other inserts, etc.)
 
 -- ============================================
 -- SETUP COMPLETE

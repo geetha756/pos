@@ -1503,7 +1503,7 @@ def payroll_cycles():
                    SUM(p.gross_pay) as total_gross_pay,
                    SUM(p.net_pay) as total_net_pay
             FROM payroll_cycles pc
-            LEFT JOIN payroll p ON pc.id = p.payroll_cycle_id
+            LEFT JOIN payroll_entries p ON pc.id = p.payroll_cycle_id
             GROUP BY pc.id
             ORDER BY pc.created_at DESC
         """, fetch=True)
@@ -1534,7 +1534,7 @@ def view_payroll_cycle(cycle_id):
                    s.first_name, s.last_name, s.employee_id, s.email,
                    d.name as department_name,
                    pc.name as cycle_name
-            FROM payroll p
+            FROM payroll_entries p
             JOIN staff s ON p.staff_id = s.id
             LEFT JOIN departments d ON s.department_id = d.id
             JOIN payroll_cycles pc ON p.payroll_cycle_id = pc.id

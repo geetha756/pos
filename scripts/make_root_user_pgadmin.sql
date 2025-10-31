@@ -5,7 +5,7 @@
 
 DO $$
 DECLARE
-    v_email    text := 'vijay@sn15.ai'; -- CHANGE THIS
+    v_email    text := 'snehitha@sn15.ai'; -- CHANGE THIS
     v_user_id  uuid;
 BEGIN
     -- Ensure user exists and is active
@@ -36,7 +36,7 @@ $$ LANGUAGE plpgsql;
 SELECT u.email, COUNT(*) AS total_allow_permissions
 FROM users u
 JOIN user_permissions up ON up.user_id = u.id AND up.effect = 'allow'
-WHERE u.email = 'vijay@sn15.ai'  -- keep in sync with v_email above
+WHERE u.email = 'snehitha@sn15.ai'  -- keep in sync with v_email above
 GROUP BY u.email;
 
 
