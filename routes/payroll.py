@@ -1,6 +1,7 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session, current_app
 from database import execute_query, execute_query_one, get_db_connection
 from .auth import login_required
+from .helpers import get_current_staff_id
 import psycopg2
 from datetime import datetime, date, timedelta
 import uuid
@@ -604,9 +605,20 @@ def leave():
             ORDER BY lr.created_at DESC
         """, fetch=True)
 
+        # Count leave approvals completed this month
+        approved_this_month = execute_query_one("""
+            SELECT COUNT(*) as count
+            FROM leave_requests
+            WHERE status = 'approved'
+              AND approved_at IS NOT NULL
+              AND approved_at >= date_trunc('month', CURRENT_DATE)
+              AND approved_at < date_trunc('month', CURRENT_DATE) + INTERVAL '1 month'
+        """) or {'count': 0}
+
         return render_template('payroll/leave/index.html',
                              leave_balances=leave_balances or [],
-                             pending_requests=pending_requests or [])
+                             pending_requests=pending_requests or [],
+                             approved_this_month=int(approved_this_month['count']))
 
     except Exception as e:
         flash(f'Error loading leave management: {str(e)}', 'error')
@@ -671,8 +683,11 @@ def leave_request():
 def approve_leave(request_id):
     """Approve leave request"""
     try:
-        # Get current user for approval tracking
-        approved_by = request.form.get('approved_by')  # Should come from auth system
+        approved_by = get_current_staff_id()
+
+        if not approved_by:
+            flash('Your account is not linked to a staff record. Please contact an administrator.', 'error')
+            return redirect(url_for('payroll.leave'))
 
         execute_query("""
             UPDATE leave_requests
@@ -693,7 +708,11 @@ def reject_leave(request_id):
     """Reject leave request"""
     try:
         comments = request.form.get('comments')
-        approved_by = request.form.get('approved_by')
+        approved_by = get_current_staff_id()
+
+        if not approved_by:
+            flash('Your account is not linked to a staff record. Please contact an administrator.', 'error')
+            return redirect(url_for('payroll.leave'))
 
         execute_query("""
             UPDATE leave_requests
@@ -1345,6 +1364,8 @@ def reports():
 def leave_reports():
     """Leave reports and analytics"""
     try:
+        export = request.args.get('export')
+
         # Leave usage summary by type
         leave_usage = execute_query("""
             SELECT lt.name as leave_type_name, lt.color,
@@ -1385,6 +1406,86 @@ def leave_reports():
             GROUP BY d.id, d.name
             ORDER BY total_days_taken DESC NULLS LAST
         """, fetch=True)
+
+        if export == 'csv':
+            import csv
+            import io
+
+            total_requests = sum([(u['total_requests'] or 0) for u in leave_usage]) if leave_usage else 0
+            total_approved = sum([(u['approved_requests'] or 0) for u in leave_usage]) if leave_usage else 0
+            total_days = sum([(u['total_days_taken'] or 0) for u in leave_usage]) if leave_usage else 0
+            approval_rate = (total_approved / total_requests * 100) if total_requests else 0
+
+            output = io.StringIO()
+            writer = csv.writer(output)
+
+            writer.writerow(['Leave Analytics Report'])
+            writer.writerow(['Generated On', datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
+            writer.writerow([''])
+
+            writer.writerow(['Summary'])
+            writer.writerow(['Total Requests', total_requests])
+            writer.writerow(['Total Approved', total_approved])
+            writer.writerow(['Total Days Taken', f"{total_days:.1f}"])
+            writer.writerow(['Approval Rate', f"{approval_rate:.2f}%"])
+            writer.writerow([''])
+
+            writer.writerow(['Leave Usage by Type'])
+            writer.writerow(['Leave Type', 'Total Requests', 'Approved Requests', 'Total Days Taken', 'Avg Days/Request', 'Approval Rate %'])
+            if leave_usage:
+                for usage in leave_usage:
+                    total_req = usage['total_requests'] or 0
+                    approved_req = usage['approved_requests'] or 0
+                    days_taken = usage['total_days_taken'] or 0
+                    avg_days = usage['avg_days_per_request'] or 0
+                    rate = (approved_req / total_req * 100) if total_req else 0
+                    writer.writerow([
+                        usage['leave_type_name'],
+                        total_req,
+                        approved_req,
+                        f"{days_taken:.1f}",
+                        f"{avg_days:.1f}",
+                        f"{rate:.2f}"
+                    ])
+            writer.writerow([''])
+
+            writer.writerow(['Monthly Leave Trends (Last 12 Months)'])
+            writer.writerow(['Month', 'Total Requests', 'Approved', 'Total Days', 'Approval Rate %'])
+            if monthly_leave:
+                for month in monthly_leave:
+                    total_req = month['total_requests'] or 0
+                    approved_req = month['approved_requests'] or 0
+                    days_taken = month['total_days'] or 0
+                    rate = (approved_req / total_req * 100) if total_req else 0
+                    writer.writerow([
+                        month['month_name'],
+                        total_req,
+                        approved_req,
+                        f"{days_taken:.1f}",
+                        f"{rate:.2f}"
+                    ])
+            writer.writerow([''])
+
+            writer.writerow(['Department Leave Usage'])
+            writer.writerow(['Department', 'Total Requests', 'Approved Requests', 'Total Days Taken'])
+            if dept_leave:
+                for dept in dept_leave:
+                    writer.writerow([
+                        dept['department_name'],
+                        dept['total_requests'] or 0,
+                        dept['approved_requests'] or 0,
+                        f"{(dept['total_days_taken'] or 0):.1f}"
+                    ])
+
+            output.seek(0)
+            response = current_app.response_class(
+                output.getvalue(),
+                mimetype='application/vnd.ms-excel',
+                direct_passthrough=True
+            )
+            filename = f"leave-analytics-{datetime.now().strftime('%Y%m%d-%H%M%S')}.csv"
+            response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+            return response
 
         return render_template('payroll/reports/leave.html',
                              leave_usage=leave_usage or [],
@@ -1499,9 +1600,9 @@ def payroll_cycles():
         # Get all payroll cycles
         cycles = execute_query("""
             SELECT pc.*,
-                   COUNT(p.id) as processed_employees,
-                   SUM(p.gross_pay) as total_gross_pay,
-                   SUM(p.net_pay) as total_net_pay
+                   COUNT(p.id) as entries_count,
+                   COALESCE(SUM(p.gross_pay), 0) as total_payroll,
+                   COALESCE(SUM(p.net_pay), 0) as total_net_pay
             FROM payroll_cycles pc
             LEFT JOIN payroll_entries p ON pc.id = p.payroll_cycle_id
             GROUP BY pc.id
@@ -1559,10 +1660,8 @@ def view_payroll_cycle(cycle_id):
         flash(f'Error loading payroll cycle: {str(e)}', 'error')
         return redirect(url_for('payroll.payroll_cycles'))
 
-@payroll_bp.route('/payroll-cycles/<cycle_id>/process', methods=['POST'])
-@login_required
-def process_payroll_cycle(cycle_id):
-    """Process payroll for a cycle"""
+def _run_payroll_processing(cycle_id):
+    """Internal helper that processes a payroll cycle and returns (success, message)."""
     try:
         # Get cycle details
         cycle = execute_query_one("""
@@ -1570,8 +1669,7 @@ def process_payroll_cycle(cycle_id):
         """, (cycle_id,))
 
         if not cycle:
-            flash('Payroll cycle not found or already processed', 'error')
-            return redirect(url_for('payroll.payroll_cycles'))
+            return False, 'Payroll cycle not found or already processed.'
 
         # Get all active staff
         staff_list = execute_query("""
@@ -1583,8 +1681,7 @@ def process_payroll_cycle(cycle_id):
         """, fetch=True)
 
         if not staff_list:
-            flash('No active employees found', 'warning')
-            return redirect(url_for('payroll.payroll_cycles'))
+            return False, 'No active employees found.'
 
         processed_count = 0
 
@@ -1647,9 +1744,50 @@ def process_payroll_cycle(cycle_id):
             WHERE id = %s
         """, (cycle_id,))
 
-        flash(f'Payroll processed for {processed_count} employees!', 'success')
-        return redirect(url_for('payroll.view_payroll_cycle', cycle_id=cycle_id))
+        return True, f'Payroll processed for {processed_count} employees!'
 
     except Exception as e:
-        flash(f'Error processing payroll: {str(e)}', 'error')
-        return redirect(url_for('payroll.payroll_cycles'))
+        return False, f'Error processing payroll: {str(e)}'
+
+
+@payroll_bp.route('/payroll-cycles/<cycle_id>/process', methods=['POST'])
+@login_required
+def process_payroll_cycle(cycle_id):
+    """Process payroll for a specific cycle via standard form submission."""
+    success, message = _run_payroll_processing(cycle_id)
+    flash(message, 'success' if success else 'error')
+
+    if success:
+        return redirect(url_for('payroll.view_payroll_cycle', cycle_id=cycle_id))
+    return redirect(url_for('payroll.payroll_cycles'))
+
+
+@payroll_bp.route('/process-payroll', methods=['POST'])
+@login_required
+def process_payroll():
+    """Process the next available payroll cycle (used by the dashboard button)."""
+    payload = request.get_json(silent=True) or {}
+    cycle_id = payload.get('cycle_id')
+
+    if not cycle_id:
+        next_cycle = execute_query_one("""
+            SELECT id FROM payroll_cycles
+            WHERE status = 'draft'
+            ORDER BY start_date ASC
+            LIMIT 1
+        """)
+        if not next_cycle:
+            return jsonify({
+                'success': False,
+                'message': 'No draft payroll cycles available to process.'
+            }), 404
+        cycle_id = next_cycle['id']
+
+    success, message = _run_payroll_processing(cycle_id)
+    status_code = 200 if success else 400
+
+    return jsonify({
+        'success': success,
+        'message': message,
+        'cycle_id': cycle_id
+    }), status_code

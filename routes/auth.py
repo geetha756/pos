@@ -141,17 +141,34 @@ def process_auth():
                 return redirect(url_for('auth.login'))
             
             # Store user information in session
-            session['user_id'] = user_email
+            session['user_id'] = user_email  # legacy key used across app (email)
             session['user_name'] = user_name
             session['user_picture'] = user_picture
             session['authenticated'] = True
 
+            user_row = None
+
             # Ensure application user exists/updated
             try:
                 from database import upsert_user_from_session
-                upsert_user_from_session(user_email, user_name, user_picture)
+                user_row = upsert_user_from_session(user_email, user_name, user_picture)
             except Exception as e:
                 print(f"Failed to upsert user: {e}")
+
+            # Cache user/staff identifiers for downstream writes
+            if user_row:
+                if user_row.get('id'):
+                    session['user_uuid'] = str(user_row['id'])
+                else:
+                    session.pop('user_uuid', None)
+
+                if user_row.get('staff_id'):
+                    session['staff_id'] = str(user_row['staff_id'])
+                else:
+                    session.pop('staff_id', None)
+            else:
+                session.pop('user_uuid', None)
+                session.pop('staff_id', None)
             
             # Log user session to database
             try:

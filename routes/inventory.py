@@ -1,7 +1,9 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from database import execute_query, execute_query_one
 from .auth import login_required
+from .helpers import get_current_staff_id
 from datetime import datetime, date
+from decimal import Decimal, InvalidOperation
 import uuid
 
 inventory_bp = Blueprint('inventory', __name__)
@@ -67,17 +69,53 @@ def add_master_item():
             data = request.form
             supplier_id = data.get('supplier_id') if data.get('supplier_id') else None
 
+            name = data['name'].strip()
+            description = data.get('description')
+            category = data['category']
+            unit = data['unit']
+            min_order_quantity = float(data.get('min_order_quantity', 1))
+            default_cost = float(data.get('default_cost_per_unit', 0))
+            barcode = data.get('barcode')
+
+            existing_item = execute_query_one("""
+                SELECT id, is_active FROM master_inventory
+                WHERE LOWER(name) = LOWER(%s)
+            """, (name,))
+
+            if existing_item:
+                if existing_item['is_active']:
+                    flash('An active item with this name already exists.', 'error')
+                    return redirect(request.url)
+
+                execute_query("""
+                    UPDATE master_inventory SET
+                        description = %s,
+                        category = %s,
+                        unit = %s,
+                        supplier_id = %s,
+                        min_order_quantity = %s,
+                        default_cost_per_unit = %s,
+                        barcode = %s,
+                        is_active = TRUE,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = %s
+                """, (
+                    description, category, unit, supplier_id,
+                    min_order_quantity, default_cost, barcode,
+                    existing_item['id']
+                ))
+
+                flash('Existing item reactivated and updated successfully!', 'success')
+                return redirect(url_for('inventory.master_inventory'))
+
             execute_query("""
                 INSERT INTO master_inventory (
                     name, description, category, unit, supplier_id,
                     min_order_quantity, default_cost_per_unit, barcode
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """, (
-                data['name'], data.get('description'), data['category'], data['unit'],
-                supplier_id,
-                float(data.get('min_order_quantity', 1)),
-                float(data.get('default_cost_per_unit', 0)),
-                data.get('barcode')
+                name, description, category, unit,
+                supplier_id, min_order_quantity, default_cost, barcode
             ))
 
             flash('Master inventory item added successfully!', 'success')
@@ -365,6 +403,11 @@ def add_purchase_list():
         try:
             data = request.form
             location_id = data['location_id']
+            staff_id = get_current_staff_id()
+
+            if not staff_id:
+                flash('Your account is not linked to a staff record. Please contact an administrator.', 'error')
+                return redirect(url_for('inventory.purchase_lists'))
 
             # Create purchase list
             list_id = str(uuid.uuid4())
@@ -375,7 +418,7 @@ def add_purchase_list():
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 list_id, location_id, data['name'], data.get('description'),
-                request.session.get('user_id'), 'draft', data.get('priority', 'normal'),
+                staff_id, 'draft', data.get('priority', 'normal'),
                 data.get('required_by_date') or None
             ))
 
@@ -595,6 +638,104 @@ def location_inventory():
         flash(f'Error loading location inventory: {str(e)}', 'error')
         return render_template('inventory/location_inventory.html', inventory=[], locations=[], categories=[])
 
+@inventory_bp.route('/location-inventory/<uuid:location_id>/assign', methods=['GET', 'POST'])
+@login_required
+def assign_location_inventory(location_id):
+    """Assign master inventory items to a specific location."""
+    try:
+        location = execute_query_one("SELECT id, name FROM locations WHERE id = %s", (str(location_id),))
+        if not location:
+            flash('Location not found', 'error')
+            return redirect(url_for('inventory.location_inventory'))
+
+        if request.method == 'POST':
+            data = request.form
+            master_inventory_id = data.get('master_inventory_id')
+
+            if not master_inventory_id:
+                flash('Please select an ingredient to assign.', 'error')
+                return redirect(request.url)
+
+            try:
+                current_stock = Decimal(str(data.get('current_stock', 0)))
+                minimum_stock = Decimal(str(data.get('minimum_stock_level', 0)))
+                maximum_stock = Decimal(str(data.get('maximum_stock_level', 0)))
+                reorder_point = Decimal(str(data.get('reorder_point', 0)))
+            except InvalidOperation:
+                flash('Invalid numeric value provided.', 'error')
+                return redirect(request.url)
+
+            if minimum_stock < 0 or maximum_stock < 0 or reorder_point < 0 or current_stock < 0:
+                flash('Stock levels cannot be negative.', 'error')
+                return redirect(request.url)
+
+            execute_query("""
+                INSERT INTO location_inventory (
+                    location_id, master_inventory_id, current_stock,
+                    minimum_stock_level, maximum_stock_level, reorder_point
+                ) VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (location_id, master_inventory_id)
+                DO UPDATE SET
+                    current_stock = EXCLUDED.current_stock,
+                    minimum_stock_level = EXCLUDED.minimum_stock_level,
+                    maximum_stock_level = EXCLUDED.maximum_stock_level,
+                    reorder_point = EXCLUDED.reorder_point,
+                    last_updated = CURRENT_TIMESTAMP
+            """, (
+                str(location_id), master_inventory_id, current_stock,
+                minimum_stock, maximum_stock, reorder_point
+            ))
+
+            flash('Ingredient assigned to location inventory.', 'success')
+            return redirect(request.url)
+
+        assigned_items = execute_query("""
+            SELECT li.*, mi.name, mi.unit, mi.category
+            FROM location_inventory li
+            JOIN master_inventory mi ON li.master_inventory_id = mi.id
+            WHERE li.location_id = %s
+            ORDER BY mi.category, mi.name
+        """, (str(location_id),), fetch=True) or []
+
+        available_items = execute_query("""
+            SELECT mi.id, mi.name, mi.category, mi.unit
+            FROM master_inventory mi
+            WHERE mi.is_active = TRUE
+              AND mi.id NOT IN (
+                  SELECT master_inventory_id
+                  FROM location_inventory
+                  WHERE location_id = %s
+              )
+            ORDER BY mi.category, mi.name
+        """, (str(location_id),), fetch=True) or []
+
+        locations = execute_query("SELECT id, name FROM locations ORDER BY name", fetch=True) or []
+
+        return render_template('inventory/location_inventory_assign.html',
+                             location=location,
+                             assigned_items=assigned_items,
+                             available_items=available_items,
+                             locations=locations)
+    except Exception as e:
+        flash(f'Error assigning inventory items: {str(e)}', 'error')
+        return redirect(url_for('inventory.location_inventory'))
+
+@inventory_bp.route('/location-inventory/<uuid:location_id>/<uuid:item_id>/unassign', methods=['POST'])
+@login_required
+def unassign_location_inventory(location_id, item_id):
+    """Remove an ingredient assignment from a location."""
+    try:
+        execute_query("""
+            DELETE FROM location_inventory
+            WHERE location_id = %s AND master_inventory_id = %s
+        """, (str(location_id), str(item_id)))
+
+        flash('Ingredient unassigned from location inventory.', 'success')
+    except Exception as e:
+        flash(f'Error removing assignment: {str(e)}', 'error')
+
+    return redirect(url_for('inventory.assign_location_inventory', location_id=location_id))
+
 @inventory_bp.route('/location-inventory/<uuid:location_id>/<uuid:item_id>/adjust', methods=['GET', 'POST'])
 @login_required
 def adjust_inventory(location_id, item_id):
@@ -615,15 +756,31 @@ def adjust_inventory(location_id, item_id):
 
         if request.method == 'POST':
             adjustment_type = request.form['adjustment_type']
-            quantity = float(request.form['quantity'])
+            try:
+                quantity = Decimal(str(request.form['quantity']))
+            except (InvalidOperation, KeyError):
+                flash('Invalid quantity value', 'error')
+                return redirect(request.url)
+
+            if quantity < 0:
+                flash('Quantity must be positive', 'error')
+                return redirect(request.url)
+
             reason = request.form['reason']
             notes = request.form.get('notes', '')
 
+            current_stock = Decimal(str(inventory['current_stock']))
+            staff_id = get_current_staff_id()
+
+            if not staff_id:
+                flash('Your account is not linked to a staff record. Please contact an administrator.', 'error')
+                return redirect(request.url)
+
             # Calculate new stock
             if adjustment_type == 'add':
-                new_stock = inventory['current_stock'] + quantity
+                new_stock = current_stock + quantity
             else:  # subtract
-                new_stock = inventory['current_stock'] - quantity
+                new_stock = current_stock - quantity
 
             if new_stock < 0:
                 flash('Cannot reduce stock below zero', 'error')
@@ -637,6 +794,7 @@ def adjust_inventory(location_id, item_id):
             """, (new_stock, str(location_id), str(item_id)))
 
             # Record transaction
+            quantity_delta = quantity if adjustment_type == 'add' else -quantity
             execute_query("""
                 INSERT INTO inventory_transactions (
                     location_id, master_inventory_id, transaction_type,
@@ -644,9 +802,9 @@ def adjust_inventory(location_id, item_id):
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 str(location_id), str(item_id), 'adjustment',
-                quantity if adjustment_type == 'add' else -quantity,
-                inventory['current_stock'], new_stock,
-                request.session.get('user_id'), f"{reason}: {notes}"
+                quantity_delta,
+                current_stock, new_stock,
+                staff_id, f"{reason}: {notes}"
             ))
 
             flash('Inventory adjusted successfully!', 'success')
@@ -721,6 +879,11 @@ def record_daily_usage():
             # Process the form submission
             usage_data = {}
             wastage_data = {}
+            staff_id = get_current_staff_id()
+
+            if not staff_id:
+                flash('Your account is not linked to a staff record. Please contact an administrator.', 'error')
+                return redirect(request.url)
 
             for key, value in request.form.items():
                 if key.startswith('opening_'):
@@ -756,7 +919,7 @@ def record_daily_usage():
                         status = 'recorded'
                 """, (
                     location_id, item_id, record_date, opening, closing,
-                    used, wastage, request.session.get('user_id')
+                used, wastage, staff_id
                 ))
 
             flash('Daily usage recorded successfully!', 'success')
@@ -850,6 +1013,11 @@ def record_leftover_food():
         if request.method == 'POST':
             # Process leftover food data
             leftover_data = {}
+            staff_id = get_current_staff_id()
+
+            if not staff_id:
+                flash('Your account is not linked to a staff record. Please contact an administrator.', 'error')
+                return redirect(request.url)
 
             for key, value in request.form.items():
                 if key.startswith('prepared_'):
@@ -885,7 +1053,7 @@ def record_leftover_food():
                         recorded_by = EXCLUDED.recorded_by
                 """, (
                     location_id, menu_item_id, record_date, prepared, sold,
-                    leftover, disposal, request.session.get('user_id')
+                    leftover, disposal, staff_id
                 ))
 
             flash('Leftover food data recorded successfully!', 'success')

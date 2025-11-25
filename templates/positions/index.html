@@ -50,7 +50,7 @@
                 <div class="d-flex justify-content-between align-items-center">
                     <div class="flex-grow-1">
                         <div class="stats-title">Total Positions</div>
-                        <div class="stats-value">{{ positions|length if positions else 0 }}</div>
+                        <div class="stats-value">{{ position_stats.total }}</div>
                     </div>
                     <div class="stats-icon">
                         <i class="ri-briefcase-3-line icon"></i>
@@ -66,13 +66,7 @@
                     <div class="flex-grow-1">
                         <div class="stats-title">Active Positions</div>
                         <div class="stats-value">
-                            {% set active_count = 0 %}
-                            {% for pos in positions %}
-                                {% if pos.is_active %}
-                                    {% set active_count = active_count + 1 %}
-                                {% endif %}
-                            {% endfor %}
-                            {{ active_count }}
+                            {{ position_stats.active }}
                         </div>
                     </div>
                     <div class="stats-icon">
@@ -89,13 +83,7 @@
                     <div class="flex-grow-1">
                         <div class="stats-title">Filled Positions</div>
                         <div class="stats-value">
-                            {% set filled_count = 0 %}
-                            {% for pos in positions %}
-                                {% if pos.staff_count and pos.staff_count > 0 %}
-                                    {% set filled_count = filled_count + 1 %}
-                                {% endif %}
-                            {% endfor %}
-                            {{ filled_count }}
+                            {{ position_stats.filled }}
                         </div>
                     </div>
                     <div class="stats-icon">
@@ -112,11 +100,7 @@
                     <div class="flex-grow-1">
                         <div class="stats-title">Total Staff</div>
                         <div class="stats-value">
-                            {% set total_staff = 0 %}
-                            {% for pos in positions %}
-                                {% set total_staff = total_staff + (pos.staff_count or 0) %}
-                            {% endfor %}
-                            {{ total_staff }}
+                            {{ position_stats.staff_total }}
                         </div>
                     </div>
                     <div class="stats-icon">

@@ -40,10 +40,20 @@ def index():
         # Get departments for filter dropdown
         departments = execute_query("SELECT id, name FROM departments ORDER BY name", fetch=True)
 
-        return render_template('positions/index.html', positions=positions or [], departments=departments or [])
+        stats = {
+            'total': len(positions) if positions else 0,
+            'active': sum(1 for pos in positions if pos.get('is_active')) if positions else 0,
+            'filled': sum(1 for pos in positions if (pos.get('staff_count') or 0) > 0) if positions else 0,
+            'staff_total': sum((pos.get('staff_count') or 0) for pos in positions) if positions else 0
+        }
+
+        return render_template('positions/index.html',
+                               positions=positions or [],
+                               departments=departments or [],
+                               position_stats=stats)
     except Exception as e:
         flash(f'Error loading positions: {str(e)}', 'error')
-        return render_template('positions/index.html', positions=[], departments=[])
+        return render_template('positions/index.html', positions=[], departments=[], position_stats={'total': 0, 'active': 0, 'filled': 0, 'staff_total': 0})
 
 @positions_bp.route('/add', methods=['GET', 'POST'])
 @login_required

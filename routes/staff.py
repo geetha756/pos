@@ -10,8 +10,11 @@ staff_bp = Blueprint('staff', __name__)
 def index():
     """List all staff members"""
     try:
-        # Get staff with location, manager, position, and department information
-        staff = execute_query("""
+        position_filter = request.args.get('position')
+        department_filter = request.args.get('department')
+        status_filter = request.args.get('status')
+
+        query = """
             SELECT s.*,
                    l.name as location_name,
                    m.first_name || ' ' || m.last_name as manager_name,
@@ -22,18 +25,47 @@ def index():
             LEFT JOIN staff m ON s.manager_id = m.id
             LEFT JOIN positions p ON s.position_id = p.id
             LEFT JOIN departments d ON s.department_id = d.id
-            ORDER BY s.last_name, s.first_name
-        """, fetch=True)
+            WHERE 1=1
+        """
+        params = []
+
+        selected_position = None
+        if position_filter:
+            query += " AND s.position_id = %s"
+            params.append(position_filter)
+            selected_position = execute_query_one("SELECT id, title FROM positions WHERE id = %s", (position_filter,))
+
+        if department_filter:
+            query += " AND s.department_id = %s"
+            params.append(department_filter)
+
+        if status_filter == 'active':
+            query += " AND s.is_active = TRUE"
+        elif status_filter == 'inactive':
+            query += " AND s.is_active = FALSE"
+
+        query += " ORDER BY s.last_name, s.first_name"
+
+        staff = execute_query(query, tuple(params) if params else None, fetch=True)
 
         # Get locations for filter dropdown
-        locations = execute_query("""
-            SELECT id, name FROM locations ORDER BY name
-        """, fetch=True)
+        locations = execute_query("SELECT id, name FROM locations ORDER BY name", fetch=True)
 
-        return render_template('staff/index.html', staff=staff or [], locations=locations or [])
+        return render_template('staff/index.html',
+                               staff=staff or [],
+                               locations=locations or [],
+                               selected_position=selected_position,
+                               selected_position_title=selected_position['title'] if selected_position else None,
+                               selected_position_id=position_filter,
+                               selected_department_id=department_filter,
+                               selected_status=status_filter)
     except Exception as e:
         flash(f'Error loading staff: {str(e)}', 'error')
-        return render_template('staff/index.html', staff=[], locations=[])
+        return render_template('staff/index.html', staff=[], locations=[], selected_position=None,
+                               selected_position_title=None,
+                               selected_position_id=None,
+                               selected_department_id=None,
+                               selected_status=None)
 
 @staff_bp.route('/add', methods=['GET', 'POST'])
 @login_required
