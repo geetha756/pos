@@ -54,7 +54,7 @@
                                 {% for usage in leave_usage %}
                                 <tr>
                                     <td>
-                                        <span class="badge" style="background-color: {{ usage.color }}; color: white; font-size: 14px;">
+                                        <span class="badge leave-type-badge" data-badge-color="{{ usage.color }}">
                                             {{ usage.leave_type_name }}
                                         </span>
                                     </td>
@@ -65,8 +65,8 @@
                                     <td>
                                         <div class="progress" style="width: 100px; height: 8px;">
                                             {% set rate = (usage.approved_requests / usage.total_requests * 100) if usage.total_requests > 0 else 0 %}
-                                            <div class="progress-bar bg-success" role="progressbar"
-                                                 style="width: {{ rate }}%;" aria-valuenow="{{ rate }}"
+                                            <div class="progress-bar bg-success dynamic-progress" role="progressbar"
+                                                 data-progress-width="{{ rate }}" aria-valuenow="{{ rate }}"
                                                  aria-valuemin="0" aria-valuemax="100">
                                             </div>
                                         </div>
@@ -160,8 +160,8 @@
                         <div class="progress mb-3" style="height: 6px;">
                             {% set max_days = dept_leave[0].total_days_taken if dept_leave[0].total_days_taken else 1 %}
                             {% set percentage = (dept.total_days_taken / max_days * 100) if max_days > 0 else 0 %}
-                            <div class="progress-bar" role="progressbar"
-                                 style="width: {{ percentage }}%; background-color: #007bff;"
+                            <div class="progress-bar dept-progress" role="progressbar"
+                                 data-progress-width="{{ percentage }}"
                                  aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">
                             </div>
                         </div>
@@ -222,11 +222,37 @@
 
 <script>
 function exportReport() {
-    // Get current filters and create export URL
     const urlParams = new URLSearchParams(window.location.search);
     urlParams.set('export', 'csv');
 
-    window.open(`/payroll/reports/leave?${urlParams.toString()}`, '_blank');
+    fetch(`/payroll/reports/leave?${urlParams.toString()}`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/vnd.ms-excel' },
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to generate export');
+        }
+        const disposition = response.headers.get('Content-Disposition') || '';
+        let filenameMatch = disposition.match(/filename="?([^"]+)"?/);
+        let filename = filenameMatch ? filenameMatch[1] : `leave-analytics-${Date.now()}.csv`;
+        return response.blob().then(blob => ({ blob, filename }));
+    })
+    .then(({ blob, filename }) => {
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(blobUrl);
+    })
+    .catch(error => {
+        console.error('Export error:', error);
+        showAlert('danger', 'Unable to export leave analytics. Please try again.');
+    });
 }
 
 // Initialize DataTable for better table functionality
@@ -238,6 +264,48 @@ document.addEventListener('DOMContentLoaded', function() {
             responsive: true
         });
     }
+
+    document.querySelectorAll('.leave-type-badge').forEach(badge => {
+        const color = badge.dataset.badgeColor;
+        if (color) {
+            badge.style.backgroundColor = color;
+            badge.style.color = '#fff';
+            badge.style.fontSize = '14px';
+        }
+    });
+
+    document.querySelectorAll('.dynamic-progress').forEach(bar => {
+        const width = parseFloat(bar.dataset.progressWidth);
+        if (!isNaN(width)) {
+            bar.style.width = `${width}%`;
+        }
+    });
+
+    document.querySelectorAll('.dept-progress').forEach(bar => {
+        const width = parseFloat(bar.dataset.progressWidth);
+        if (!isNaN(width)) {
+            bar.style.width = `${width}%`;
+        }
+        bar.style.backgroundColor = '#007bff';
+    });
 });
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    document.body.appendChild(alertDiv);
+
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
 </script>
 {% endblock %}

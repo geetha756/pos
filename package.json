@@ -1,0 +1,14 @@
+{
+  "name": "sip-n-snack-portal",
+  "version": "1.0.0",
+  "description": "Restaurant Chain Management Portal",
+  "scripts": {
+    "test:browser": "node browser-test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "puppeteer": "^21.11.0"
+  }
+}

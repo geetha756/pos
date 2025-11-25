@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Assign Ingredients - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <p class="text-muted mb-1">Location Inventory</p>
+        <h1 class="h2 mb-0">Assign Ingredients</h1>
+        <div class="text-muted">Location: <strong>{{ location.name }}</strong></div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('inventory.location_inventory', location_id=location.id) }}" class="btn btn-outline-secondary">
+            <i class="ri-archive-stack-line icon me-1"></i>View Inventory
+        </a>
+        <a href="{{ url_for('inventory.location_inventory') }}" class="btn btn-outline-secondary">
+            <i class="ri-arrow-left-line icon me-1"></i>Back
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-5">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="ri-link icon me-2"></i>Assign Ingredient</h5>
+            </div>
+            <div class="card-body">
+                {% if not available_items %}
+                <div class="alert alert-info mb-0">
+                    <i class="ri-information-line icon me-1"></i>
+                    All active master inventory items are already assigned to this location.
+                </div>
+                {% else %}
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="master_inventory_id" class="form-label">Ingredient</label>
+                        <select class="form-select" id="master_inventory_id" name="master_inventory_id" required>
+                            <option value="" selected disabled>Select an ingredient</option>
+                            {% set ns = namespace(category=None) %}
+                            {% for item in available_items %}
+                                {% if item.category != ns.category %}
+                                    {% if ns.category is not none %}</optgroup>{% endif %}
+                                    <optgroup label="{{ item.category or 'Uncategorized' }}">
+                                    {% set ns.category = item.category %}
+                                {% endif %}
+                                <option value="{{ item.id }}">{{ item.name }} ({{ item.unit }})</option>
+                            {% endfor %}
+                            {% if ns.category is not none %}</optgroup>{% endif %}
+                        </select>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="current_stock" class="form-label">Current Stock</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="current_stock" name="current_stock" value="0">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="reorder_point" class="form-label">Reorder Point</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="reorder_point" name="reorder_point" value="0">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="minimum_stock_level" class="form-label">Minimum Stock</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="minimum_stock_level" name="minimum_stock_level" value="0">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="maximum_stock_level" class="form-label">Maximum Stock</label>
+                            <input type="number" step="0.01" min="0" class="form-control" id="maximum_stock_level" name="maximum_stock_level" value="0">
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ri-link icon me-1"></i>Assign Ingredient
+                        </button>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% if locations|length > 1 %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0 text-uppercase small text-muted">Quick Switch</h6>
+            </div>
+            <div class="card-body">
+                <form method="GET" action="{{ url_for('inventory.assign_location_inventory', location_id=location.id) }}">
+                    <label for="location_switch" class="form-label">Change Location</label>
+                    <select id="location_switch" class="form-select" onchange="if (this.value) window.location.href=this.value;">
+                        {% for loc in locations %}
+                        <option value="{{ url_for('inventory.assign_location_inventory', location_id=loc.id) }}"
+                            {% if loc.id == location.id %}selected{% endif %}>
+                            {{ loc.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="ri-list-unordered icon me-2"></i>Assigned Ingredients</h5>
+                <span class="badge bg-primary">{{ assigned_items|length }}</span>
+            </div>
+            <div class="card-body">
+                {% if assigned_items %}
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Ingredient</th>
+                                <th>Unit</th>
+                                <th>Stock</th>
+                                <th>Min / Max</th>
+                                <th>Reorder</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in assigned_items %}
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">{{ item.name }}</div>
+                                    <div class="text-muted small">{{ item.category or 'Uncategorized' }}</div>
+                                </td>
+                                <td>{{ item.unit }}</td>
+                                <td>{{ item.current_stock }}</td>
+                                <td>{{ item.minimum_stock_level }} / {{ item.maximum_stock_level }}</td>
+                                <td>{{ item.reorder_point }}</td>
+                                <td class="text-end">
+                                    <form method="POST" action="{{ url_for('inventory.unassign_location_inventory', location_id=location.id, item_id=item.master_inventory_id) }}" onsubmit="return confirm('Remove this ingredient from the location inventory?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="ri-close-line icon"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="ri-link-unlink-m icon text-muted" style="font-size: 3rem;"></i>
+                    <h6 class="mt-2 text-muted">No ingredients assigned yet</h6>
+                    <p class="text-muted">Use the form to the left to start linking ingredients to this location.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

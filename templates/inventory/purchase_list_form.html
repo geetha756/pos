@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Edit' if list else 'New' }} Purchase List - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <p class="text-muted mb-1">Purchase Lists</p>
+        <h1 class="h2 mb-0">{{ 'Edit Purchase List' if list else 'Create Purchase List' }}</h1>
+    </div>
+    <div class="text-end">
+        <a href="{{ url_for('inventory.purchase_lists') }}" class="btn btn-outline-secondary">
+            <i class="ri-arrow-left-line icon me-1"></i>Back to Lists
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="ri-shopping-cart-2-line icon me-2"></i>
+                    {{ 'Update Details' if list else 'Purchase List Details' }}
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ request.path }}">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="location_id" class="form-label">Location</label>
+                            <select class="form-select" id="location_id" name="location_id" {% if list %}disabled{% endif %} required>
+                                <option value="" disabled {% if not (list and list.location_id) %}selected{% endif %}>Select location</option>
+                                {% for location in locations %}
+                                <option value="{{ location.id }}"
+                                        {% if (list and list.location_id == location.id) or (not list and location.id|string == request.args.get('location_id','')) %}
+                                            selected
+                                        {% endif %}>
+                                    {{ location.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            {% if list %}
+                            <input type="hidden" name="location_id" value="{{ list.location_id }}">
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="priority" class="form-label">Priority</label>
+                            <select class="form-select" id="priority" name="priority">
+                                {% set priority = list.priority if list else request.form.get('priority', 'normal') %}
+                                <option value="low" {% if priority == 'low' %}selected{% endif %}>Low</option>
+                                <option value="normal" {% if priority == 'normal' %}selected{% endif %}>Normal</option>
+                                <option value="high" {% if priority == 'high' %}selected{% endif %}>High</option>
+                                <option value="urgent" {% if priority == 'urgent' %}selected{% endif %}>Urgent</option>
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label for="name" class="form-label">List Name</label>
+                            <input type="text" class="form-control" id="name" name="name"
+                                   value="{{ list.name if list else request.form.get('name','') }}"
+                                   placeholder="e.g., Weekly Stock Replenishment" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="required_by_date" class="form-label">Required By</label>
+                            <input type="date" class="form-control" id="required_by_date" name="required_by_date"
+                                   value="{{ list.required_by_date if list else request.form.get('required_by_date','') }}">
+                        </div>
+                        <div class="col-12">
+                            <label for="description" class="form-label">Description / Notes</label>
+                            <textarea class="form-control" id="description" name="description" rows="4"
+                                      placeholder="Add any important context for procurement...">{{ list.description if list else request.form.get('description','') }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <a href="{{ url_for('inventory.purchase_lists') }}" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="ri-save-line icon me-1"></i>{{ 'Save Changes' if list else 'Create Purchase List' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0 text-uppercase text-muted">Tips</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled text-muted small mb-0">
+                    <li class="mb-3">
+                        <strong>Location</strong> determines which kitchen will receive the items.
+                    </li>
+                    <li class="mb-3">
+                        <strong>Priority</strong> helps purchasing teams decide what to fulfill first.
+                    </li>
+                    <li class="mb-0">
+                        Set a <strong>required by date</strong> to keep procurement aligned with service needs.
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
