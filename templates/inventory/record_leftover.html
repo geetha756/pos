@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Record Leftover Food - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Record Leftover Food</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('inventory.leftover_food', date=record_date, location_id=location.id) }}" class="btn btn-outline-secondary">
+            <i class="ri-arrow-left-line icon me-1"></i>Back
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="ri-restaurant-2-line icon me-2"></i>
+            {{ location.name }} - {{ record_date }}
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if menu_items %}
+        <form method="POST" action="{{ url_for('inventory.record_leftover_food', location_id=location.id, date=record_date) }}">
+            <input type="hidden" name="date" value="{{ record_date }}">
+            <input type="hidden" name="location_id" value="{{ location.id }}">
+            
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Menu Item</th>
+                            <th>Prepared</th>
+                            <th>Sold</th>
+                            <th>Leftover</th>
+                            <th>Disposal Method</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in menu_items %}
+                        {% set existing = existing_data.get(item.id|string) %}
+                        {% set prepared = existing.quantity_prepared if existing else '' %}
+                        {% set sold = existing.quantity_sold if existing else '' %}
+                        {% set leftover = (prepared - sold) if prepared != '' and sold != '' else '' %}
+                        <tr data-item-row="{{ item.id }}">
+                            <td>
+                                <strong>{{ item.name }}</strong>
+                                <br>
+                                <small class="text-muted">{{ item.category }}</small>
+                            </td>
+                            <td>
+                                <input type="number" 
+                                       class="form-control prepared-input" 
+                                       name="prepared_{{ item.id }}" 
+                                       value="{{ prepared }}"
+                                       min="0" 
+                                       step="1" 
+                                       required>
+                            </td>
+                            <td>
+                                <input type="number" 
+                                       class="form-control sold-input" 
+                                       name="sold_{{ item.id }}" 
+                                       value="{{ sold }}"
+                                       min="0" 
+                                       step="1" 
+                                       required>
+                            </td>
+                            <td>
+                                <input type="text" 
+                                       class="form-control leftover-output" 
+                                       value="{{ leftover }}" 
+                                       readonly 
+                                       style="background-color: #f8f9fa;">
+                            </td>
+                            <td>
+                                <select class="form-select" name="disposal_{{ item.id }}" required>
+                                    <option value="discarded" {% if existing and existing.disposal_method == 'discarded' %}selected{% endif %}>Discarded</option>
+                                    <option value="donated" {% if existing and existing.disposal_method == 'donated' %}selected{% endif %}>Donated</option>
+                                    <option value="composted" {% if existing and existing.disposal_method == 'composted' %}selected{% endif %}>Composted</option>
+                                    <option value="reused" {% if existing and existing.disposal_method == 'reused' %}selected{% endif %}>Reused</option>
+                                    <option value="other" {% if existing and existing.disposal_method == 'other' %}selected{% endif %}>Other</option>
+                                </select>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="mt-3 d-flex justify-content-end gap-2">
+                <a href="{{ url_for('inventory.leftover_food', date=record_date, location_id=location.id) }}" class="btn btn-outline-secondary">
+                    <i class="ri-close-line icon me-1"></i>Cancel
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="ri-save-line icon me-1"></i>Save Records
+                </button>
+            </div>
+        </form>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="ri-information-line icon me-2"></i>
+            No menu items are available for this location. Please add menu items to the location menu first.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Calculate leftover automatically when prepared or sold changes
+    document.querySelectorAll('[data-item-row]').forEach(row => {
+        const preparedInput = row.querySelector('.prepared-input');
+        const soldInput = row.querySelector('.sold-input');
+        const leftoverOutput = row.querySelector('.leftover-output');
+        
+        const updateLeftover = () => {
+            const prepared = parseFloat(preparedInput.value) || 0;
+            const sold = parseFloat(soldInput.value) || 0;
+            const leftover = Math.max(prepared - sold, 0);
+            leftoverOutput.value = leftover || '';
+        };
+        
+        preparedInput.addEventListener('input', updateLeftover);
+        soldInput.addEventListener('input', updateLeftover);
+        
+        // Initialize on page load
+        updateLeftover();
+    });
+});
+</script>
+{% endblock %}
+

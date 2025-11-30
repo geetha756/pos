@@ -796,6 +796,12 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center gap-2{% if request.path == '/static/machines/index.html' %} active{% endif %}" href="/static/machines/index.html">
+                                <i class="ri-settings-3-line icon"></i>
+                                <span class="nav-link-label">Machines</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('master_menu') %} active{% endif %}" href="{{ url_for('master_menu.index') }}">
                                 <i class="ri-restaurant-2-line icon"></i>
                                 <span class="nav-link-label">Master Menu</span>
