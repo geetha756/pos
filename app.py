@@ -48,6 +48,7 @@ def create_app():
     from routes.payroll import payroll_bp
     from routes.inventory import inventory_bp
     from routes.users import users_bp
+    from routes.machines import machines_bp, init_machines_schema
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -61,6 +62,11 @@ def create_app():
     app.register_blueprint(payroll_bp, url_prefix='/payroll')
     app.register_blueprint(inventory_bp, url_prefix='/inventory')
     app.register_blueprint(users_bp, url_prefix='/users')
+    app.register_blueprint(machines_bp, url_prefix='/machines')
+
+    # Initialize machines schema
+    with app.app_context():
+        init_machines_schema()
 
     # Register audit hooks after blueprints
     register_audit_hooks(app)
