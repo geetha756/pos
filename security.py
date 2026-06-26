@@ -1,3 +1,4 @@
+import os
 from functools import wraps
 from typing import Set, Dict, Any, Optional, List
 
@@ -18,6 +19,58 @@ def init_security_schema_and_seed():
     seed_permissions_if_needed()
 
 
+# ---------------------------------------------------------------------------
+# Roles
+# ---------------------------------------------------------------------------
+# Three simple access levels. Each user has exactly one role (column on `users`).
+# Roles map to permission codes from the seeded catalog (e.g. 'inventory.view').
+#   - admin   : everything, including user administration
+#   - manager : everything except the user-administration module
+#   - worker  : minimal self-service (dashboard + clock-in/out + leave request)
+ROLE_WORKER = 'worker'
+ROLE_MANAGER = 'manager'
+ROLE_ADMIN = 'admin'
+VALID_ROLES = (ROLE_WORKER, ROLE_MANAGER, ROLE_ADMIN)
+
+# Permission codes granted to a "worker" — which in this business is the
+# STORE MANAGER who runs a location: they place orders and own the staff
+# journey (staff records, attendance/timesheets, leave) plus inventory and the
+# store's own menu. They do NOT get owner-only config: master menu, locations,
+# departments/positions setup, or user administration.
+WORKER_PERMISSION_CODES: Set[str] = {
+    'dashboard.view',
+    # Orders — place & manage the store's orders
+    'orders.view', 'orders.create', 'orders.edit', 'orders.delete', 'orders.approve', 'orders.export',
+    # Inventory — stock, adjustments, purchase lists, suppliers
+    'inventory.view', 'inventory.create', 'inventory.edit', 'inventory.delete', 'inventory.adjust', 'inventory.export',
+    # Location menu — what the store sells and at what price
+    'location_menu.view', 'location_menu.manage',
+    # Staff journey — staff records + attendance/timesheets + leave (no deletes)
+    'staff.view', 'staff.create', 'staff.edit', 'staff.export',
+    'payroll.view', 'payroll.create', 'payroll.edit', 'payroll.approve', 'payroll.export',
+}
+
+
+def admin_emails() -> Set[str]:
+    """Emails that should always be treated as admins (from the ADMIN_EMAILS env)."""
+    raw = os.getenv('ADMIN_EMAILS', '')
+    return {e.strip().lower() for e in raw.split(',') if e.strip()}
+
+
+def _all_permission_codes() -> Set[str]:
+    rows = execute_query("SELECT code FROM permissions", fetch=True) or []
+    return {r['code'] for r in rows}
+
+
+def role_permission_codes(role: Optional[str]) -> Set[str]:
+    """Resolve the permission codes implied by a role."""
+    if role == ROLE_ADMIN:
+        return _all_permission_codes()
+    if role == ROLE_MANAGER:
+        return {c for c in _all_permission_codes() if not c.startswith('users.')}
+    return set(WORKER_PERMISSION_CODES)
+
+
 def _get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
     if not email:
         return None
@@ -25,21 +78,82 @@ def _get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
 
 
 def get_or_create_current_user() -> Optional[Dict[str, Any]]:
+    # Cache for the duration of the request to avoid repeated upserts/queries
+    # (templates call has_perm() many times while rendering the nav).
+    if hasattr(g, '_sn_current_user'):
+        return g._sn_current_user
+
     email = session.get('user_id')
     if not email:
+        g._sn_current_user = None
         return None
     full_name = session.get('user_name')
     picture = session.get('user_picture')
-    return upsert_user_from_session(email, full_name, picture)
+    user = upsert_user_from_session(email, full_name, picture)
+
+    # Bootstrap: configured admin emails are always promoted to admin.
+    if user and email.lower() in admin_emails() and user.get('role') != ROLE_ADMIN:
+        execute_query("UPDATE users SET role=%s WHERE id=%s", (ROLE_ADMIN, user['id']))
+        user['role'] = ROLE_ADMIN
+
+    g._sn_current_user = user
+    return user
+
+
+def current_user_role() -> str:
+    """Role of the logged-in user, defaulting to worker."""
+    user = get_or_create_current_user()
+    return (user.get('role') if user else None) or ROLE_WORKER
+
+
+def current_user_permissions() -> Set[str]:
+    """Effective permission codes for the logged-in user (request-cached)."""
+    if hasattr(g, '_sn_perms'):
+        return g._sn_perms
+    user = get_or_create_current_user()
+    perms = compute_effective_permission_codes(user['id']) if user else set()
+    g._sn_perms = perms
+    return perms
+
+
+def has_permission(code: str) -> bool:
+    return code in current_user_permissions()
+
+
+def current_user_location_id() -> Optional[str]:
+    """The store this user is tied to, or None (owner/manager/unassigned)."""
+    user = get_or_create_current_user()
+    if user and user.get('location_id'):
+        return str(user['location_id'])
+    return None
+
+
+def is_location_scoped() -> bool:
+    """True when the logged-in user should be limited to a single store's data.
+
+    Only workers (store managers) tied to a specific location are scoped;
+    admins and managers always see every location.
+    """
+    return current_user_role() == ROLE_WORKER and current_user_location_id() is not None
+
+
+def scoped_location_id() -> Optional[str]:
+    """The location to filter by, or None to mean 'all locations'."""
+    return current_user_location_id() if is_location_scoped() else None
 
 
 def compute_effective_permission_codes(user_id: str) -> Set[str]:
-    # Collect allow/deny from position, department, user; denies override
-    user = execute_query_one("SELECT id, position_id, department_id FROM users WHERE id=%s", (user_id,))
+    # Collect allow/deny from role, position, department, user; denies override
+    user = execute_query_one("SELECT id, position_id, department_id, role FROM users WHERE id=%s", (user_id,))
     if not user:
         return set()
 
-    allow_codes: Set[str] = set()
+    # Admins always have every permission, regardless of any deny rules.
+    if user.get('role') == ROLE_ADMIN:
+        return _all_permission_codes()
+
+    # Start from the role's baseline grants, then layer position/department/user rules.
+    allow_codes: Set[str] = set(role_permission_codes(user.get('role')))
     deny_codes: Set[str] = set()
 
     # Position
@@ -108,6 +222,58 @@ def permission_required(permission_code: str):
             return f(*args, **kwargs)
         return wrapped
     return decorator
+
+
+def require_module_view(view_code: str):
+    """Build a blueprint ``before_request`` guard that requires ``view_code``.
+
+    Used to lock entire management sections (inventory, staff, ...) so that
+    workers without the permission are bounced to the dashboard.
+    """
+    def guard():
+        if request.method == 'OPTIONS':
+            return None
+        if not session.get('authenticated'):
+            return redirect(url_for('auth.login'))
+        if not has_permission(view_code):
+            flash('You do not have access to that section.', 'error')
+            return redirect(url_for('main.dashboard'))
+        return None
+    return guard
+
+
+# Payroll endpoints a worker may use on their own record even without payroll.view.
+PAYROLL_SELF_SERVICE_ENDPOINTS = {
+    'payroll.clock_in', 'payroll.clock_out',
+    'payroll.start_break', 'payroll.end_break',
+    'payroll.leave_request',
+}
+
+
+def payroll_access_guard():
+    """Allow self-service clock/leave endpoints for everyone; gate the rest on payroll.view."""
+    if request.method == 'OPTIONS':
+        return None
+    if not session.get('authenticated'):
+        return redirect(url_for('auth.login'))
+    if request.endpoint in PAYROLL_SELF_SERVICE_ENDPOINTS:
+        return None
+    if not has_permission('payroll.view'):
+        flash('You do not have access to that section.', 'error')
+        return redirect(url_for('main.dashboard'))
+    return None
+
+
+def register_template_helpers(app):
+    """Expose role/permission helpers to all Jinja templates."""
+    @app.context_processor
+    def _inject_access_helpers():
+        return {
+            'has_perm': has_permission,
+            'current_role': current_user_role,
+            'is_scoped': is_location_scoped,
+            'scoped_location_id': scoped_location_id,
+        }
 
 
 def _get_api_key_from_request() -> Optional[Dict[str, Any]]:

@@ -75,6 +75,23 @@ def init_user_admin_schema():
         """
     )
 
+    # Access role for each user: 'worker' (default), 'manager', or 'admin'.
+    # Added via ALTER so existing databases pick it up too.
+    execute_query(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT 'worker'"
+    )
+
+    # The store a worker is tied to. When set (and role='worker') the user only
+    # sees that location's data. NULL = not scoped (owner/manager, or unassigned).
+    execute_query(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS location_id UUID REFERENCES locations(id)"
+    )
+
+    # Track when/by whom an order was edited after being placed, so the admin
+    # can see an "Edited" marker on the order.
+    execute_query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP")
+    execute_query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS edited_by UUID")
+
     # Permissions catalog
     execute_query(
         """

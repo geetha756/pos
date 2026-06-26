@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from database import execute_query, execute_query_one
 from .auth import login_required
+from security import scoped_location_id
 
 location_menu_bp = Blueprint('location_menu', __name__)
 
@@ -8,6 +9,10 @@ location_menu_bp = Blueprint('location_menu', __name__)
 @login_required
 def index():
     """List all locations for menu management"""
+    # A store-scoped manager manages only their own store's menu.
+    store = scoped_location_id()
+    if store:
+        return redirect(url_for('location_menu.manage', location_id=store))
     try:
         locations = execute_query("""
             SELECT id, name, city, state
@@ -49,14 +54,88 @@ def manage(location_id):
         # Create a dict of assigned items for easy lookup
         assigned_items = {item['name']: item for item in location_menu or []}
 
+        # Distinct existing categories to suggest while creating new items
+        category_rows = execute_query(
+            "SELECT DISTINCT category FROM master_menu WHERE category IS NOT NULL AND category <> '' ORDER BY category",
+            fetch=True,
+        ) or []
+        categories = [r['category'] for r in category_rows]
+
         return render_template('location_menu/manage.html',
                              location=location,
                              master_menu=master_menu or [],
-                             assigned_items=assigned_items)
+                             assigned_items=assigned_items,
+                             categories=categories)
 
     except Exception as e:
         flash(f'Error loading location menu: {str(e)}', 'error')
         return redirect(url_for('location_menu.index'))
+
+@location_menu_bp.route('/<location_id>/create-item', methods=['POST'])
+@login_required
+def create_item(location_id):
+    """Let a location manager create a brand-new menu item (name + category +
+    price) and add it straight to this store's menu. The catalog entry
+    (master_menu) is reused if an item with the same name already exists, so
+    stores can share items but keep their own price."""
+    name = (request.form.get('name') or '').strip()
+    category = (request.form.get('category') or '').strip() or None
+    description = (request.form.get('description') or '').strip() or None
+    price = request.form.get('price')
+
+    if not name:
+        flash('Item name is required', 'error')
+        return redirect(url_for('location_menu.manage', location_id=location_id))
+
+    try:
+        price = float(price) if price else 0.0
+    except ValueError:
+        flash('Price must be a number', 'error')
+        return redirect(url_for('location_menu.manage', location_id=location_id))
+
+    try:
+        # Reuse a catalog item with the same name (case-insensitive), else create it.
+        master = execute_query_one(
+            "SELECT id FROM master_menu WHERE LOWER(name) = LOWER(%s)", (name,)
+        )
+        if master:
+            master_id = master['id']
+            # Make sure it's active and category is filled if it was blank.
+            execute_query(
+                "UPDATE master_menu SET is_active = TRUE, category = COALESCE(category, %s) WHERE id = %s",
+                (category, master_id),
+            )
+        else:
+            master = execute_query_one(
+                """
+                INSERT INTO master_menu (name, description, category, is_active)
+                VALUES (%s, %s, %s, TRUE) RETURNING id
+                """,
+                (name, description, category),
+            )
+            master_id = master['id']
+
+        # Add (or reactivate) the item on this store's menu.
+        existing = execute_query_one(
+            "SELECT id FROM location_menu WHERE location_id = %s AND master_menu_id = %s",
+            (location_id, master_id),
+        )
+        if existing:
+            execute_query(
+                "UPDATE location_menu SET price = %s, is_available = TRUE WHERE id = %s",
+                (price, existing['id']),
+            )
+        else:
+            execute_query(
+                "INSERT INTO location_menu (location_id, master_menu_id, price, is_available) VALUES (%s, %s, %s, TRUE)",
+                (location_id, master_id, price),
+            )
+        flash(f'"{name}" added to this store\'s menu!', 'success')
+    except Exception as e:
+        flash(f'Error creating menu item: {str(e)}', 'error')
+
+    return redirect(url_for('location_menu.manage', location_id=location_id))
+
 
 @location_menu_bp.route('/<location_id>/add/<menu_item_id>', methods=['POST'])
 @login_required

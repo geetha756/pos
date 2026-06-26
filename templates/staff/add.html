@@ -89,12 +89,16 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label for="location_id" class="form-label">Location</label>
-                            <select class="form-select" id="location_id" name="location_id">
+                            <select class="form-select" id="location_id" name="location_id" {% if is_scoped() %}disabled{% endif %}>
                                 <option value="">Select Location</option>
                                 {% for location in locations %}
-                                <option value="{{ location.id }}">{{ location.name }}</option>
+                                <option value="{{ location.id }}" {% if is_scoped() and location.id|string == scoped_location_id() %}selected{% endif %}>{{ location.name }}</option>
                                 {% endfor %}
                             </select>
+                            {% if is_scoped() %}
+                            <input type="hidden" name="location_id" value="{{ scoped_location_id() }}">
+                            <div class="form-text">Your store (locked).</div>
+                            {% endif %}
                         </div>
                         <div class="col-md-6">
                             <label for="manager_id" class="form-label">Manager</label>

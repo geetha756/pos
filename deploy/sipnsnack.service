@@ -1,0 +1,24 @@
+# systemd unit for the app (gunicorn). Install on the SERVER as:
+#   sudo cp deploy/sipnsnack.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now sipnsnack
+# Adjust User, WorkingDirectory, and the gunicorn path to match the server.
+
+[Unit]
+Description=Sip & Snack Portal (gunicorn)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=sipnsnack
+Group=sipnsnack
+WorkingDirectory=/opt/sip-n-snack-portal
+# Use the venv's gunicorn. 3 workers is a sensible start for a small team.
+ExecStart=/opt/sip-n-snack-portal/venv/bin/gunicorn --workers 3 --bind 127.0.0.1:5000 wsgi:app
+Restart=always
+RestartSec=3
+# Env file holds SECRET_KEY, DATABASE_URL, GOOGLE_* etc.
+EnvironmentFile=/opt/sip-n-snack-portal/.env
+
+[Install]
+WantedBy=multi-user.target

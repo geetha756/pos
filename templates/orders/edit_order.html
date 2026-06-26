@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Order {{ order.order_number }} - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="ri-pencil-line icon me-2"></i>Edit Order <small class="text-muted">{{ order.order_number }}</small></h1>
+    <a href="{{ url_for('orders.view', order_id=order.id) }}" class="btn btn-outline-secondary">
+        <i class="ri-arrow-left-line icon me-1"></i>Back to Order
+    </a>
+</div>
+
+{% if order.edited_at %}
+<div class="alert alert-info py-2"><i class="ri-information-line icon me-1"></i>This order has been edited before.</div>
+{% endif %}
+
+<div class="row">
+    <!-- Menu grid (add items) -->
+    <div class="col-lg-8 mb-3">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Add Items</h5></div>
+            <div class="card-body">
+                {% if menu_items %}
+                <div class="row g-2">
+                    {% for item in menu_items %}
+                    <div class="col-6 col-md-4">
+                        <button type="button"
+                                class="btn btn-outline-primary w-100 h-100 text-start menu-item-btn"
+                                data-lm-id="{{ item.location_menu_id }}"
+                                data-mm-id="{{ item.master_menu_id }}"
+                                data-name="{{ item.name }}"
+                                data-price="{{ '%.2f'|format(item.price or 0) }}">
+                            <div class="fw-bold">{{ item.name }}</div>
+                            <div class="small text-muted">{{ item.category or '' }}</div>
+                            <div class="fw-bold mt-1">${{ '%.2f'|format(item.price or 0) }}</div>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No menu items available to add for this store.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Cart (pre-loaded with current order items) -->
+    <div class="col-lg-4 mb-3">
+        <div class="card position-sticky" style="top: 1rem;">
+            <div class="card-header"><h5 class="card-title mb-0">Order Items</h5></div>
+            <div class="card-body">
+                <ul id="cart-list" class="list-group list-group-flush mb-3"></ul>
+                <div id="cart-empty" class="text-muted text-center py-3" style="display:none;">No items — add at least one.</div>
+
+                <div class="d-flex justify-content-between fw-bold fs-5 border-top pt-2">
+                    <span>Total</span>
+                    <span>$<span id="cart-total">0.00</span></span>
+                </div>
+
+                <hr>
+                <div class="mb-2">
+                    <label class="form-label">Order Type</label>
+                    <select class="form-select form-select-sm" id="order-type">
+                        {% set ot = order.order_type or 'dine-in' %}
+                        <option value="dine-in" {% if ot=='dine-in' %}selected{% endif %}>Dine-in</option>
+                        <option value="takeaway" {% if ot=='takeaway' %}selected{% endif %}>Takeaway</option>
+                        <option value="delivery" {% if ot=='delivery' %}selected{% endif %}>Delivery</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Customer name</label>
+                    <input type="text" class="form-control form-control-sm" id="customer-name" value="{{ order.customer_name or '' }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Phone</label>
+                    <input type="text" class="form-control form-control-sm" id="customer-phone" value="{{ order.customer_phone or '' }}">
+                </div>
+
+                <button type="button" class="btn btn-success w-100" id="save-btn" onclick="saveOrder()">
+                    <i class="ri-save-line icon me-1"></i>Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const cart = {};
+{% for it in items %}
+cart["{{ it.location_menu_id }}"] = { mmId: "{{ it.master_menu_id }}", name: {{ it.item_name|tojson }}, price: {{ '%.2f'|format(it.unit_price or 0) }}, qty: {{ it.quantity }} };
+{% endfor %}
+
+function renderCart() {
+    const list = document.getElementById('cart-list');
+    const empty = document.getElementById('cart-empty');
+    list.innerHTML = '';
+    let total = 0;
+    const keys = Object.keys(cart);
+    empty.style.display = keys.length ? 'none' : 'block';
+    keys.forEach(function (k) {
+        const it = cart[k];
+        const line = it.price * it.qty;
+        total += line;
+        const li = document.createElement('li');
+        li.className = 'list-group-item px-0';
+        li.innerHTML =
+            '<div class="d-flex justify-content-between align-items-center">' +
+              '<div class="me-2"><div class="fw-bold">' + it.name + '</div>' +
+              '<small class="text-muted">$' + it.price.toFixed(2) + ' each</small></div>' +
+              '<div class="d-flex align-items-center gap-1">' +
+                '<button class="btn btn-sm btn-outline-secondary" onclick="changeQty(\'' + k + '\',-1)">-</button>' +
+                '<span class="px-1">' + it.qty + '</span>' +
+                '<button class="btn btn-sm btn-outline-secondary" onclick="changeQty(\'' + k + '\',1)">+</button>' +
+                '<span class="ms-2 fw-bold">$' + line.toFixed(2) + '</span>' +
+              '</div>' +
+            '</div>';
+        list.appendChild(li);
+    });
+    document.getElementById('cart-total').textContent = total.toFixed(2);
+    document.getElementById('save-btn').disabled = keys.length === 0;
+}
+
+function addItem(btn) {
+    const k = btn.dataset.lmId;
+    if (!cart[k]) cart[k] = { mmId: btn.dataset.mmId, name: btn.dataset.name, price: parseFloat(btn.dataset.price), qty: 0 };
+    cart[k].qty += 1;
+    renderCart();
+}
+function changeQty(k, delta) {
+    if (!cart[k]) return;
+    cart[k].qty += delta;
+    if (cart[k].qty <= 0) delete cart[k];
+    renderCart();
+}
+document.querySelectorAll('.menu-item-btn').forEach(function (b) {
+    b.addEventListener('click', function () { addItem(b); });
+});
+
+function saveOrder() {
+    const items = Object.keys(cart).map(function (k) {
+        const it = cart[k];
+        return {
+            location_menu_id: k, master_menu_id: it.mmId, item_name: it.name,
+            quantity: it.qty, unit_price: it.price, total_price: +(it.price * it.qty).toFixed(2)
+        };
+    });
+    if (!items.length) return;
+    const btn = document.getElementById('save-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ri-hourglass-line icon me-1"></i>Saving...';
+
+    fetch('{{ url_for("orders.edit_order", order_id=order.id) }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+            order_type: document.getElementById('order-type').value,
+            customer_name: document.getElementById('customer-name').value,
+            customer_phone: document.getElementById('customer-phone').value,
+            items: items
+        })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        if (data.success) {
+            window.location.href = '{{ url_for("orders.view", order_id=order.id) }}';
+        } else {
+            alert('Could not save: ' + (data.error || 'unknown error'));
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ri-save-line icon me-1"></i>Save Changes';
+        }
+    })
+    .catch(function (err) {
+        alert('Error saving: ' + err.message);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ri-save-line icon me-1"></i>Save Changes';
+    });
+}
+
+renderCart();
+</script>
+{% endblock %}

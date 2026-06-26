@@ -15,6 +15,7 @@
                             <th>Name</th>
                             <th>Position</th>
                             <th>Department</th>
+                            <th>Role</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
@@ -26,6 +27,10 @@
                             <td>{{ u.full_name or '-' }}</td>
                             <td>{{ u.position_title or '-' }}</td>
                             <td>{{ u.department_name or '-' }}</td>
+                            <td>
+                                {% set _r = u.role or 'worker' %}
+                                <span class="badge {% if _r == 'admin' %}bg-danger{% elif _r == 'manager' %}bg-primary{% else %}bg-secondary{% endif %}">{{ _r|capitalize }}</span>
+                            </td>
                             <td>
                                 {% if u.is_active %}
                                     <span class="badge bg-success">Active</span>

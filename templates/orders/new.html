@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}New Order - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="ri-add-circle-line icon me-2"></i>New Order</h1>
+    <a href="{{ url_for('orders.index') }}" class="btn btn-outline-secondary">
+        <i class="ri-arrow-left-line icon me-1"></i>Back to Orders
+    </a>
+</div>
+
+<!-- Location picker (hidden for store-scoped managers — they're locked to their store) -->
+{% if is_scoped() %}
+    {% for loc in locations if loc.id|string == selected_location %}
+    <p class="mb-4"><span class="badge bg-primary fs-6"><i class="ri-store-2-line icon me-1"></i>{{ loc.name }}{% if loc.city %} ({{ loc.city }}){% endif %}</span></p>
+    {% endfor %}
+{% else %}
+<form method="get" class="row g-2 align-items-end mb-4" id="location-form">
+    <div class="col-md-5">
+        <label class="form-label fw-bold">Store / Location</label>
+        <select class="form-select" name="location" onchange="document.getElementById('location-form').submit()">
+            <option value="">— Select a store —</option>
+            {% for loc in locations %}
+            <option value="{{ loc.id }}" {% if selected_location == loc.id|string %}selected{% endif %}>
+                {{ loc.name }}{% if loc.city %} ({{ loc.city }}){% endif %}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+</form>
+{% endif %}
+
+{% if not selected_location %}
+    <div class="alert alert-info"><i class="ri-information-line icon me-1"></i>Pick a store above to start an order.</div>
+{% elif menu_items|length == 0 %}
+    <div class="alert alert-warning">
+        <i class="ri-error-warning-line icon me-1"></i>
+        No menu items are set up for this store yet. Ask the owner to assign items on the
+        <a href="{{ url_for('location_menu.index') }}">Location Menu</a> page.
+    </div>
+{% else %}
+<div class="row">
+    <!-- Menu grid -->
+    <div class="col-lg-8 mb-3">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Menu</h5></div>
+            <div class="card-body">
+                <div class="row g-2">
+                    {% for item in menu_items %}
+                    <div class="col-6 col-md-4">
+                        <button type="button"
+                                class="btn btn-outline-primary w-100 h-100 text-start menu-item-btn"
+                                data-lm-id="{{ item.location_menu_id }}"
+                                data-mm-id="{{ item.master_menu_id }}"
+                                data-name="{{ item.name }}"
+                                data-price="{{ '%.2f'|format(item.price or 0) }}">
+                            <div class="fw-bold">{{ item.name }}</div>
+                            <div class="small text-muted">{{ item.category or '' }}</div>
+                            <div class="fw-bold mt-1">${{ '%.2f'|format(item.price or 0) }}</div>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cart -->
+    <div class="col-lg-4 mb-3">
+        <div class="card position-sticky" style="top: 1rem;">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Current Order</h5>
+                <button type="button" class="btn btn-sm btn-link text-danger" onclick="clearCart()">Clear</button>
+            </div>
+            <div class="card-body">
+                <div id="cart-empty" class="text-muted text-center py-4">
+                    <i class="ri-shopping-cart-line" style="font-size:2rem;"></i>
+                    <div>Tap menu items to add them.</div>
+                </div>
+                <ul id="cart-list" class="list-group list-group-flush mb-3"></ul>
+
+                <div class="d-flex justify-content-between fw-bold fs-5 border-top pt-2">
+                    <span>Total</span>
+                    <span>$<span id="cart-total">0.00</span></span>
+                </div>
+
+                <hr>
+                <div class="mb-2">
+                    <label class="form-label">Order Type</label>
+                    <select class="form-select form-select-sm" id="order-type">
+                        <option value="dine-in">Dine-in</option>
+                        <option value="takeaway">Takeaway</option>
+                        <option value="delivery">Delivery</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Customer name <span class="text-muted">(optional)</span></label>
+                    <input type="text" class="form-control form-control-sm" id="customer-name">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Phone <span class="text-muted">(optional)</span></label>
+                    <input type="text" class="form-control form-control-sm" id="customer-phone">
+                </div>
+
+                <button type="button" class="btn btn-success w-100" id="place-order-btn" onclick="placeOrder()" disabled>
+                    <i class="ri-check-line icon me-1"></i>Place Order
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const LOCATION_ID = {{ selected_location|tojson }};
+const cart = {};  // key = location_menu_id -> {mmId, name, price, qty}
+
+function renderCart() {
+    const list = document.getElementById('cart-list');
+    const empty = document.getElementById('cart-empty');
+    list.innerHTML = '';
+    let total = 0;
+    const keys = Object.keys(cart);
+    empty.style.display = keys.length ? 'none' : 'block';
+    keys.forEach(function (k) {
+        const it = cart[k];
+        const line = it.price * it.qty;
+        total += line;
+        const li = document.createElement('li');
+        li.className = 'list-group-item px-0';
+        li.innerHTML =
+            '<div class="d-flex justify-content-between align-items-center">' +
+              '<div class="me-2"><div class="fw-bold">' + it.name + '</div>' +
+              '<small class="text-muted">$' + it.price.toFixed(2) + ' each</small></div>' +
+              '<div class="d-flex align-items-center gap-1">' +
+                '<button class="btn btn-sm btn-outline-secondary" onclick="changeQty(\'' + k + '\',-1)">-</button>' +
+                '<span class="px-1">' + it.qty + '</span>' +
+                '<button class="btn btn-sm btn-outline-secondary" onclick="changeQty(\'' + k + '\',1)">+</button>' +
+                '<span class="ms-2 fw-bold">$' + line.toFixed(2) + '</span>' +
+              '</div>' +
+            '</div>';
+        list.appendChild(li);
+    });
+    document.getElementById('cart-total').textContent = total.toFixed(2);
+    document.getElementById('place-order-btn').disabled = keys.length === 0;
+}
+
+function addItem(btn) {
+    const k = btn.dataset.lmId;
+    if (!cart[k]) {
+        cart[k] = { mmId: btn.dataset.mmId, name: btn.dataset.name, price: parseFloat(btn.dataset.price), qty: 0 };
+    }
+    cart[k].qty += 1;
+    renderCart();
+}
+
+function changeQty(k, delta) {
+    if (!cart[k]) return;
+    cart[k].qty += delta;
+    if (cart[k].qty <= 0) delete cart[k];
+    renderCart();
+}
+
+function clearCart() {
+    Object.keys(cart).forEach(function (k) { delete cart[k]; });
+    renderCart();
+}
+
+document.querySelectorAll('.menu-item-btn').forEach(function (b) {
+    b.addEventListener('click', function () { addItem(b); });
+});
+
+function placeOrder() {
+    const items = Object.keys(cart).map(function (k) {
+        const it = cart[k];
+        return {
+            location_menu_id: k,
+            master_menu_id: it.mmId,
+            item_name: it.name,
+            quantity: it.qty,
+            unit_price: it.price,
+            total_price: +(it.price * it.qty).toFixed(2)
+        };
+    });
+    if (!items.length) return;
+
+    const btn = document.getElementById('place-order-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ri-hourglass-line icon me-1"></i>Placing...';
+
+    fetch('{{ url_for("orders.api_create_order") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+            location_id: LOCATION_ID,
+            order_type: document.getElementById('order-type').value,
+            customer_name: document.getElementById('customer-name').value,
+            customer_phone: document.getElementById('customer-phone').value,
+            items: items
+        })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+        if (data.success) {
+            window.location.href = '{{ url_for("orders.index") }}?placed=' + encodeURIComponent(data.order_number || '');
+        } else {
+            alert('Could not place order: ' + (data.error || 'unknown error'));
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ri-check-line icon me-1"></i>Place Order';
+        }
+    })
+    .catch(function (err) {
+        alert('Error placing order: ' + err.message);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ri-check-line icon me-1"></i>Place Order';
+    });
+}
+</script>
+{% endif %}
+{% endblock %}

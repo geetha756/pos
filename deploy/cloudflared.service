@@ -1,0 +1,20 @@
+# systemd unit for the Cloudflare Tunnel. Install on the SERVER as:
+#   sudo cp deploy/cloudflared.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now cloudflared
+# Assumes config.yml lives at /etc/cloudflared/config.yml (see cloudflared-config.yml).
+#
+# NOTE: `cloudflared service install` can create this for you automatically;
+# this file is here as a reference / fallback.
+
+[Unit]
+Description=Cloudflare Tunnel for Sip & Snack Portal
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/cloudflared tunnel --config /etc/cloudflared/config.yml run
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

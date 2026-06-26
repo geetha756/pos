@@ -69,12 +69,16 @@ def edit(user_id):
         is_active = True if request.form.get('is_active') == 'on' else False
         position_id = request.form.get('position_id') or None
         department_id = request.form.get('department_id') or None
+        location_id = request.form.get('location_id') or None
+        role = request.form.get('role')
+        if role not in ('worker', 'manager', 'admin'):
+            role = user.get('role') or 'worker'
         execute_query(
             """
-            UPDATE users SET full_name=%s, picture_url=%s, is_active=%s, position_id=%s, department_id=%s, updated_at=CURRENT_TIMESTAMP
+            UPDATE users SET full_name=%s, picture_url=%s, is_active=%s, position_id=%s, department_id=%s, location_id=%s, role=%s, updated_at=CURRENT_TIMESTAMP
             WHERE id=%s
             """,
-            (full_name, picture_url, is_active, position_id, department_id, user_id),
+            (full_name, picture_url, is_active, position_id, department_id, location_id, role, user_id),
         )
         record_audit_log(actor_user_id=None, actor_api_key_id=None, action='user.update', target_type='user', target_id=user_id, route=request.path, method=request.method, status_code=200, ip_address=request.remote_addr, user_agent=request.headers.get('User-Agent'), success=True, metadata={'fields': ['full_name','picture_url','is_active','position_id','department_id']})
         flash('User updated', 'success')
@@ -82,7 +86,8 @@ def edit(user_id):
 
     positions = execute_query("SELECT id, title FROM positions WHERE is_active=TRUE ORDER BY title", fetch=True) or []
     departments = execute_query("SELECT id, name FROM departments WHERE is_active=TRUE ORDER BY name", fetch=True) or []
-    return render_template('users/edit.html', user=user, positions=positions, departments=departments)
+    locations = execute_query("SELECT id, name, city FROM locations ORDER BY name", fetch=True) or []
+    return render_template('users/edit.html', user=user, positions=positions, departments=departments, locations=locations)
 
 
 @users_bp.route('/<user_id>')

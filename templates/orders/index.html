@@ -5,13 +5,25 @@
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">Orders</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
+    <div class="btn-toolbar mb-2 mb-md-0 gap-2">
+        {% if has_perm('orders.create') %}
+        <a href="{{ url_for('orders.new_order') }}" class="btn btn-primary">
+            <i class="ri-add-line icon me-1"></i>New Order
+        </a>
+        {% endif %}
         <button type="button" class="btn btn-secondary" onclick="refreshOrders()">
 <i class="ri-refresh-line icon me-2"></i>
             Refresh
         </button>
     </div>
 </div>
+
+{% if request.args.get('placed') %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="ri-check-line icon me-1"></i>Order <strong>{{ request.args.get('placed') }}</strong> placed successfully.
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
 
 <!-- Statistics Cards -->
 
@@ -154,6 +166,9 @@
                             <a href="{{ url_for('orders.view', order_id=order.id) }}" class="text-decoration-none">
                                 {{ order.order_number }}
                             </a>
+                            {% if order.edited_at %}
+                            <span class="badge bg-warning text-dark ms-1" title="This order was edited after it was placed">Edited</span>
+                            {% endif %}
                         </td>
                         <td>{{ order.location_name }}</td>
                         <td>
@@ -169,6 +184,12 @@
                                    data-bs-toggle="tooltip" data-bs-placement="top" title="View Order Details">
                                     <i class="bi bi-eye"></i> View
                                 </a>
+                                {% if has_perm('orders.edit') and order.status not in ['completed', 'cancelled'] %}
+                                <a href="{{ url_for('orders.edit_order', order_id=order.id) }}" class="btn btn-sm btn-light text-warning"
+                                   data-bs-toggle="tooltip" data-bs-placement="top" title="Edit Order">
+                                    <i class="ri-pencil-line"></i>
+                                </a>
+                                {% endif %}
                                 <div class="dropdown">
                                     <button type="button" class="btn btn-sm btn-light text-secondary dropdown-toggle"
                                             data-bs-toggle="dropdown" aria-expanded="false"

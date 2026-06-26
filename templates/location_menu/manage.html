@@ -8,7 +8,10 @@
         <h1 class="h2">Manage Menu</h1>
         <p class="text-muted mb-0">{{ location.name }} - {{ location.city }}{% if location.state %}, {{ location.state }}{% endif %}</p>
     </div>
-    <div class="btn-toolbar mb-2 mb-md-0">
+    <div class="btn-toolbar mb-2 mb-md-0 gap-2">
+        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createItemModal">
+            <i class="ri-add-line icon me-1"></i>Create New Item
+        </button>
         <a href="{{ url_for('location_menu.index') }}" class="btn btn-secondary">
 <i class="ri-arrow-right-s-line icon me-2"></i>
             Back to Locations
@@ -95,11 +98,11 @@
                 </div>
                 {% else %}
                 <div class="text-center py-4">
-                    <p class="text-muted">No master menu items available. Add items to the master menu first.</p>
-                    <a href="{{ url_for('master_menu.add') }}" class="btn btn-primary">
+                    <p class="text-muted">No menu items yet. Create the first item for this store.</p>
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#createItemModal">
 <i class="ri-add-line icon me-2"></i>
-                        Add Master Menu Item
-                    </a>
+                        Create New Item
+                    </button>
                 </div>
                 {% endif %}
             </div>
@@ -125,6 +128,52 @@
             </div>
         </div>
 
+    </div>
+</div>
+
+<!-- Create New Item Modal -->
+<div class="modal fade" id="createItemModal" tabindex="-1" inert>
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create New Menu Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('location_menu.create_item', location_id=location.id) }}">
+                <div class="modal-body">
+                    <p class="text-muted small">Adds a new item directly to <strong>{{ location.name }}</strong>'s menu.</p>
+                    <div class="mb-3">
+                        <label class="form-label">Item Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Category</label>
+                        <input type="text" class="form-control" name="category" list="categoryOptions" placeholder="e.g. Beverages">
+                        <datalist id="categoryOptions">
+                            {% for cat in categories %}
+                            <option value="{{ cat }}"></option>
+                            {% endfor %}
+                        </datalist>
+                        <div class="form-text">Pick an existing category or type a new one.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description (optional)</label>
+                        <input type="text" class="form-control" name="description">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Price at this store</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" class="form-control" name="price" step="0.01" min="0" value="0">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Create &amp; Add to Menu</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 
@@ -275,7 +324,7 @@ function prepareDeleteModal(button) {
 
 // Handle modal accessibility
 document.addEventListener('DOMContentLoaded', function() {
-    ['addItemModal', 'editItemModal', 'deleteModal'].forEach(modalId => {
+    ['createItemModal', 'addItemModal', 'editItemModal', 'deleteModal'].forEach(modalId => {
         const modalElement = document.getElementById(modalId);
         if (modalElement) {
             modalElement.addEventListener('show.bs.modal', function() {

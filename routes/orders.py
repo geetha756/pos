@@ -1,11 +1,132 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from database import execute_query, execute_query_one
 from .auth import login_required
+from security import scoped_location_id, get_or_create_current_user
 import psycopg2
 import uuid
 import json
 
 orders_bp = Blueprint('orders', __name__)
+
+
+@orders_bp.route('/new')
+@login_required
+def new_order():
+    """Point-of-sale screen: the manager picks a location, then builds and
+    places an order from that location's menu. Submits to /orders/api/create."""
+    try:
+        locations = execute_query(
+            "SELECT id, name, city FROM locations ORDER BY name", fetch=True
+        ) or []
+
+        selected_location = request.args.get('location', '')
+        # A store-scoped manager is locked to their own store.
+        store = scoped_location_id()
+        if store:
+            selected_location = store
+        menu_items = []
+        if selected_location:
+            menu_items = execute_query(
+                """
+                SELECT lm.id AS location_menu_id,
+                       lm.master_menu_id,
+                       mm.name,
+                       mm.category,
+                       lm.price
+                FROM location_menu lm
+                JOIN master_menu mm ON mm.id = lm.master_menu_id
+                WHERE lm.location_id = %s
+                  AND lm.is_available = TRUE
+                  AND mm.is_active = TRUE
+                ORDER BY mm.category NULLS LAST, mm.name
+                """,
+                (selected_location,),
+                fetch=True,
+            ) or []
+
+        return render_template(
+            'orders/new.html',
+            locations=locations,
+            menu_items=menu_items,
+            selected_location=selected_location,
+        )
+    except Exception as e:
+        flash(f'Error loading order screen: {str(e)}', 'error')
+        return render_template('orders/new.html', locations=[], menu_items=[], selected_location='')
+
+
+@orders_bp.route('/<order_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_order(order_id):
+    """Edit an already-placed order. Saving marks the order as edited so the
+    admin sees an 'Edited' marker. Store-scoped managers can only edit their
+    own store's orders."""
+    order = execute_query_one("SELECT * FROM orders WHERE id = %s", (order_id,))
+    if not order:
+        if request.method == 'POST':
+            return jsonify({'success': False, 'error': 'Order not found'}), 404
+        flash('Order not found', 'error')
+        return redirect(url_for('orders.index'))
+
+    store = scoped_location_id()
+    if store and str(order['location_id']) != store:
+        if request.method == 'POST':
+            return jsonify({'success': False, 'error': "You can only edit your own store's orders"}), 403
+        flash("You can only edit your own store's orders", 'error')
+        return redirect(url_for('orders.index'))
+
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        items = data.get('items') or []
+        if not items:
+            return jsonify({'success': False, 'error': 'Order must contain at least one item'}), 400
+        try:
+            total_amount = sum(item['total_price'] for item in items)
+            customer_name = (data.get('customer_name') or '').strip() or None
+            customer_phone = (data.get('customer_phone') or '').strip() or None
+            order_type = data.get('order_type') or order.get('order_type') or 'dine-in'
+            user = get_or_create_current_user()
+            editor = user['id'] if user else None
+
+            # Replace the order's items with the edited set
+            execute_query("DELETE FROM order_items WHERE order_id = %s", (order_id,))
+            for item in items:
+                execute_query("""
+                    INSERT INTO order_items (id, order_id, location_menu_id, master_menu_id,
+                                           item_name, quantity, unit_price, total_price)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """, (
+                    str(uuid.uuid4()), order_id, item['location_menu_id'], item['master_menu_id'],
+                    item['item_name'], item['quantity'], item['unit_price'], item['total_price']
+                ))
+
+            execute_query("""
+                UPDATE orders
+                SET customer_name = %s, customer_phone = %s, order_type = %s,
+                    total_amount = %s, edited_at = CURRENT_TIMESTAMP, edited_by = %s,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = %s
+            """, (customer_name, customer_phone, order_type, total_amount, editor, order_id))
+
+            return jsonify({'success': True, 'order_id': order_id})
+        except Exception as e:
+            print(f"Error editing order: {e}")
+            return jsonify({'success': False, 'error': 'Failed to save order'}), 500
+
+    # GET: render the edit screen (current items pre-loaded + the store's menu)
+    items = execute_query(
+        "SELECT location_menu_id, master_menu_id, item_name, quantity, unit_price, total_price "
+        "FROM order_items WHERE order_id = %s", (order_id,), fetch=True
+    ) or []
+    menu_items = execute_query("""
+        SELECT lm.id AS location_menu_id, lm.master_menu_id, mm.name, mm.category, lm.price
+        FROM location_menu lm
+        JOIN master_menu mm ON mm.id = lm.master_menu_id
+        WHERE lm.location_id = %s AND lm.is_available = TRUE AND mm.is_active = TRUE
+        ORDER BY mm.category NULLS LAST, mm.name
+    """, (str(order['location_id']),), fetch=True) or []
+    return render_template('orders/edit_order.html', order=order, items=items, menu_items=menu_items)
+
 
 @orders_bp.route('/')
 @login_required
@@ -18,10 +139,15 @@ def index():
         date_from = request.args.get('date_from', '')
         date_to = request.args.get('date_to', '')
 
+        # A store-scoped manager can only ever see their own location.
+        store = scoped_location_id()
+        if store:
+            location_filter = store
+
         # Build query with filters
         query = """
             SELECT o.id, o.order_number, o.customer_name, o.customer_phone, o.order_type,
-                   o.status, o.total_amount, o.created_at, o.updated_at,
+                   o.status, o.total_amount, o.created_at, o.updated_at, o.edited_at,
                    l.name as location_name, l.city as location_city
             FROM orders o
             LEFT JOIN locations l ON o.location_id = l.id
@@ -52,8 +178,8 @@ def index():
         # Get locations for filter dropdown
         locations = execute_query("SELECT id, name, city FROM locations ORDER BY name", fetch=True)
 
-        # Get order statistics
-        stats = get_order_stats()
+        # Get order statistics (scoped to the manager's store when applicable)
+        stats = get_order_stats(store)
 
         return render_template('orders/index.html',
                              orders=orders or [],
@@ -153,8 +279,8 @@ def stats():
     except Exception as e:
         return {'success': False, 'error': str(e)}
 
-def get_order_stats():
-    """Get order statistics"""
+def get_order_stats(location_id=None):
+    """Get order statistics, optionally limited to a single location."""
     stats = {
         'total_orders': 0,
         'total_revenue': 0.0,
@@ -164,13 +290,16 @@ def get_order_stats():
         'today_revenue': 0.0
     }
 
+    # Restrict to one store when a scoped manager is viewing.
+    loc_sql = " AND location_id = %s" if location_id else ""
+    loc_param = [location_id] if location_id else []
+
     try:
         # Total orders and revenue
         result = execute_query_one("""
             SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as revenue
             FROM orders
-            WHERE status != 'cancelled'
-        """)
+            WHERE status != 'cancelled'""" + loc_sql, tuple(loc_param))
         if result:
             stats['total_orders'] = result['count']
             stats['total_revenue'] = float(result['revenue'])
@@ -179,24 +308,21 @@ def get_order_stats():
         result = execute_query_one("""
             SELECT COUNT(*) as count
             FROM orders
-            WHERE status IN ('pending', 'preparing')
-        """)
+            WHERE status IN ('pending', 'preparing')""" + loc_sql, tuple(loc_param))
         stats['pending_orders'] = result['count'] if result else 0
 
         # Completed orders
         result = execute_query_one("""
             SELECT COUNT(*) as count
             FROM orders
-            WHERE status = 'completed'
-        """)
+            WHERE status = 'completed'""" + loc_sql, tuple(loc_param))
         stats['completed_orders'] = result['count'] if result else 0
 
         # Today's stats
         result = execute_query_one("""
             SELECT COUNT(*) as count, COALESCE(SUM(total_amount), 0) as revenue
             FROM orders
-            WHERE DATE(created_at) = CURRENT_DATE AND status != 'cancelled'
-        """)
+            WHERE DATE(created_at) = CURRENT_DATE AND status != 'cancelled'""" + loc_sql, tuple(loc_param))
         if result:
             stats['today_orders'] = result['count']
             stats['today_revenue'] = float(result['revenue'])
@@ -229,6 +355,13 @@ def api_create_order():
         # Calculate total amount
         total_amount = sum(item['total_price'] for item in data['items'])
 
+        # Optional order details (sent by the POS screen; external/API callers
+        # may omit them and keep the previous defaults).
+        customer_name = (data.get('customer_name') or '').strip() or None
+        customer_phone = (data.get('customer_phone') or '').strip() or None
+        order_type = data.get('order_type') or 'dine-in'
+        notes = (data.get('notes') or '').strip() or None
+
         # Create order
         order_id = str(uuid.uuid4())
         execute_query("""
@@ -239,12 +372,12 @@ def api_create_order():
             order_id,
             data['location_id'],
             order_number,
-            None,  # No customer name
-            None,  # No customer phone
+            customer_name,
+            customer_phone,
             None,  # No customer email
-            'dine-in',  # Default order type
+            order_type,
             total_amount,
-            None  # No notes
+            notes
         ))
 
         # Add order items

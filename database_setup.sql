@@ -1011,6 +1011,11 @@ INSERT INTO employee_types (name, code, description, payment_type, is_active) VA
 ('Temporary Help', 'TEMPORARY', 'Temporary seasonal or project-based workers', 'temporary', true),
 ('Consultant', 'CONSULTANT', 'External consultants and contractors', 'consultant', true)
 ON CONFLICT DO NOTHING;
+
+-- Insert leave types (required by leave_balances sample data below)
+INSERT INTO leave_types (name, code, description, is_paid, requires_approval, max_days_per_year, carry_forward_days, color, is_active) VALUES
+('Vacation Leave', 'VACATION', 'Annual vacation leave', true, true, 15, 5, '#28a745', true),
+('Sick Leave', 'SICK', 'Medical/sick leave', true, false, 10, 0, '#dc3545', true)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO positions (title, description, department_id, salary_min, salary_max, is_active) VALUES

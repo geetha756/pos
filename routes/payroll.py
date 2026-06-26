@@ -334,13 +334,13 @@ def clock_in():
         if not user_email:
             return jsonify({'success': False, 'message': 'User not authenticated'}), 401
 
-        # Look up staff record by email to get staff_id
-        staff = execute_query_one("SELECT id FROM staff WHERE email = %s AND is_active = TRUE", (user_email,))
-
-        if not staff:
+        # Resolve the user's staff record, auto-creating one on first use so a
+        # newly added worker can clock in immediately after their first login.
+        staff_id = get_current_staff_id()
+        if not staff_id:
             return jsonify({'success': False, 'message': 'Staff record not found'}), 404
 
-        user_id = staff['id']
+        user_id = staff_id
 
         # Check if user is already clocked in today
         today = date.today()
@@ -375,13 +375,13 @@ def clock_out():
         if not user_email:
             return jsonify({'success': False, 'message': 'User not authenticated'}), 401
 
-        # Look up staff record by email to get staff_id
-        staff = execute_query_one("SELECT id FROM staff WHERE email = %s AND is_active = TRUE", (user_email,))
-
-        if not staff:
+        # Resolve the user's staff record, auto-creating one on first use so a
+        # newly added worker can clock in immediately after their first login.
+        staff_id = get_current_staff_id()
+        if not staff_id:
             return jsonify({'success': False, 'message': 'Staff record not found'}), 404
 
-        user_id = staff['id']
+        user_id = staff_id
 
         today = date.today()
 
@@ -440,13 +440,13 @@ def start_break():
         if not user_email:
             return jsonify({'success': False, 'message': 'User not authenticated'}), 401
 
-        # Look up staff record by email to get staff_id
-        staff = execute_query_one("SELECT id FROM staff WHERE email = %s AND is_active = TRUE", (user_email,))
-
-        if not staff:
+        # Resolve the user's staff record, auto-creating one on first use so a
+        # newly added worker can clock in immediately after their first login.
+        staff_id = get_current_staff_id()
+        if not staff_id:
             return jsonify({'success': False, 'message': 'Staff record not found'}), 404
 
-        user_id = staff['id']
+        user_id = staff_id
 
         today = date.today()
 
@@ -490,13 +490,13 @@ def end_break():
         if not user_email:
             return jsonify({'success': False, 'message': 'User not authenticated'}), 401
 
-        # Look up staff record by email to get staff_id
-        staff = execute_query_one("SELECT id FROM staff WHERE email = %s AND is_active = TRUE", (user_email,))
-
-        if not staff:
+        # Resolve the user's staff record, auto-creating one on first use so a
+        # newly added worker can clock in immediately after their first login.
+        staff_id = get_current_staff_id()
+        if not staff_id:
             return jsonify({'success': False, 'message': 'Staff record not found'}), 404
 
-        user_id = staff['id']
+        user_id = staff_id
 
         today = date.today()
 

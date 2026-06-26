@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from database import execute_query, execute_query_one, get_db_connection
 from .auth import login_required
+from security import scoped_location_id
 import psycopg2
 
 staff_bp = Blueprint('staff', __name__)
@@ -28,6 +29,12 @@ def index():
             WHERE 1=1
         """
         params = []
+
+        # A store-scoped manager only sees staff at their own location.
+        store = scoped_location_id()
+        if store:
+            query += " AND s.location_id = %s"
+            params.append(store)
 
         selected_position = None
         if position_filter:
@@ -80,6 +87,10 @@ def add():
         position_id = request.form.get('position_id') or None
         department_id = request.form.get('department_id') or None
         location_id = request.form.get('location_id') or None
+        # A store-scoped manager can only assign staff to their own store.
+        store = scoped_location_id()
+        if store:
+            location_id = store
         hire_date = request.form.get('hire_date')
         salary = request.form.get('salary') or None
         manager_id = request.form.get('manager_id') or None
@@ -163,6 +174,10 @@ def edit(staff_id):
         position_id = request.form.get('position_id') or None
         department_id = request.form.get('department_id') or None
         location_id = request.form.get('location_id') or None
+        # A store-scoped manager can only assign staff to their own store.
+        store = scoped_location_id()
+        if store:
+            location_id = store
         hire_date = request.form.get('hire_date')
         salary = request.form.get('salary') or None
         manager_id = request.form.get('manager_id') or None

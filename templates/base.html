@@ -9,6 +9,24 @@
     <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/favicon.png') }}">
     <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.png') }}">
 
+    <!-- Progressive Web App (installable) -->
+    <link rel="manifest" href="/manifest.webmanifest">
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Sip & Snack">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('/sw.js').catch(function (err) {
+            console.log('Service worker registration failed:', err);
+          });
+        });
+      }
+    </script>
+
     <!-- Local Fonts - Roboto -->
     <link href="{{ url_for('static', filename='css/roboto.css') }}" rel="stylesheet">
 
@@ -795,49 +813,55 @@
                                 <span class="nav-link-label">Dashboard</span>
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link d-flex align-items-center gap-2{% if request.path == '/static/machines/index.html' %} active{% endif %}" href="/static/machines/index.html">
-                                <i class="ri-settings-3-line icon"></i>
-                                <span class="nav-link-label">Machines</span>
-                            </a>
-                        </li>
+                        {% if has_perm('master_menu.view') %}
                         <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('master_menu') %} active{% endif %}" href="{{ url_for('master_menu.index') }}">
                                 <i class="ri-restaurant-2-line icon"></i>
                                 <span class="nav-link-label">Master Menu</span>
                             </a>
                         </li>
+                        {% endif %}
+                        {% if has_perm('locations.view') %}
                         <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('locations') %} active{% endif %}" href="{{ url_for('locations.index') }}">
                                 <i class="ri-map-pin-line icon"></i>
                                 <span class="nav-link-label">Locations</span>
                             </a>
                         </li>
+                        {% endif %}
+                        {% if has_perm('location_menu.view') %}
                         <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('location_menu') %} active{% endif %}" href="{{ url_for('location_menu.index') }}">
                                 <i class="ri-store-2-line icon"></i>
                                 <span class="nav-link-label">Location Menu</span>
                             </a>
                         </li>
+                        {% endif %}
+                        {% if has_perm('orders.view') %}
                         <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('orders') %} active{% endif %}" href="{{ url_for('orders.index') }}">
                                 <i class="ri-bar-chart-line icon"></i>
                                 <span class="nav-link-label">Orders</span>
                             </a>
                         </li>
+                        {% endif %}
+                        {% if has_perm('staff.view') %}
                         <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('staff') %} active{% endif %}" href="{{ url_for('staff.index') }}">
                                 <i class="ri-team-line icon"></i>
                                 <span class="nav-link-label">Staff</span>
                             </a>
                         </li>
-                        
+                        {% endif %}
+                        {% if has_perm('payroll.view') %}
                         <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('payroll') %} active{% endif %}" href="{{ url_for('payroll.index') }}">
                                 <i class="ri-calendar-check-line icon"></i>
                                 <span class="nav-link-label">Payroll</span>
                             </a>
                         </li>
+                        {% endif %}
+                        {% if has_perm('users.view') %}
                         <li class="nav-item">
                             <div class="d-flex align-items-center gap-2{% if request.endpoint and (request.endpoint.startswith('users') or request.endpoint.startswith('departments') or request.endpoint.startswith('positions')) %} bg-nav-active{% endif %}">
                                 <a class="nav-link flex-grow-1 d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('users') and not (request.endpoint.startswith('users.position_permissions') or request.endpoint.startswith('users.department_permissions') or request.endpoint.startswith('users.audit_logs') or request.endpoint.startswith('users.add')) %} active{% endif %}"
@@ -898,6 +922,8 @@
                             </ul>
                             </div>
                         </li>
+                        {% endif %}
+                        {% if has_perm('inventory.view') %}
                         <li class="nav-item">
                             <div class="d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('inventory') %} bg-nav-active{% endif %}">
                                 <a class="nav-link flex-grow-1 d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('inventory') and not request.endpoint.startswith('inventory.suppliers') %} active{% endif %}"
@@ -952,6 +978,7 @@
                             </ul>
                             </div>
                         </li>
+                        {% endif %}
                     </ul>
 
                     <!-- User Profile Section - Fixed at bottom left of viewport -->

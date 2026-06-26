@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from database import execute_query, execute_query_one
 from .auth import login_required
 from .helpers import get_current_staff_id
+from security import scoped_location_id
 from datetime import datetime, date
 from decimal import Decimal, InvalidOperation
 import uuid
@@ -403,6 +404,10 @@ def add_purchase_list():
         try:
             data = request.form
             location_id = data['location_id']
+            # A store-scoped manager's purchase lists belong to their own store.
+            store = scoped_location_id()
+            if store:
+                location_id = store
             staff_id = get_current_staff_id()
 
             if not staff_id:
@@ -591,6 +596,11 @@ def location_inventory():
         category = request.args.get('category', '')
         alert_only = request.args.get('alert_only', '') == '1'
 
+        # A store-scoped manager only sees their own store's inventory.
+        store = scoped_location_id()
+        if store:
+            location_id = store
+
         query = """
             SELECT li.*, mi.name as item_name, mi.category, mi.unit,
                    l.name as location_name,
@@ -642,6 +652,10 @@ def location_inventory():
 @login_required
 def assign_location_inventory(location_id):
     """Assign master inventory items to a specific location."""
+    store = scoped_location_id()
+    if store and str(location_id) != store:
+        flash('You can only manage your own store.', 'error')
+        return redirect(url_for('inventory.location_inventory'))
     try:
         location = execute_query_one("SELECT id, name FROM locations WHERE id = %s", (str(location_id),))
         if not location:
@@ -740,6 +754,10 @@ def unassign_location_inventory(location_id, item_id):
 @login_required
 def adjust_inventory(location_id, item_id):
     """Adjust inventory stock levels"""
+    store = scoped_location_id()
+    if store and str(location_id) != store:
+        flash('You can only manage your own store.', 'error')
+        return redirect(url_for('inventory.location_inventory'))
     try:
         # Get current inventory info
         inventory = execute_query_one("""

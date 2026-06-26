@@ -1,0 +1,21 @@
+# Cloudflare Tunnel config — place on the SERVER at ~/.cloudflared/config.yml
+# (or /etc/cloudflared/config.yml when running as a system service).
+#
+# Prereqs (run once on the server):
+#   1. Install cloudflared.
+#   2. cloudflared tunnel login                 # authorize your Cloudflare account/domain
+#   3. cloudflared tunnel create sipnsnack      # creates the tunnel + a credentials json
+#   4. cloudflared tunnel route dns sipnsnack portal.YOURDOMAIN.com
+#   5. Put the tunnel UUID + credentials path below, then run it (see DEPLOYMENT.md).
+#
+# Replace the UUID, the credentials filename, and portal.YOURDOMAIN.com.
+
+tunnel: REPLACE_WITH_TUNNEL_UUID
+credentials-file: /home/USER/.cloudflared/REPLACE_WITH_TUNNEL_UUID.json
+
+ingress:
+  # Public HTTPS hostname  ->  the local gunicorn process
+  - hostname: portal.YOURDOMAIN.com
+    service: http://127.0.0.1:5000
+  # Required catch-all
+  - service: http_status:404

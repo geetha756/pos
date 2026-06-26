@@ -5,10 +5,21 @@
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <div>
-        <h1 class="h2">Order {{ order.order_number }}</h1>
-        <p class="text-muted mb-0">{{ order.location_name }} - {{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+        <h1 class="h2">Order {{ order.order_number }}
+            {% if order.edited_at %}
+            <span class="badge bg-warning text-dark align-middle" title="Edited on {{ order.edited_at.strftime('%Y-%m-%d %H:%M') }}">Edited</span>
+            {% endif %}
+        </h1>
+        <p class="text-muted mb-0">{{ order.location_name }} - {{ order.created_at.strftime('%Y-%m-%d %H:%M') }}
+            {% if order.edited_at %}<span class="text-warning">· edited {{ order.edited_at.strftime('%Y-%m-%d %H:%M') }}</span>{% endif %}
+        </p>
     </div>
-    <div class="btn-toolbar mb-2 mb-md-0">
+    <div class="btn-toolbar mb-2 mb-md-0 gap-2">
+        {% if has_perm('orders.edit') and order.status not in ['completed', 'cancelled'] %}
+        <a href="{{ url_for('orders.edit_order', order_id=order.id) }}" class="btn btn-warning">
+            <i class="ri-pencil-line icon me-1"></i>Edit Order
+        </a>
+        {% endif %}
         <a href="{{ url_for('orders.index') }}" class="btn btn-secondary">
 <i class="ri-arrow-right-s-line icon me-2"></i>
             Back to Orders

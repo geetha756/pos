@@ -37,6 +37,25 @@
                             {% endfor %}
                         </select>
                     </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Access Role</label>
+                        <select class="form-select" name="role">
+                            {% set _role = user.role or 'worker' %}
+                            <option value="worker" {% if _role == 'worker' %}selected{% endif %}>Worker (store manager) — runs one store</option>
+                            <option value="manager" {% if _role == 'manager' %}selected{% endif %}>Manager — all stores except user admin</option>
+                            <option value="admin" {% if _role == 'admin' %}selected{% endif %}>Admin — full access</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Assigned Store</label>
+                        <select class="form-select" name="location_id">
+                            <option value="">- All / None -</option>
+                            {% for l in locations %}
+                            <option value="{{ l.id }}" {% if user.location_id == l.id %}selected{% endif %}>{{ l.name }}{% if l.city %} ({{ l.city }}){% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">A Worker tied to a store only sees that store's data.</div>
+                    </div>
                     <div class="col-md-3 d-flex align-items-end">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" name="is_active" id="is_active" {% if user.is_active %}checked{% endif %}>
