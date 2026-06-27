@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from database import execute_query, execute_query_one
 from .auth import login_required
 from .helpers import get_current_staff_id
-from security import scoped_location_id
+from security import scoped_location_id, owner_required, is_store_manager
 from datetime import datetime, date
 from decimal import Decimal, InvalidOperation
 import uuid
@@ -21,6 +21,7 @@ def index():
 
 @inventory_bp.route('/master-inventory')
 @login_required
+@owner_required
 def master_inventory():
     """List all master inventory items"""
     try:
@@ -63,6 +64,7 @@ def master_inventory():
 
 @inventory_bp.route('/master-inventory/add', methods=['GET', 'POST'])
 @login_required
+@owner_required
 def add_master_item():
     """Add new master inventory item"""
     if request.method == 'POST':
@@ -130,6 +132,7 @@ def add_master_item():
 
 @inventory_bp.route('/master-inventory/<uuid:item_id>/edit', methods=['GET', 'POST'])
 @login_required
+@owner_required
 def edit_master_item(item_id):
     """Edit master inventory item"""
     if request.method == 'POST':
@@ -172,6 +175,7 @@ def edit_master_item(item_id):
 
 @inventory_bp.route('/master-inventory/<uuid:item_id>/delete', methods=['POST'])
 @login_required
+@owner_required
 def delete_master_item(item_id):
     """Delete master inventory item"""
     try:
@@ -650,6 +654,7 @@ def location_inventory():
 
 @inventory_bp.route('/location-inventory/<uuid:location_id>/assign', methods=['GET', 'POST'])
 @login_required
+@owner_required
 def assign_location_inventory(location_id):
     """Assign master inventory items to a specific location."""
     store = scoped_location_id()
@@ -736,6 +741,7 @@ def assign_location_inventory(location_id):
 
 @inventory_bp.route('/location-inventory/<uuid:location_id>/<uuid:item_id>/unassign', methods=['POST'])
 @login_required
+@owner_required
 def unassign_location_inventory(location_id, item_id):
     """Remove an ingredient assignment from a location."""
     try:
@@ -752,6 +758,7 @@ def unassign_location_inventory(location_id, item_id):
 
 @inventory_bp.route('/location-inventory/<uuid:location_id>/<uuid:item_id>/adjust', methods=['GET', 'POST'])
 @login_required
+@owner_required
 def adjust_inventory(location_id, item_id):
     """Adjust inventory stock levels"""
     store = scoped_location_id()
@@ -845,6 +852,11 @@ def daily_usage():
         selected_date = request.args.get('date', date.today().isoformat())
         location_id = request.args.get('location_id', '')
 
+        # Store managers only ever see their own store's records.
+        store = scoped_location_id()
+        if store:
+            location_id = store
+
         # Get locations for filter
         locations = execute_query("SELECT id, name FROM locations ORDER BY name", fetch=True)
 
@@ -881,6 +893,10 @@ def record_daily_usage():
     """Record daily inventory usage for a location"""
     try:
         location_id = request.args.get('location_id')
+        # Store managers can only record for their own store.
+        store = scoped_location_id()
+        if store:
+            location_id = store
         record_date = request.args.get('date', date.today().isoformat())
 
         if not location_id:
@@ -940,6 +956,14 @@ def record_daily_usage():
                 used, wastage, staff_id
                 ))
 
+                # The end-of-day count is the new stock level, so the manager's
+                # usage/wastage reduces the stock the owner sees.
+                execute_query("""
+                    UPDATE location_inventory
+                    SET current_stock = %s, last_updated = CURRENT_TIMESTAMP
+                    WHERE location_id = %s AND master_inventory_id = %s
+                """, (closing, location_id, item_id))
+
             flash('Daily usage recorded successfully!', 'success')
             return redirect(url_for('inventory.daily_usage', date=record_date, location_id=location_id))
 
@@ -980,6 +1004,11 @@ def leftover_food():
         selected_date = request.args.get('date', date.today().isoformat())
         location_id = request.args.get('location_id', '')
 
+        # Store managers only ever see their own store's records.
+        store = scoped_location_id()
+        if store:
+            location_id = store
+
         # Get locations for filter
         locations = execute_query("SELECT id, name FROM locations ORDER BY name", fetch=True) or []
 
@@ -1016,6 +1045,10 @@ def record_leftover_food():
     """Record leftover food for menu items"""
     try:
         location_id = request.args.get('location_id')
+        # Store managers can only record for their own store.
+        store = scoped_location_id()
+        if store:
+            location_id = store
         record_date = request.args.get('date', date.today().isoformat())
 
         if not location_id:

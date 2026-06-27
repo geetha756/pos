@@ -5,6 +5,16 @@ from security import scoped_location_id
 
 location_menu_bp = Blueprint('location_menu', __name__)
 
+
+def _deny_other_store(location_id):
+    """For a store manager, return a redirect if location_id isn't their store;
+    otherwise None. Owners are never restricted."""
+    store = scoped_location_id()
+    if store and str(location_id) != store:
+        flash('You can only manage your own store.', 'error')
+        return redirect(url_for('location_menu.manage', location_id=store))
+    return None
+
 @location_menu_bp.route('/')
 @login_required
 def index():
@@ -28,6 +38,11 @@ def index():
 @login_required
 def manage(location_id):
     """Manage menu for a specific location"""
+    # Store managers may only manage their own store's menu.
+    store = scoped_location_id()
+    if store and str(location_id) != store:
+        flash('You can only manage your own store.', 'error')
+        return redirect(url_for('location_menu.manage', location_id=store))
     try:
         # Get location info
         location = execute_query_one("SELECT * FROM locations WHERE id = %s", (location_id,))
@@ -78,6 +93,9 @@ def create_item(location_id):
     price) and add it straight to this store's menu. The catalog entry
     (master_menu) is reused if an item with the same name already exists, so
     stores can share items but keep their own price."""
+    guard = _deny_other_store(location_id)
+    if guard:
+        return guard
     name = (request.form.get('name') or '').strip()
     category = (request.form.get('category') or '').strip() or None
     description = (request.form.get('description') or '').strip() or None
@@ -141,6 +159,9 @@ def create_item(location_id):
 @login_required
 def add_item(location_id, menu_item_id):
     """Add menu item to location"""
+    guard = _deny_other_store(location_id)
+    if guard:
+        return guard
     price = request.form.get('price')
     is_available = True  # Items are available by default when added
 
@@ -188,6 +209,9 @@ def add_item(location_id, menu_item_id):
 @login_required
 def update_item(location_id, location_menu_id):
     """Update location menu item"""
+    guard = _deny_other_store(location_id)
+    if guard:
+        return guard
     price = request.form.get('price')
     is_available = True  # Items remain available when updated
 
@@ -207,6 +231,9 @@ def update_item(location_id, location_menu_id):
 @login_required
 def remove_item(location_id, location_menu_id):
     """Soft remove menu item from location (mark as unavailable)"""
+    guard = _deny_other_store(location_id)
+    if guard:
+        return guard
     try:
         execute_query("""
             UPDATE location_menu

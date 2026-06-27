@@ -113,7 +113,7 @@
                         </td>
                         <td>
                             {% if department.budget %}
-                                ${{ "%.2f"|format(department.budget) }}
+                                ₹{{ "%.2f"|format(department.budget) }}
                             {% else %}
                                 -
                             {% endif %}

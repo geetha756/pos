@@ -3,10 +3,11 @@
 {% block title %}Location Inventory - Sip & Snack Portal{% endblock %}
 
 {% block content %}
+{% set is_owner = not is_store_manager() %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Location Inventory</h1>
+    <h1 class="h2">{% if is_owner %}Location Inventory{% else %}Items at {{ session.get('active_location_name') or 'your store' }}{% endif %}</h1>
     <div class="btn-toolbar mb-2 mb-md-0 gap-2">
-        {% if locations %}
+        {% if is_owner and locations %}
         {% set assign_location = selected_location or locations[0].id %}
         <a href="{{ url_for('inventory.assign_location_inventory', location_id=assign_location) }}" class="btn btn-primary">
             <i class="ri-link icon me-1"></i>Assign Ingredients
@@ -18,9 +19,14 @@
     </div>
 </div>
 
+{% if not is_owner %}
+<div class="alert alert-info py-2 small"><i class="ri-information-line icon me-1"></i>These are the items your store stocks. Record what you use on the <a href="{{ url_for('inventory.daily_usage') }}">Daily Usage</a> page. Stock quantities are managed by the owner.</div>
+{% endif %}
+
 <div class="card mb-3">
     <div class="card-body">
         <form method="GET" class="row g-2 align-items-end">
+            {% if is_owner %}
             <div class="col-md-4">
                 <label for="location_id" class="form-label">Location</label>
                 <select id="location_id" name="location_id" class="form-select">
@@ -30,6 +36,7 @@
                     {% endfor %}
                 </select>
             </div>
+            {% endif %}
             <div class="col-md-3">
                 <label for="category" class="form-label">Category</label>
                 <select id="category" name="category" class="form-select">
@@ -39,6 +46,7 @@
                     {% endfor %}
                 </select>
             </div>
+            {% if is_owner %}
             <div class="col-md-2">
                 <div class="form-check mt-4">
                     <input class="form-check-input" type="checkbox" value="1" id="alert_only" name="alert_only" {% if alert_only %}checked{% endif %}>
@@ -47,6 +55,7 @@
                     </label>
                 </div>
             </div>
+            {% endif %}
             <div class="col-md-3 text-md-end">
                 <button type="submit" class="btn btn-outline-secondary w-100">
                     <i class="ri-search-line icon me-1"></i>Filter
@@ -58,34 +67,38 @@
 
 <div class="card">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0"><i class="ri-archive-stack-line icon me-2"></i>Inventory</h5>
+        <h5 class="card-title mb-0"><i class="ri-archive-stack-line icon me-2"></i>{% if is_owner %}Inventory{% else %}Items{% endif %}</h5>
         <div class="small text-muted">Showing {{ inventory|length }} items</div>
     </div>
     <div class="card-body">
         {% if inventory %}
-        <div class="table-responsive">
+        <!-- Desktop: full table -->
+        <div class="table-responsive d-none d-md-block">
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>Location</th>
+                        {% if is_owner %}<th>Location</th>{% endif %}
                         <th>Item</th>
                         <th>Category</th>
                         <th>Unit</th>
+                        {% if is_owner %}
                         <th class="text-end">Current</th>
                         <th class="text-end">Min</th>
                         <th class="text-end">Max</th>
                         <th class="text-end">Reorder</th>
                         <th>Status</th>
                         <th>Actions</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
                     {% for row in inventory %}
                     <tr>
-                        <td>{{ row.location_name }}</td>
+                        {% if is_owner %}<td>{{ row.location_name }}</td>{% endif %}
                         <td>{{ row.item_name }}</td>
                         <td><span class="badge bg-secondary">{{ row.category }}</span></td>
                         <td>{{ row.unit }}</td>
+                        {% if is_owner %}
                         <td class="text-end">{{ row.current_stock }}</td>
                         <td class="text-end">{{ row.minimum_stock_level }}</td>
                         <td class="text-end">{{ row.maximum_stock_level }}</td>
@@ -103,15 +116,54 @@
                             <a class="btn btn-sm btn-light text-primary"
                                href="{{ url_for('inventory.adjust_inventory', location_id=row.location_id, item_id=row.master_inventory_id) }}">Adjust</a>
                         </td>
+                        {% endif %}
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+
+        <!-- Mobile: one card per item (no horizontal scroll) -->
+        <div class="d-md-none">
+            {% for row in inventory %}
+            <div class="card mb-2">
+                <div class="card-body py-2 px-3">
+                    <div class="d-flex justify-content-between align-items-center gap-2">
+                        <div style="min-width:0;">
+                            <div class="fw-bold text-truncate">{{ row.item_name }}</div>
+                            <div class="small text-muted text-truncate">{% if is_owner %}{{ row.location_name }} · {% endif %}{{ row.category }} · {{ row.unit }}</div>
+                        </div>
+                        {% if is_owner %}
+                        {% if row.stock_status == 'out_of_stock' %}
+                            <span class="badge bg-danger flex-shrink-0">Out</span>
+                        {% elif row.stock_status == 'low_stock' %}
+                            <span class="badge bg-warning text-dark flex-shrink-0">Low</span>
+                        {% else %}
+                            <span class="badge bg-success flex-shrink-0">OK</span>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                    {% if is_owner %}
+                    <div class="d-flex justify-content-between align-items-center mt-2">
+                        <div>
+                            <span class="fw-bold fs-5">{{ row.current_stock }}</span>
+                            <span class="text-muted">{{ row.unit }}</span>
+                            <span class="text-muted small ms-1">min {{ row.minimum_stock_level }} · reorder {{ row.reorder_point }}</span>
+                        </div>
+                        <a class="btn btn-sm btn-outline-primary flex-shrink-0"
+                           href="{{ url_for('inventory.adjust_inventory', location_id=row.location_id, item_id=row.master_inventory_id) }}">
+                            <i class="ri-edit-line icon me-1"></i>Adjust
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
         {% else %}
         <div class="text-center py-4">
             <i class="ri-archive-stack-line icon text-muted" style="font-size: 3rem;"></i>
-            <h6 class="text-muted mt-2">No inventory records match your filters</h6>
+            <h6 class="text-muted mt-2">No items {% if is_owner %}match your filters{% else %}have been assigned to your store yet{% endif %}</h6>
         </div>
         {% endif %}
     </div>

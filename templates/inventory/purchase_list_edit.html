@@ -43,8 +43,8 @@
                                 <td><span class="badge bg-secondary">{{ it.category }}</span></td>
                                 <td>{{ it.unit }}</td>
                                 <td class="text-end">{{ it.quantity_requested }}</td>
-                                <td class="text-end">${{ "%.2f"|format(it.cost_per_unit or 0) }}</td>
-                                <td class="text-end">${{ "%.2f"|format(it.total_cost or 0) }}</td>
+                                <td class="text-end">₹{{ "%.2f"|format(it.cost_per_unit or 0) }}</td>
+                                <td class="text-end">₹{{ "%.2f"|format(it.total_cost or 0) }}</td>
                                 <td>
                                     <form method="POST" action="{{ url_for('inventory.remove_purchase_item', list_id=purchase_list.id, item_id=it.master_inventory_id) }}" onsubmit="return confirm('Remove this item from the list?')">
                                         <button type="submit" class="btn btn-sm btn-outline-danger">

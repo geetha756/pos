@@ -105,7 +105,7 @@
                                     <i class="ri-money-dollar-circle-line icon text-warning me-3"></i>
                                     <div>
                                         <h6 class="mb-1">Total Payroll</h6>
-                                        <span class="h4 text-warning">${{ "%.2f"|format(totals.total_gross_pay) }}</span>
+                                        <span class="h4 text-warning">₹{{ "%.2f"|format(totals.total_gross_pay) }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -184,9 +184,9 @@
                                     <td class="text-end">{{ "%.2f"|format(entry.regular_hours) }}</td>
                                     <td class="text-end">{{ "%.2f"|format(entry.overtime_hours) }}</td>
                                     <td class="text-end"><strong>{{ "%.2f"|format(entry.total_hours) }}</strong></td>
-                                    <td class="text-end">${{ "%.2f"|format(entry.gross_pay) }}</td>
-                                    <td class="text-end">${{ "%.2f"|format(entry.deductions) }}</td>
-                                    <td class="text-end"><strong>${{ "%.2f"|format(entry.net_pay) }}</strong></td>
+                                    <td class="text-end">₹{{ "%.2f"|format(entry.gross_pay) }}</td>
+                                    <td class="text-end">₹{{ "%.2f"|format(entry.deductions) }}</td>
+                                    <td class="text-end"><strong>₹{{ "%.2f"|format(entry.net_pay) }}</strong></td>
                                     <td>
                                         <span class="badge bg-{{ 'success' if entry.status == 'paid' else 'warning' if entry.status == 'approved' else 'secondary' }}">
                                             {{ entry.status.title() }}
@@ -221,9 +221,9 @@
                                     <th class="text-end">{{ "%.2f"|format(entries|sum(attribute='regular_hours')) }}</th>
                                     <th class="text-end">{{ "%.2f"|format(entries|sum(attribute='overtime_hours')) }}</th>
                                     <th class="text-end">{{ "%.2f"|format(entries|sum(attribute='total_hours')) }}</th>
-                                    <th class="text-end">${{ "%.2f"|format(entries|sum(attribute='gross_pay')) }}</th>
-                                    <th class="text-end">${{ "%.2f"|format(entries|sum(attribute='deductions')) }}</th>
-                                    <th class="text-end">${{ "%.2f"|format(entries|sum(attribute='net_pay')) }}</th>
+                                    <th class="text-end">₹{{ "%.2f"|format(entries|sum(attribute='gross_pay')) }}</th>
+                                    <th class="text-end">₹{{ "%.2f"|format(entries|sum(attribute='deductions')) }}</th>
+                                    <th class="text-end">₹{{ "%.2f"|format(entries|sum(attribute='net_pay')) }}</th>
                                     <th colspan="2"></th>
                                 </tr>
                             </tfoot>

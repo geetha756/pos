@@ -68,7 +68,7 @@
                 <div class="row text-center">
                     <div class="col-6 mb-3">
                         <div class="small text-muted">Estimated Total</div>
-                        <div class="h4 mb-0">${{ "%.2f"|format(purchase_list.total_estimated_cost or 0) }}</div>
+                        <div class="h4 mb-0">₹{{ "%.2f"|format(purchase_list.total_estimated_cost or 0) }}</div>
                     </div>
                     <div class="col-6 mb-3">
                         <div class="small text-muted">Items</div>
@@ -112,8 +112,8 @@
                         <td class="text-end">{{ it.quantity_requested }}</td>
                         <td class="text-end">{{ it.quantity_approved or '—' }}</td>
                         <td class="text-end">{{ it.quantity_procured or 0 }}</td>
-                        <td class="text-end">${{ "%.2f"|format(it.cost_per_unit or 0) }}</td>
-                        <td class="text-end">${{ "%.2f"|format(it.total_cost or 0) }}</td>
+                        <td class="text-end">₹{{ "%.2f"|format(it.cost_per_unit or 0) }}</td>
+                        <td class="text-end">₹{{ "%.2f"|format(it.total_cost or 0) }}</td>
                         <td>
                             <span class="badge bg-{% if it.status == 'approved' %}success{% elif it.status == 'procured' %}primary{% elif it.status == 'partial' %}warning text-dark{% elif it.status == 'cancelled' %}secondary{% else %}info{% endif %}">
                                 {{ it.status|capitalize }}

@@ -32,7 +32,7 @@
                                 data-price="{{ '%.2f'|format(item.price or 0) }}">
                             <div class="fw-bold">{{ item.name }}</div>
                             <div class="small text-muted">{{ item.category or '' }}</div>
-                            <div class="fw-bold mt-1">${{ '%.2f'|format(item.price or 0) }}</div>
+                            <div class="fw-bold mt-1">₹{{ '%.2f'|format(item.price or 0) }}</div>
                         </button>
                     </div>
                     {% endfor %}
@@ -54,7 +54,7 @@
 
                 <div class="d-flex justify-content-between fw-bold fs-5 border-top pt-2">
                     <span>Total</span>
-                    <span>$<span id="cart-total">0.00</span></span>
+                    <span>₹<span id="cart-total">0.00</span></span>
                 </div>
 
                 <hr>
@@ -106,12 +106,12 @@ function renderCart() {
         li.innerHTML =
             '<div class="d-flex justify-content-between align-items-center">' +
               '<div class="me-2"><div class="fw-bold">' + it.name + '</div>' +
-              '<small class="text-muted">$' + it.price.toFixed(2) + ' each</small></div>' +
+              '<small class="text-muted">₹' + it.price.toFixed(2) + ' each</small></div>' +
               '<div class="d-flex align-items-center gap-1">' +
                 '<button class="btn btn-sm btn-outline-secondary" onclick="changeQty(\'' + k + '\',-1)">-</button>' +
                 '<span class="px-1">' + it.qty + '</span>' +
                 '<button class="btn btn-sm btn-outline-secondary" onclick="changeQty(\'' + k + '\',1)">+</button>' +
-                '<span class="ms-2 fw-bold">$' + line.toFixed(2) + '</span>' +
+                '<span class="ms-2 fw-bold">₹' + line.toFixed(2) + '</span>' +
               '</div>' +
             '</div>';
         list.appendChild(li);

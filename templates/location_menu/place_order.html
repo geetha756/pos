@@ -41,7 +41,7 @@
                                     {% endif %}
                                     <div class="mt-auto">
                                         <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <span class="fw-bold text-primary">${{ "%.2f"|format(item.price) }}</span>
+                                            <span class="fw-bold text-primary">₹{{ "%.2f"|format(item.price) }}</span>
                                             <button type="button" class="btn btn-outline-primary btn-sm"
                                                     data-id="{{ item.location_menu_id }}"
                                                     data-name="{{ item.name }}"
@@ -91,7 +91,7 @@
                 <hr>
                 <div class="d-flex justify-content-between mb-3">
                     <strong>Total:</strong>
-                    <strong id="cartTotal">$0.00</strong>
+                    <strong id="cartTotal">₹0.00</strong>
                 </div>
 
                 <!-- Parcel Toggle -->
@@ -197,7 +197,7 @@ function updateCartDisplay() {
         cartItemsDiv.innerHTML = '<p class="text-muted text-center mb-0">Your cart is empty</p>';
         cartCount.textContent = '0';
         cartItemCount.textContent = '0';
-        cartTotal.textContent = '$0.00';
+        cartTotal.textContent = '₹0.00';
         placeOrderBtn.disabled = true;
         return;
     }
@@ -212,7 +212,7 @@ function updateCartDisplay() {
         html += '<div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">' +
             '<div class="flex-grow-1">' +
                 '<div class="fw-bold">' + item.name + '</div>' +
-                '<small class="text-muted">$ ' + item.price.toFixed(2) + ' each</small>' +
+                '<small class="text-muted">₹ ' + item.price.toFixed(2) + ' each</small>' +
             '</div>' +
             '<div class="d-flex align-items-center">' +
                 '<button type="button" class="btn btn-outline-secondary btn-sm me-1" onclick="updateQuantity(\'' + locationMenuId + '\', ' + (item.quantity - 1) + ')">' +
@@ -228,14 +228,14 @@ function updateCartDisplay() {
             '</div>' +
         '</div>' +
         '<div class="text-end mb-2">' +
-            '<small class="text-muted">Subtotal: $' + itemTotal.toFixed(2) + '</small>' +
+            '<small class="text-muted">Subtotal: ₹' + itemTotal.toFixed(2) + '</small>' +
         '</div>';
     });
 
     cartItemsDiv.innerHTML = html;
     cartCount.textContent = totalItems;
     cartItemCount.textContent = totalItems;
-    cartTotal.textContent = `$${totalPrice.toFixed(2)}`;
+    cartTotal.textContent = `₹${totalPrice.toFixed(2)}`;
     placeOrderBtn.disabled = false;
 }
 
@@ -269,7 +269,7 @@ function showOrderSummary() {
                     <strong>${item.name}</strong> × ${item.quantity}
                     ${item.isParcel ? '<span class="badge bg-info ms-2">Parcel</span>' : ''}
                 </div>
-                <span>$${itemTotal.toFixed(2)}</span>
+                <span>₹${itemTotal.toFixed(2)}</span>
             </div>
         `;
     });
@@ -278,7 +278,7 @@ function showOrderSummary() {
         <hr>
         <div class="d-flex justify-content-between">
             <strong>Total Amount:</strong>
-            <strong>$${totalPrice.toFixed(2)}</strong>
+            <strong>₹${totalPrice.toFixed(2)}</strong>
         </div>
     `;
 

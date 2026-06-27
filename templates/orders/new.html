@@ -2,9 +2,35 @@
 
 {% block title %}New Order - Sip & Snack Portal{% endblock %}
 
+{% block extra_head %}
+<style>
+    /* Mobile sticky cart bar — keeps the running total + Place Order one tap
+       away while the manager taps menu items. Sits above the bottom nav. */
+    #mobile-cart-bar {
+        position: fixed;
+        left: 0; right: 0;
+        bottom: calc(var(--sns-bottomnav-h) + env(safe-area-inset-bottom));
+        z-index: 1034;
+        background: #fff;
+        border-top: 1px solid #e5e7eb;
+        box-shadow: 0 -3px 12px rgba(0, 0, 0, .10);
+        padding: .5rem .75rem;
+    }
+    #mobile-cart-bar .mcb-inner { display: flex; align-items: center; gap: .75rem; }
+    #mobile-cart-bar .mcb-info { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+    #mobile-cart-bar #mcb-total { font-weight: 700; font-size: 1.2rem; color: #111827; }
+    #mobile-cart-bar #mcb-count { font-size: .72rem; color: #6b7280; }
+    #mobile-cart-bar .mcb-btn { margin-left: auto; flex-shrink: 0; }
+    /* Larger, touch-friendly menu tiles on phones */
+    @media (max-width: 575.98px) {
+        .menu-item-btn { min-height: 76px; padding: .6rem .5rem; }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2"><i class="ri-add-circle-line icon me-2"></i>New Order</h1>
+    <h1 class="h2"><i class="ri-restaurant-2-line icon me-2"></i>Menu</h1>
     <a href="{{ url_for('orders.index') }}" class="btn btn-outline-secondary">
         <i class="ri-arrow-left-line icon me-1"></i>Back to Orders
     </a>
@@ -57,7 +83,7 @@
                                 data-price="{{ '%.2f'|format(item.price or 0) }}">
                             <div class="fw-bold">{{ item.name }}</div>
                             <div class="small text-muted">{{ item.category or '' }}</div>
-                            <div class="fw-bold mt-1">${{ '%.2f'|format(item.price or 0) }}</div>
+                            <div class="fw-bold mt-1">₹{{ '%.2f'|format(item.price or 0) }}</div>
                         </button>
                     </div>
                     {% endfor %}
@@ -82,7 +108,7 @@
 
                 <div class="d-flex justify-content-between fw-bold fs-5 border-top pt-2">
                     <span>Total</span>
-                    <span>$<span id="cart-total">0.00</span></span>
+                    <span>₹<span id="cart-total">0.00</span></span>
                 </div>
 
                 <hr>
@@ -111,8 +137,26 @@
     </div>
 </div>
 
+<!-- Mobile sticky cart summary (phones/tablets only) -->
+<div id="mobile-cart-bar" class="d-lg-none" style="display:none;">
+    <div class="mcb-inner">
+        <div class="mcb-info">
+            <span id="mcb-total">₹0.00</span>
+            <span id="mcb-count">0 items</span>
+        </div>
+        <button type="button" class="btn btn-success mcb-btn"
+                onclick="document.getElementById('place-order-btn').scrollIntoView({behavior:'smooth', block:'center'});">
+            Review &amp; Place <i class="ri-arrow-down-line icon"></i>
+        </button>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/printer.js') }}"></script>
 <script>
 const LOCATION_ID = {{ selected_location|tojson }};
+{% set ns = namespace(store=session.get('active_location_name')) %}
+{%- if not ns.store %}{% for loc in locations if loc.id|string == selected_location %}{% set ns.store = loc.name %}{% endfor %}{% endif %}
+const STORE_NAME = {{ (ns.store or 'Sip & Snack')|tojson }};
 const cart = {};  // key = location_menu_id -> {mmId, name, price, qty}
 
 function renderCart() {
@@ -131,18 +175,27 @@ function renderCart() {
         li.innerHTML =
             '<div class="d-flex justify-content-between align-items-center">' +
               '<div class="me-2"><div class="fw-bold">' + it.name + '</div>' +
-              '<small class="text-muted">$' + it.price.toFixed(2) + ' each</small></div>' +
+              '<small class="text-muted">₹' + it.price.toFixed(2) + ' each</small></div>' +
               '<div class="d-flex align-items-center gap-1">' +
                 '<button class="btn btn-sm btn-outline-secondary" onclick="changeQty(\'' + k + '\',-1)">-</button>' +
                 '<span class="px-1">' + it.qty + '</span>' +
                 '<button class="btn btn-sm btn-outline-secondary" onclick="changeQty(\'' + k + '\',1)">+</button>' +
-                '<span class="ms-2 fw-bold">$' + line.toFixed(2) + '</span>' +
+                '<span class="ms-2 fw-bold">₹' + line.toFixed(2) + '</span>' +
               '</div>' +
             '</div>';
         list.appendChild(li);
     });
     document.getElementById('cart-total').textContent = total.toFixed(2);
     document.getElementById('place-order-btn').disabled = keys.length === 0;
+
+    // Keep the mobile sticky cart bar in sync.
+    const bar = document.getElementById('mobile-cart-bar');
+    if (bar) {
+        const count = keys.reduce(function (n, k) { return n + cart[k].qty; }, 0);
+        document.getElementById('mcb-count').textContent = count + (count === 1 ? ' item' : ' items');
+        document.getElementById('mcb-total').textContent = '₹' + total.toFixed(2);
+        bar.style.display = keys.length ? 'block' : 'none';
+    }
 }
 
 function addItem(btn) {
@@ -203,7 +256,25 @@ function placeOrder() {
     .then(function (r) { return r.json(); })
     .then(function (data) {
         if (data.success) {
-            window.location.href = '{{ url_for("orders.index") }}?placed=' + encodeURIComponent(data.order_number || '');
+            // Auto-print the receipt to the Bluetooth thermal printer, then go
+            // to the orders list. (No-op fallback to browser print on desktop.)
+            try {
+                SnsPrint.printOrder({
+                    store: STORE_NAME,
+                    orderNumber: data.order_number,
+                    datetime: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+                    orderType: document.getElementById('order-type').value,
+                    customer: document.getElementById('customer-name').value,
+                    phone: document.getElementById('customer-phone').value,
+                    items: items.map(function (it) { return { name: it.item_name, qty: it.quantity, price: it.unit_price }; }),
+                    total: items.reduce(function (s, it) { return s + it.total_price; }, 0)
+                });
+            } catch (e) { /* never block the sale on a print issue */ }
+            var go = function () {
+                window.location.href = '{{ url_for("orders.index") }}?placed=' + encodeURIComponent(data.order_number || '');
+            };
+            // Give the native print bridge a moment to receive the job.
+            if (SnsPrint.isNative()) { setTimeout(go, 700); } else { go(); }
         } else {
             alert('Could not place order: ' + (data.error || 'unknown error'));
             btn.disabled = false;

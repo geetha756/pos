@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Select your store · Sip &amp; Snack</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#0d6efd">
+  <link href="{{ url_for('static', filename='css/roboto.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='vendor/remixicon/remixicon.css') }}" rel="stylesheet">
+  <style>
+    body {
+      min-height: 100vh; min-height: 100dvh;
+      margin: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: #f5f6f8;
+      font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      padding: 1.5rem;
+      padding-top: calc(1.5rem + env(safe-area-inset-top));
+      padding-bottom: calc(1.5rem + env(safe-area-inset-bottom));
+    }
+    .picker { width: 100%; max-width: 460px; }
+    .picker-head { text-align: center; margin-bottom: 1.5rem; }
+    .picker-head img { width: 64px; height: 64px; margin-bottom: .75rem; }
+    .picker-head h1 { font-size: 1.4rem; font-weight: 600; margin: 0 0 .25rem; color: #111827; }
+    .picker-head p { color: #6b7280; margin: 0; }
+    .loc-btn {
+      display: flex; align-items: center; gap: .9rem;
+      width: 100%; text-align: left;
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+      padding: 1rem 1.1rem; margin-bottom: .75rem;
+      color: #111827; font-size: 1.05rem; font-weight: 500;
+      box-shadow: 0 1px 2px rgba(0,0,0,.05);
+      min-height: 60px; cursor: pointer;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .loc-btn:hover, .loc-btn:focus { border-color: #0d6efd; box-shadow: 0 2px 10px rgba(13,110,253,.15); }
+    .loc-btn .pin {
+      flex-shrink: 0; width: 42px; height: 42px; border-radius: 50%;
+      background: #e7f1ff; color: #0d6efd;
+      display: flex; align-items: center; justify-content: center; font-size: 22px;
+    }
+    .loc-btn .loc-name { flex: 1 1 auto; min-width: 0; }
+    .loc-btn .loc-city { display: block; font-size: .8rem; font-weight: 400; color: #6b7280; }
+    .loc-btn.is-current { border-color: #0d6efd; background: #f0f7ff; }
+    .logout { margin-top: 1rem; text-align: center; }
+    .logout a { color: #6b7280; text-decoration: none; font-size: .9rem; }
+  </style>
+</head>
+<body>
+  <div class="picker">
+    <div class="picker-head">
+      <img src="{{ url_for('static', filename='icons/icon-192.png') }}" alt="Sip & Snack">
+      <h1>Select your store</h1>
+      <p>Choose the location you're working at today.</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category == 'error' else category }} py-2">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    {% if locations %}
+      {% for loc in locations %}
+      <form method="POST">
+        <input type="hidden" name="location_id" value="{{ loc.id }}">
+        <button type="submit" class="loc-btn {% if current and current == loc.id|string %}is-current{% endif %}">
+          <span class="pin"><i class="ri-store-2-line"></i></span>
+          <span class="loc-name">{{ loc.name }}
+            {% if loc.city %}<span class="loc-city">{{ loc.city }}</span>{% endif %}
+          </span>
+          <i class="ri-arrow-right-s-line" style="color:#9ca3af;font-size:22px;"></i>
+        </button>
+      </form>
+      {% endfor %}
+    {% else %}
+      <div class="alert alert-warning text-center">No stores have been set up yet. Ask the owner to add a location.</div>
+    {% endif %}
+
+    <div class="logout"><a href="{{ url_for('auth.logout') }}"><i class="ri-logout-box-line"></i> Sign out</a></div>
+  </div>
+</body>
+</html>

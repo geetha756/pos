@@ -41,13 +41,13 @@ WORKER_PERMISSION_CODES: Set[str] = {
     'dashboard.view',
     # Orders — place & manage the store's orders
     'orders.view', 'orders.create', 'orders.edit', 'orders.delete', 'orders.approve', 'orders.export',
-    # Inventory — stock, adjustments, purchase lists, suppliers
-    'inventory.view', 'inventory.create', 'inventory.edit', 'inventory.delete', 'inventory.adjust', 'inventory.export',
+    # Inventory — the worker records consumption (daily usage / leftover) and sees
+    # their location's item list, suppliers and purchase lists. Master inventory
+    # and stock-quantity management are gated to owners at the route level.
+    'inventory.view', 'inventory.create', 'inventory.edit', 'inventory.export',
     # Location menu — what the store sells and at what price
     'location_menu.view', 'location_menu.manage',
-    # Staff journey — staff records + attendance/timesheets + leave (no deletes)
-    'staff.view', 'staff.create', 'staff.edit', 'staff.export',
-    'payroll.view', 'payroll.create', 'payroll.edit', 'payroll.approve', 'payroll.export',
+    # Staff + payroll are hidden from store managers for now.
 }
 
 
@@ -120,8 +120,21 @@ def has_permission(code: str) -> bool:
     return code in current_user_permissions()
 
 
+def is_store_manager() -> bool:
+    """True for the worker role — a store manager scoped to one store."""
+    return current_user_role() == ROLE_WORKER
+
+
+def active_location_id() -> Optional[str]:
+    """The store a manager picked after login (held in the session)."""
+    return session.get('active_location_id')
+
+
 def current_user_location_id() -> Optional[str]:
-    """The store this user is tied to, or None (owner/manager/unassigned)."""
+    """The store this user is tied to. Store managers use the location they
+    selected after login (session); owners/managers aren't store-bound."""
+    if is_store_manager():
+        return active_location_id()
     user = get_or_create_current_user()
     if user and user.get('location_id'):
         return str(user['location_id'])
@@ -129,17 +142,28 @@ def current_user_location_id() -> Optional[str]:
 
 
 def is_location_scoped() -> bool:
-    """True when the logged-in user should be limited to a single store's data.
-
-    Only workers (store managers) tied to a specific location are scoped;
-    admins and managers always see every location.
-    """
-    return current_user_role() == ROLE_WORKER and current_user_location_id() is not None
+    """True when the user is limited to a single store's data. Store managers
+    are always scoped (to the store they selected); owners see every location."""
+    return is_store_manager() and active_location_id() is not None
 
 
 def scoped_location_id() -> Optional[str]:
     """The location to filter by, or None to mean 'all locations'."""
-    return current_user_location_id() if is_location_scoped() else None
+    return active_location_id() if is_location_scoped() else None
+
+
+def owner_required(f):
+    """Restrict a view to owners (admin/manager). Store-manager workers are
+    bounced — used for master inventory and stock-quantity management."""
+    @wraps(f)
+    def wrapped(*args, **kwargs):
+        if not session.get('authenticated'):
+            return redirect(url_for('auth.login'))
+        if current_user_role() == ROLE_WORKER:
+            flash('That section is managed by the owner.', 'error')
+            return redirect(url_for('inventory.location_inventory'))
+        return f(*args, **kwargs)
+    return wrapped
 
 
 def compute_effective_permission_codes(user_id: str) -> Set[str]:
@@ -273,6 +297,8 @@ def register_template_helpers(app):
             'current_role': current_user_role,
             'is_scoped': is_location_scoped,
             'scoped_location_id': scoped_location_id,
+            'is_store_manager': is_store_manager,
+            'active_location_id': active_location_id,
         }
 
 

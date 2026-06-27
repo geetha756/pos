@@ -83,7 +83,7 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="flex-grow-1">
                             <div class="stats-title">Total Payroll</div>
-                            <div class="stats-value">${{ "%.0f"|format(cycles|sum(attribute='total_payroll')) }}</div>
+                            <div class="stats-value">₹{{ "%.0f"|format(cycles|sum(attribute='total_payroll')) }}</div>
                         </div>
                         <div class="stats-icon">
                             <i class="ri-money-dollar-circle-line icon"></i>
@@ -138,7 +138,7 @@
                                         </span>
                                     </td>
                                     <td class="text-center">{{ cycle.entries_count }}</td>
-                                    <td class="text-end">${{ "%.2f"|format(cycle.total_payroll) }}</td>
+                                    <td class="text-end">₹{{ "%.2f"|format(cycle.total_payroll) }}</td>
                                     <td>
                                         <div class="btn-group" role="group">
                                             <a href="{{ url_for('payroll.view_payroll_cycle', cycle_id=cycle.id) }}"
@@ -179,11 +179,11 @@
                                 <strong>Total Entries:</strong> {{ cycles|sum(attribute='entries_count') }}
                             </div>
                             <div class="col-md-3">
-                                <strong>Total Payroll:</strong> ${{ "%.2f"|format(cycles|sum(attribute='total_payroll')) }}
+                                <strong>Total Payroll:</strong> ₹{{ "%.2f"|format(cycles|sum(attribute='total_payroll')) }}
                             </div>
                             <div class="col-md-3">
                                 <strong>Average per Cycle:</strong>
-                                ${{ "%.2f"|format(cycles|sum(attribute='total_payroll') / cycles|length if cycles else 0) }}
+                                ₹{{ "%.2f"|format(cycles|sum(attribute='total_payroll') / cycles|length if cycles else 0) }}
                             </div>
                         </div>
                     </div>

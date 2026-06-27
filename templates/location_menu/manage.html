@@ -45,7 +45,7 @@
                                 <td>{{ item.category or '-' }}</td>
                                 <td>
                                     {% if item.name in assigned_items %}
-                                        ${{ "%.2f"|format(assigned_items[item.name].price) }}
+                                        ₹{{ "%.2f"|format(assigned_items[item.name].price) }}
                                     {% else %}
                                         <span class="text-muted">-</span>
                                     {% endif %}
@@ -163,7 +163,7 @@
                     <div class="mb-3">
                         <label class="form-label">Price at this store</label>
                         <div class="input-group">
-                            <span class="input-group-text">$</span>
+                            <span class="input-group-text">₹</span>
                             <input type="number" class="form-control" name="price" step="0.01" min="0" value="0">
                         </div>
                     </div>
@@ -191,7 +191,7 @@
                     <div class="mb-3">
                         <label for="addItemPrice" class="form-label">Location Price (optional)</label>
                         <div class="input-group">
-                            <span class="input-group-text">$</span>
+                            <span class="input-group-text">₹</span>
                             <input type="number" class="form-control" id="addItemPrice" name="price" step="0.01" min="0">
                         </div>
                         <div class="form-text">Leave empty to use master price</div>
@@ -220,7 +220,7 @@
                     <div class="mb-3">
                         <label for="editItemPrice" class="form-label">Location Price</label>
                         <div class="input-group">
-                            <span class="input-group-text">$</span>
+                            <span class="input-group-text">₹</span>
                             <input type="number" class="form-control" id="editItemPrice" name="price" step="0.01" min="0" required>
                         </div>
                     </div>

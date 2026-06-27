@@ -1,0 +1,30 @@
+# Sip & Snack POS portal (Flask + gunicorn).
+#
+# NOTE: named "sipnsnack-portal" on purpose — "sipnsnack.service" is already
+# taken on this server by the MCP docker-compose unit. Do not reuse that name.
+#
+# Install:
+#   sudo cp "/home/sn15/sip n snack pos/deploy/sipnsnack-portal.service" /etc/systemd/system/sipnsnack-portal.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now sipnsnack-portal
+#   systemctl status sipnsnack-portal
+#
+# The Cloudflare tunnel forwards https://pos.snfifteen.com -> http://127.0.0.1:5005.
+
+[Unit]
+Description=Sip & Snack POS portal (gunicorn)
+After=network.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sn15
+Group=sn15
+WorkingDirectory=/home/sn15/sip n snack pos
+# Path is quoted because the directory name contains spaces.
+ExecStart="/home/sn15/sip n snack pos/.venv/bin/gunicorn" --workers 3 --bind 127.0.0.1:5005 --timeout 120 --access-logfile - --error-logfile - wsgi:app
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

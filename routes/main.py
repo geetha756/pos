@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, Response
+from flask import Blueprint, render_template, request, redirect, url_for, flash, Response, session
 from database import execute_query, execute_query_one
 from .auth import login_required
 import json
@@ -6,6 +6,30 @@ import os
 import psycopg2
 
 main_bp = Blueprint('main', __name__)
+
+
+@main_bp.route('/select-location', methods=['GET', 'POST'])
+@login_required
+def select_location():
+    """Store managers pick which store they're operating after login; the choice
+    is held in the session and scopes everything they see. Owners skip this."""
+    from security import is_store_manager
+    if not is_store_manager():
+        return redirect(url_for('main.dashboard'))
+
+    locations = execute_query("SELECT id, name, city FROM locations ORDER BY name", fetch=True) or []
+
+    if request.method == 'POST':
+        loc_id = request.form.get('location_id')
+        chosen = next((l for l in locations if str(l['id']) == loc_id), None)
+        if chosen:
+            session['active_location_id'] = str(chosen['id'])
+            session['active_location_name'] = chosen['name']
+            return redirect(url_for('main.dashboard'))
+        flash('Please choose a location to continue.', 'error')
+
+    return render_template('select_location.html', locations=locations,
+                           current=session.get('active_location_id'))
 
 
 @main_bp.route('/.well-known/assetlinks.json')
@@ -45,7 +69,8 @@ def manifest():
         "start_url": "/",
         "scope": "/",
         "display": "standalone",
-        "orientation": "portrait-primary",
+        # 'any' so phones can use portrait and tablets can use landscape.
+        "orientation": "any",
         "background_color": "#ffffff",
         "theme_color": "#0d6efd",
         "icons": [
@@ -62,8 +87,9 @@ def manifest():
 def service_worker():
     """Service worker served from the root so its scope covers the whole app."""
     js = """
-const CACHE = 'sns-cache-v1';
-const PRECACHE = ['/static/css/bootstrap.min.css', '/static/css/dashboard.css', '/static/icons/icon-192.png'];
+const CACHE = 'sns-cache-v2';
+const OFFLINE_URL = '/static/offline.html';
+const PRECACHE = [OFFLINE_URL, '/static/css/bootstrap.min.css', '/static/css/dashboard.css', '/static/icons/icon-192.png'];
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
@@ -84,7 +110,7 @@ self.addEventListener('fetch', (e) => {
   if (url.origin !== location.origin) return;
   // Network-first for page navigations so role-specific content stays fresh.
   if (req.mode === 'navigate') {
-    e.respondWith(fetch(req).catch(() => caches.match(req).then((r) => r || caches.match('/'))));
+    e.respondWith(fetch(req).catch(() => caches.match(OFFLINE_URL)));
     return;
   }
   // Cache-first for static assets.
@@ -126,7 +152,7 @@ def get_dashboard_stats(location_id=None):
         'menu_items': 0,
         'orders': 0,
         'total_revenue': 0.0,
-        'pending_orders': 0,
+        'cancelled_orders': 0,
         'today_orders': 0,
         'staff': 0,
         'active_staff': 0,
@@ -169,9 +195,10 @@ def get_dashboard_stats(location_id=None):
         result = execute_query_one("SELECT COALESCE(SUM(total_amount), 0) as total FROM orders WHERE status != 'cancelled' AND (%s IS NULL OR location_id = %s)", (loc, loc))
         stats['total_revenue'] = float(result['total']) if result else 0.0
 
-        # Pending orders
-        result = execute_query_one("SELECT COUNT(*) as count FROM orders WHERE status IN ('pending', 'preparing') AND (%s IS NULL OR location_id = %s)", (loc, loc))
-        stats['pending_orders'] = result['count'] if result else 0
+        # Cancelled orders (sales are final on placement, so "pending" is ~0;
+        # cancelled is the meaningful counter now)
+        result = execute_query_one("SELECT COUNT(*) as count FROM orders WHERE status = 'cancelled' AND (%s IS NULL OR location_id = %s)", (loc, loc))
+        stats['cancelled_orders'] = result['count'] if result else 0
 
         # Today's orders
         result = execute_query_one("SELECT COUNT(*) as count FROM orders WHERE DATE(created_at) = CURRENT_DATE AND (%s IS NULL OR location_id = %s)", (loc, loc))

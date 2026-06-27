@@ -96,6 +96,41 @@ def create_app():
     # Make has_perm()/current_role available in templates (nav gating)
     register_template_helpers(app)
 
+    # Display timestamps in IST. Columns are `timestamp without time zone`
+    # stored in UTC (the DB runs in UTC), so we add the fixed +5:30 offset
+    # (IST has no DST) and format for display via the `ist` Jinja filter.
+    from datetime import timedelta
+    _IST_OFFSET = timedelta(hours=5, minutes=30)
+
+    @app.template_filter('ist')
+    def _to_ist(value, fmt='%d %b %Y, %I:%M %p'):
+        if not value:
+            return ''
+        try:
+            return (value + _IST_OFFSET).strftime(fmt)
+        except Exception:
+            return str(value)
+
+    # Store managers must pick which store they're operating before they can use
+    # the app; until they do, every page redirects to the location picker.
+    from flask import request, redirect, url_for, session
+    _LOCATION_EXEMPT = {
+        'static', 'main.select_location', 'main.manifest', 'main.service_worker',
+        'main.assetlinks', 'auth.login', 'auth.google_auth', 'auth.google_callback',
+        'auth.process_auth', 'auth.logout',
+    }
+
+    @app.before_request
+    def _require_store_selection():
+        if not session.get('authenticated'):
+            return None
+        if (request.endpoint or '') in _LOCATION_EXEMPT:
+            return None
+        from security import is_store_manager, active_location_id
+        if is_store_manager() and not active_location_id():
+            return redirect(url_for('main.select_location'))
+        return None
+
     # Register audit hooks after blueprints
     register_audit_hooks(app)
 

@@ -96,7 +96,7 @@
                             </span>
                         </td>
                         <td>{{ list.item_count }} items</td>
-                        <td>${{ "%.2f"|format(list.total_estimated_cost or 0) }}</td>
+                        <td>₹{{ "%.2f"|format(list.total_estimated_cost or 0) }}</td>
                         <td>{{ list.first_name }} {{ list.last_name }}</td>
                         <td>{{ list.created_at.strftime('%Y-%m-%d') if list.created_at else 'N/A' }}</td>
                         <td>

@@ -82,7 +82,7 @@
                             <span class="badge bg-secondary">{{ item.category }}</span>
                         </td>
                         <td>{{ item.unit }}</td>
-                        <td>${{ "%.2f"|format(item.default_cost_per_unit) }}</td>
+                        <td>₹{{ "%.2f"|format(item.default_cost_per_unit) }}</td>
                         <td>
                             {% if item.supplier_name %}
                                 {{ item.supplier_name }}

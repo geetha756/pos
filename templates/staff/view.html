@@ -91,7 +91,7 @@
                             <label class="form-label fw-bold">Salary</label>
                             <p class="form-control-plaintext">
                                 {% if staff.salary %}
-                                    ${{ "%.2f"|format(staff.salary) }}
+                                    ₹{{ "%.2f"|format(staff.salary) }}
                                 {% else %}
                                     -
                                 {% endif %}

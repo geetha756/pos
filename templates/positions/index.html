@@ -149,7 +149,7 @@
                         </td>
                         <td>
                             {% if position.salary_min and position.salary_max %}
-                                ${{ "%.0f"|format(position.salary_min) }} - ${{ "%.0f"|format(position.salary_max) }}
+                                ₹{{ "%.0f"|format(position.salary_min) }} - ₹{{ "%.0f"|format(position.salary_max) }}
                             {% else %}
                                 -
                             {% endif %}

@@ -12,6 +12,14 @@ GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 GOOGLE_REDIRECT_URI = os.getenv('GOOGLE_REDIRECT_URI', 'http://127.0.0.1:5000/auth/callback')
 
+# Only Google accounts on these domains may sign in (comma-separated in env).
+# Defaults to the SN15 organization domain so only @sn15.ai accounts are allowed.
+ALLOWED_EMAIL_DOMAINS = [
+    d.strip().lower().lstrip('@')
+    for d in os.getenv('ALLOWED_EMAIL_DOMAINS', 'sn15.ai').split(',')
+    if d.strip()
+]
+
 @auth_bp.route('/login')
 def login():
     """Display login page"""
@@ -135,9 +143,14 @@ def process_auth():
             user_name = idinfo.get('name')
             user_picture = idinfo.get('picture')
             
-            # Validate organization - check if email ends with @sn15.com, @sn15.org, or @sipnsnack.com (for testing)
-            if not (user_email.endswith('@sn15.ai') or user_email.endswith('@sn15.com') or user_email.endswith('@sipnsnack.com')):
-                flash('Access denied. This application is restricted to SN15 organization members only. Please use an SN15 email address to sign in.', 'error')
+            # Restrict sign-in to approved organization domains (default @sn15.ai).
+            # Explicitly-configured admins (ADMIN_EMAILS) are always allowed in,
+            # even off-domain, so the owner can never be locked out.
+            from security import admin_emails
+            normalized_email = (user_email or '').strip().lower()
+            email_domain = normalized_email.rsplit('@', 1)[-1]
+            if email_domain not in ALLOWED_EMAIL_DOMAINS and normalized_email not in admin_emails():
+                flash('Access denied. Please sign in with your @sn15.ai account.', 'error')
                 return redirect(url_for('auth.login'))
             
             # Store user information in session

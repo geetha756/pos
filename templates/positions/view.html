@@ -63,7 +63,7 @@
                             <label class="form-label fw-bold">Salary Range</label>
                             <p class="form-control-plaintext">
                                 {% if position.salary_min and position.salary_max %}
-                                    ${{ "%.2f"|format(position.salary_min) }} - ${{ "%.2f"|format(position.salary_max) }}
+                                    ₹{{ "%.2f"|format(position.salary_min) }} - ₹{{ "%.2f"|format(position.salary_max) }}
                                 {% else %}
                                     Not Specified
                                 {% endif %}
@@ -171,7 +171,7 @@
                 <div class="mb-3">
                     <label class="form-label fw-bold">Salary Range Width</label>
                     <p class="form-control-plaintext">
-                        ${{ "%.2f"|format(position.salary_max - position.salary_min) }}
+                        ₹{{ "%.2f"|format(position.salary_max - position.salary_min) }}
                     </p>
                 </div>
                 {% endif %}

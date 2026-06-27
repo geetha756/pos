@@ -2,7 +2,7 @@
 <html lang="en" data-bs-theme="auto">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="description" content="Restaurant Chain Management Portal">
     <title>{% block title %}Sip & Snack Portal{% endblock %}</title>
 
@@ -732,6 +732,130 @@
         min-width: 32px; /* Ensure button always has space */
     }
 
+    /* ============================================================
+       Mobile app shell (PWA) — phone-first layout for store managers
+       Desktop (>= md) keeps the original fixed sidebar untouched.
+       ============================================================ */
+    :root {
+        --sns-topbar-h: 56px;
+        --sns-bottomnav-h: 64px;
+    }
+
+    /* Responsive shell: single column on phones, sidebar on >= md */
+    .app-shell {
+        display: grid;
+        grid-template-columns: 1fr;
+        grid-column-gap: 0;
+        min-height: 100vh;
+        min-height: 100dvh;
+    }
+    @media (min-width: 768px) {
+        .app-shell { grid-template-columns: 220px 1fr; }
+    }
+
+    /* Mobile top app bar */
+    .mobile-topbar {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        height: calc(var(--sns-topbar-h) + env(safe-area-inset-top));
+        padding-top: env(safe-area-inset-top);
+        display: flex;
+        align-items: center;
+        gap: .25rem;
+        padding-left: .25rem;
+        padding-right: .5rem;
+        background: #0d6efd;
+        color: #fff;
+        z-index: 1035;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, .18);
+    }
+    .mobile-topbar .topbar-btn {
+        color: #fff;
+        background: transparent;
+        border: none;
+        width: 44px; height: 44px;
+        display: inline-flex; align-items: center; justify-content: center;
+        font-size: 24px;
+        border-radius: 8px;
+        text-decoration: none;
+    }
+    .mobile-topbar .topbar-btn:active { background: rgba(255, 255, 255, .18); }
+    .mobile-topbar .topbar-brand {
+        color: #fff !important;
+        font-weight: 600;
+        font-size: 1.05rem;
+        text-decoration: none;
+        flex: 1 1 auto;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .mobile-topbar .topbar-brand:hover { color: #fff !important; text-decoration: none; }
+
+    /* Bottom navigation (thumb zone) — primary store-manager actions */
+    .mobile-bottomnav {
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        height: calc(var(--sns-bottomnav-h) + env(safe-area-inset-bottom));
+        padding-bottom: env(safe-area-inset-bottom);
+        display: flex;
+        background: #fff;
+        border-top: 1px solid #e5e7eb;
+        box-shadow: 0 -2px 8px rgba(0, 0, 0, .06);
+        z-index: 1035;
+    }
+    .mobile-bottomnav a,
+    .mobile-bottomnav button {
+        flex: 1 1 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        border: none;
+        background: transparent;
+        color: #6b7280 !important;
+        font-size: .68rem;
+        font-weight: 500;
+        text-decoration: none;
+        padding: 6px 2px;
+        min-width: 0;
+    }
+    .mobile-bottomnav a i,
+    .mobile-bottomnav button i { font-size: 22px; line-height: 1; }
+    .mobile-bottomnav a span,
+    .mobile-bottomnav button span {
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+    }
+    .mobile-bottomnav a.active { color: #0d6efd !important; }
+    .mobile-bottomnav a:active,
+    .mobile-bottomnav button:active { background: #f3f4f6; }
+
+    /* Center "New Sale" action stands out as a floating button */
+    .mobile-bottomnav a.bn-primary { color: #0d6efd !important; }
+    .mobile-bottomnav a.bn-primary i {
+        background: #0d6efd; color: #fff;
+        width: 46px; height: 46px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        margin-top: -20px;
+        box-shadow: 0 3px 8px rgba(13, 110, 253, .4);
+    }
+
+    /* Phone-only: clear the fixed bars + bigger tap targets */
+    @media (max-width: 767.98px) {
+        main {
+            padding-top: calc(var(--sns-topbar-h) + env(safe-area-inset-top) + .5rem) !important;
+            padding-bottom: calc(var(--sns-bottomnav-h) + env(safe-area-inset-bottom) + 1rem) !important;
+            margin-left: 0 !important;
+        }
+        /* >=16px keeps iOS from zooming the page when an input is focused */
+        .form-control, .form-select, input, textarea, select {
+            font-size: 16px !important;
+        }
+        .btn { min-height: 44px; }
+        /* The desktop user panel is pinned at a fixed 220px width; hide it on
+           phones (logout lives in the top bar and the sidebar instead). */
+        #user-section { display: none !important; }
+    }
+
     </style>
 
     {% block extra_head %}{% endblock %}
@@ -788,7 +912,18 @@
     </svg>
 
 
-    <div style="display: grid; grid-template-columns: 220px 1fr; grid-column-gap: 0; min-height: 100vh;">
+    <!-- Mobile top app bar (phones only; opens the sidebar as an off-canvas) -->
+    <header class="mobile-topbar d-md-none">
+        <button class="topbar-btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-label="Open menu">
+            <i class="ri-menu-line"></i>
+        </button>
+        <a href="{{ url_for('main.dashboard') }}" class="topbar-brand">{% if is_store_manager() and session.get('active_location_name') %}{{ session.get('active_location_name') }}{% else %}Sip &amp; Snack{% endif %}</a>
+        <a href="{{ url_for('auth.logout') }}" class="topbar-btn" aria-label="Logout">
+            <i class="ri-logout-box-line"></i>
+        </a>
+    </header>
+
+    <div class="app-shell">
         <div class="sidebar border border-right p-0 bg-body-tertiary">
             <div class="offcanvas-md offcanvas-end bg-body-tertiary" tabindex="-1" id="sidebarMenu" aria-labelledby="sidebarMenuLabel">
                 <div class="offcanvas-body d-md-flex flex-column p-0 overflow-y-auto" style="padding-bottom: 80px;">
@@ -813,6 +948,17 @@
                                 <span class="nav-link-label">Dashboard</span>
                             </a>
                         </li>
+                        {% if is_store_manager() %}
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center gap-2" href="{{ url_for('main.select_location') }}" title="Switch store">
+                                <i class="ri-store-2-line icon text-primary"></i>
+                                <span class="nav-link-label">
+                                    <span class="d-block fw-semibold" style="line-height:1.15;">{{ session.get('active_location_name') or 'Select store' }}</span>
+                                    <small class="text-muted">Tap to switch</small>
+                                </span>
+                            </a>
+                        </li>
+                        {% endif %}
                         {% if has_perm('master_menu.view') %}
                         <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('master_menu') %} active{% endif %}" href="{{ url_for('master_menu.index') }}">
@@ -837,9 +983,17 @@
                             </a>
                         </li>
                         {% endif %}
+                        {% if has_perm('orders.create') %}
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint == 'orders.new_order' %} active{% endif %}" href="{{ url_for('orders.new_order') }}">
+                                <i class="ri-restaurant-2-line icon"></i>
+                                <span class="nav-link-label">Menu</span>
+                            </a>
+                        </li>
+                        {% endif %}
                         {% if has_perm('orders.view') %}
                         <li class="nav-item">
-                            <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('orders') %} active{% endif %}" href="{{ url_for('orders.index') }}">
+                            <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('orders') and request.endpoint != 'orders.new_order' %} active{% endif %}" href="{{ url_for('orders.index') }}">
                                 <i class="ri-bar-chart-line icon"></i>
                                 <span class="nav-link-label">Orders</span>
                             </a>
@@ -945,12 +1099,14 @@
                                         <span class="nav-link-label">Location Inventory</span>
                                     </a>
                                 </li>
+                                {% if not is_store_manager() %}
                                 <li class="nav-item">
                                     <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.master_inventory') %} active{% endif %}" href="{{ url_for('inventory.master_inventory') }}">
                                         <i class="ri-archive-2-line icon icon-sm"></i>
                                         <span class="nav-link-label">Master Inventory</span>
                                     </a>
                                 </li>
+                                {% endif %}
                                 <li class="nav-item">
                                     <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.purchase_lists') %} active{% endif %}" href="{{ url_for('inventory.purchase_lists') }}">
                                         <i class="ri-shopping-cart-2-line icon icon-sm"></i>
@@ -1020,6 +1176,31 @@
             </main>
         </div>
     </div>
+
+    <!-- Mobile bottom navigation (phones only) — primary store-manager actions -->
+    <nav class="mobile-bottomnav d-md-none" aria-label="Primary">
+        <a href="{{ url_for('main.dashboard') }}" class="{% if request.endpoint == 'main.dashboard' %}active{% endif %}">
+            <i class="ri-home-5-line"></i><span>Home</span>
+        </a>
+        {% if has_perm('inventory.view') %}
+        <a href="{{ url_for('inventory.location_inventory') }}" class="{% if request.endpoint and request.endpoint.startswith('inventory') %}active{% endif %}">
+            <i class="ri-archive-line"></i><span>Inventory</span>
+        </a>
+        {% endif %}
+        {% if has_perm('orders.create') %}
+        <a href="{{ url_for('orders.new_order') }}" class="bn-primary{% if request.endpoint == 'orders.new_order' %} active{% endif %}">
+            <i class="ri-restaurant-2-line"></i><span>Menu</span>
+        </a>
+        {% endif %}
+        {% if has_perm('orders.view') %}
+        <a href="{{ url_for('orders.index') }}" class="{% if request.endpoint and request.endpoint.startswith('orders') and request.endpoint != 'orders.new_order' %}active{% endif %}">
+            <i class="ri-receipt-line"></i><span>Orders</span>
+        </a>
+        {% endif %}
+        <button type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu">
+            <i class="ri-menu-line"></i><span>More</span>
+        </button>
+    </nav>
 
     <!-- Bootstrap JS -->
     <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>

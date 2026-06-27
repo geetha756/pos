@@ -61,7 +61,7 @@
                                     <span class="badge bg-secondary">{{ item.category }}</span>
                                 </td>
                                 <td>{{ item.unit }}</td>
-                                <td>${{ "%.2f"|format(item.default_cost_per_unit or 0) }}</td>
+                                <td>₹{{ "%.2f"|format(item.default_cost_per_unit or 0) }}</td>
                                 <td>
                                     <span class="badge bg-info">{{ item.location_count }}</span>
                                 </td>

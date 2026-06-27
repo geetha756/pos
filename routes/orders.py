@@ -241,30 +241,49 @@ def view(order_id):
 @orders_bp.route('/<order_id>/status', methods=['POST'])
 @login_required
 def update_status(order_id):
-    """Update order status"""
+    """Update order status. Returns JSON when called via AJAX (the in-app
+    Cancel button) so a flaky mobile network shows a friendly retry instead of
+    a full-page navigation failing with 'site can't be reached'."""
     new_status = request.form.get('status')
+    wants_json = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
     if new_status not in ['pending', 'preparing', 'ready', 'completed', 'cancelled']:
+        if wants_json:
+            return jsonify({'success': False, 'error': 'Invalid status'}), 400
         flash('Invalid status', 'error')
         return redirect(url_for('orders.view', order_id=order_id))
 
+    # A store-scoped manager may only touch their own store's orders.
+    store = scoped_location_id()
+
     try:
-        # Check if order exists
-        existing_order = execute_query_one("SELECT id, status FROM orders WHERE id = %s", (order_id,))
+        existing_order = execute_query_one(
+            "SELECT id, status, location_id FROM orders WHERE id = %s", (order_id,))
 
         if not existing_order:
+            if wants_json:
+                return jsonify({'success': False, 'error': 'Order not found'}), 404
             flash('Order not found', 'error')
             return redirect(url_for('orders.index'))
 
-        # Update the order status
+        if store and str(existing_order['location_id']) != store:
+            if wants_json:
+                return jsonify({'success': False, 'error': "Not your store's order"}), 403
+            flash("You can only manage your own store's orders", 'error')
+            return redirect(url_for('orders.index'))
+
         execute_query("""
             UPDATE orders
             SET status = %s, updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
         """, (new_status, order_id))
 
+        if wants_json:
+            return jsonify({'success': True, 'status': new_status})
         flash('Order status updated!', 'success')
     except Exception as e:
+        if wants_json:
+            return jsonify({'success': False, 'error': 'Failed to update status'}), 500
         flash(f'Error updating order status: {str(e)}', 'error')
 
     return redirect(url_for('orders.view', order_id=order_id))
@@ -285,6 +304,7 @@ def get_order_stats(location_id=None):
         'total_orders': 0,
         'total_revenue': 0.0,
         'pending_orders': 0,
+        'cancelled_orders': 0,
         'completed_orders': 0,
         'today_orders': 0,
         'today_revenue': 0.0
@@ -304,12 +324,20 @@ def get_order_stats(location_id=None):
             stats['total_orders'] = result['count']
             stats['total_revenue'] = float(result['revenue'])
 
-        # Pending orders
+        # Pending orders (legacy kitchen workflow; ~0 now that sales are final on
+        # placement, but kept so other callers don't break)
         result = execute_query_one("""
             SELECT COUNT(*) as count
             FROM orders
             WHERE status IN ('pending', 'preparing')""" + loc_sql, tuple(loc_param))
         stats['pending_orders'] = result['count'] if result else 0
+
+        # Cancelled orders
+        result = execute_query_one("""
+            SELECT COUNT(*) as count
+            FROM orders
+            WHERE status = 'cancelled'""" + loc_sql, tuple(loc_param))
+        stats['cancelled_orders'] = result['count'] if result else 0
 
         # Completed orders
         result = execute_query_one("""
@@ -348,9 +376,11 @@ def api_create_order():
         if not data['items']:
             return jsonify({'success': False, 'error': 'Order must contain at least one item'}), 400
 
-        # Generate order number (simple timestamp-based for now)
+        # Generate a unique order number. Milliseconds + a short random suffix so
+        # two orders placed in the same second (busy counter / concurrent
+        # managers) can't collide on the unique order_number constraint.
         import time
-        order_number = f"ORD{int(time.time())}"
+        order_number = f"ORD{int(time.time() * 1000)}{uuid.uuid4().hex[:3].upper()}"
 
         # Calculate total amount
         total_amount = sum(item['total_price'] for item in data['items'])
@@ -364,10 +394,13 @@ def api_create_order():
 
         # Create order
         order_id = str(uuid.uuid4())
+        # POS sales are final the moment they're placed, so an order starts as
+        # 'completed' (shown as "Success"). Cancelling sets 'cancelled';
+        # editing keeps it a sale but stamps edited_at (shown as "Edited").
         execute_query("""
             INSERT INTO orders (id, location_id, order_number, customer_name, customer_phone,
                               customer_email, order_type, total_amount, notes, status)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending')
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'completed')
         """, (
             order_id,
             data['location_id'],
