@@ -1092,9 +1092,9 @@ def leave_balances():
             SELECT s.id, s.first_name, s.last_name, s.employee_id, s.email,
                    s.department_id, d.name as department_name,
                    COUNT(DISTINCT lb.leave_type_id) as leave_types_count,
-                   SUM(lb.allocated_days) as total_allocated,
-                   SUM(lb.used_days) as total_used,
-                   SUM(lb.remaining_days) as total_remaining
+                   COALESCE(SUM(lb.allocated_days), 0) as total_allocated,
+                   COALESCE(SUM(lb.used_days), 0) as total_used,
+                   COALESCE(SUM(lb.remaining_days), 0) as total_remaining
             FROM staff s
             LEFT JOIN departments d ON s.department_id = d.id
             LEFT JOIN leave_balances lb ON s.id = lb.staff_id

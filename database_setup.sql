@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS location_menu (
     master_menu_id UUID REFERENCES master_menu(id) ON DELETE CASCADE,
     price DECIMAL(10,2), -- Location can override price
     is_available BOOLEAN DEFAULT TRUE,
+    section VARCHAR(20) DEFAULT 'all', -- breakfast section: morning | evening | all
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(location_id, master_menu_id)
 );

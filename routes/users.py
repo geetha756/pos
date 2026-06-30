@@ -33,16 +33,17 @@ def add():
         picture_url = request.form.get('picture_url')
         position_id = request.form.get('position_id') or None
         department_id = request.form.get('department_id') or None
+        location_id = request.form.get('location_id') or None
         if not email:
             flash('Email is required', 'error')
             return redirect(url_for('users.add'))
         execute_query(
             """
-            INSERT INTO users (email, full_name, picture_url, position_id, department_id)
-            VALUES (%s,%s,%s,%s,%s)
-            ON CONFLICT (email) DO NOTHING
+            INSERT INTO users (email, full_name, picture_url, position_id, department_id, location_id)
+            VALUES (%s,%s,%s,%s,%s,%s)
+            ON CONFLICT (email) DO UPDATE SET location_id = EXCLUDED.location_id
             """,
-            (email, full_name, picture_url, position_id, department_id),
+            (email, full_name, picture_url, position_id, department_id, location_id),
         )
         u = execute_query_one("SELECT * FROM users WHERE email=%s", (email,))
         record_audit_log(actor_user_id=None, actor_api_key_id=None, action='user.create', target_type='user', target_id=u['id'] if u else None, route=request.path, method=request.method, status_code=200, ip_address=request.remote_addr, user_agent=request.headers.get('User-Agent'), success=True, metadata={'email': email})
@@ -51,7 +52,8 @@ def add():
 
     positions = execute_query("SELECT id, title FROM positions WHERE is_active=TRUE ORDER BY title", fetch=True) or []
     departments = execute_query("SELECT id, name FROM departments WHERE is_active=TRUE ORDER BY name", fetch=True) or []
-    return render_template('users/add.html', positions=positions, departments=departments)
+    locations = execute_query("SELECT id, name, city FROM locations ORDER BY name", fetch=True) or []
+    return render_template('users/add.html', positions=positions, departments=departments, locations=locations)
 
 
 @users_bp.route('/<user_id>/edit', methods=['GET', 'POST'])

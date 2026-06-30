@@ -34,6 +34,62 @@
             <input type="hidden" name="date" value="{{ record_date }}">
             <input type="hidden" name="location_id" value="{{ location.id }}">
 
+            {% if is_store_manager() %}
+            <!-- Store manager: simple "what did you use today" entry (no stock shown) -->
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width: 45%;">Item</th>
+                            <th style="width: 15%;">Unit</th>
+                            <th style="width: 40%;">Quantity used today</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% set ns = namespace(category=None) %}
+                        {% for item in inventory_items %}
+                        {% if item.category != ns.category %}
+                        <tr class="table-light">
+                            <td colspan="3" class="fw-semibold">{{ item.category or 'Uncategorized' }}</td>
+                        </tr>
+                        {% set ns.category = item.category %}
+                        {% endif %}
+                        {% set item_id = item.master_inventory_id|string %}
+                        <tr>
+                            <td class="fw-semibold">{{ item.name }}</td>
+                            <td>{{ item.unit }}</td>
+                            <td>
+                                <div class="input-group">
+                                    <input type="number" step="0.001" min="0" inputmode="decimal"
+                                           class="form-control" name="used_{{ item_id }}" placeholder="0">
+                                    {% set u = (item.unit or '')|lower %}
+                                    {% if u in ['kg','kgs','kilogram','kilograms'] %}
+                                    <select class="form-select flex-grow-0" style="max-width:84px;" name="unit_{{ item_id }}">
+                                        <option value="kg">kg</option>
+                                        <option value="g">g</option>
+                                    </select>
+                                    {% elif u in ['l','litre','litres','liter','liters'] %}
+                                    <select class="form-select flex-grow-0" style="max-width:84px;" name="unit_{{ item_id }}">
+                                        <option value="l">L</option>
+                                        <option value="ml">ml</option>
+                                    </select>
+                                    {% else %}
+                                    <span class="input-group-text">{{ item.unit or 'unit' }}</span>
+                                    <input type="hidden" name="unit_{{ item_id }}" value="{{ item.unit }}">
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="alert alert-info mt-3">
+                <i class="ri-information-line icon me-2"></i>
+                Enter how much of each item you used today. Leave blank for items you didn't use.
+            </div>
+            {% else %}
+            <!-- Owner: detailed opening / closing / wastage -->
             <div class="table-responsive">
                 <table class="table align-middle">
                     <thead>
@@ -41,9 +97,9 @@
                             <th style="width: 28%;">Item</th>
                             <th style="width: 12%;">Unit</th>
                             <th style="width: 15%;">Opening Stock</th>
-                            <th style="width: 15%;">Closing Stock</th>
-                            <th style="width: 15%;">Wastage</th>
                             <th style="width: 15%;">Used</th>
+                            <th style="width: 15%;">Wastage</th>
+                            <th style="width: 15%;">Closing Stock</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -68,40 +124,39 @@
                             </td>
                             <td>{{ item.unit }}</td>
                             <td>
-                                <input type="number" step="0.01" min="0"
+                                <input type="number" step="0.001" min="0"
                                        class="form-control opening-input"
                                        name="opening_{{ item_id }}"
                                        value="{{ opening if opening is not none else '' }}"
                                        required>
                             </td>
                             <td>
-                                <input type="number" step="0.01" min="0"
-                                       class="form-control closing-input"
-                                       name="closing_{{ item_id }}"
-                                       value="{{ closing if closing is not none else '' }}"
-                                       required>
+                                <input type="number" step="0.001" min="0"
+                                       class="form-control used-input"
+                                       value="{{ used }}" placeholder="0">
                             </td>
                             <td>
-                                <input type="number" step="0.01" min="0"
+                                <input type="number" step="0.001" min="0"
                                        class="form-control wastage-input"
                                        name="wastage_{{ item_id }}"
                                        value="{{ wastage if wastage is not none else '' }}">
                             </td>
                             <td>
-                                <input type="number" class="form-control used-output"
-                                       value="{{ used }}"
-                                       readonly>
+                                <input type="number" class="form-control closing-output bg-light"
+                                       name="closing_{{ item_id }}"
+                                       value="{{ closing if closing is not none else '' }}"
+                                       readonly required>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-
             <div class="alert alert-info mt-3">
                 <i class="ri-information-line icon me-2"></i>
-                Usage is calculated automatically as <strong>Opening - Closing - Wastage</strong>.
+                Enter how much was <strong>Used</strong> — the <strong>Closing Stock</strong> fills in automatically (Opening − Used − Wastage).
             </div>
+            {% endif %}
 
             <div class="d-flex justify-content-end gap-2 mt-4">
                 <a href="{{ url_for('inventory.daily_usage', date=record_date, location_id=location.id) }}" class="btn btn-outline-secondary">Cancel</a>
@@ -118,22 +173,23 @@
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-usage-row]').forEach(row => {
         const opening = row.querySelector('.opening-input');
-        const closing = row.querySelector('.closing-input');
+        const closing = row.querySelector('.closing-output');
         const wastage = row.querySelector('.wastage-input');
-        const used = row.querySelector('.used-output');
+        const used = row.querySelector('.used-input');
 
-        const updateUsed = () => {
+        // Enter how much was Used -> Closing fills in automatically.
+        const updateClosing = () => {
             const openingVal = parseFloat(opening.value) || 0;
-            const closingVal = parseFloat(closing.value) || 0;
+            const usedVal = parseFloat(used.value) || 0;
             const wastageVal = parseFloat(wastage.value) || 0;
-            const usedVal = Math.max(openingVal - closingVal - wastageVal, 0);
-            used.value = usedVal.toFixed(2);
+            const closingVal = Math.max(openingVal - usedVal - wastageVal, 0);
+            closing.value = closingVal.toFixed(2);
         };
 
-        opening.addEventListener('input', updateUsed);
-        closing.addEventListener('input', updateUsed);
-        wastage.addEventListener('input', updateUsed);
-        updateUsed();
+        opening.addEventListener('input', updateClosing);
+        used.addEventListener('input', updateClosing);
+        wastage.addEventListener('input', updateClosing);
+        updateClosing();
     });
 });
 </script>

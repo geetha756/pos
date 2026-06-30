@@ -32,6 +32,10 @@ def create_app():
         # 'Lax' (not 'Strict') so the session cookie survives the top-level
         # redirect back from Google during OAuth login.
         'SESSION_COOKIE_SAMESITE': 'Lax',
+        # Keep store managers logged in across shifts (30 days) instead of being
+        # signed out when the app/browser is closed. Paired with session.permanent
+        # in the auth flow.
+        'PERMANENT_SESSION_LIFETIME': __import__('datetime').timedelta(days=30),
 
         # CSRF protection
         'WTF_CSRF_ENABLED': True,
@@ -116,7 +120,8 @@ def create_app():
     from flask import request, redirect, url_for, session
     _LOCATION_EXEMPT = {
         'static', 'main.select_location', 'main.manifest', 'main.service_worker',
-        'main.assetlinks', 'auth.login', 'auth.google_auth', 'auth.google_callback',
+        'main.assetlinks', 'main.download_app', 'main.install_page',
+        'auth.login', 'auth.google_auth', 'auth.google_callback',
         'auth.process_auth', 'auth.logout',
     }
 

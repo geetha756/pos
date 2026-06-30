@@ -93,7 +93,7 @@
                 </thead>
                 <tbody>
                     {% for row in inventory %}
-                    <tr>
+                    <tr class="{% if row.stock_status == 'out_of_stock' %}table-danger{% elif row.stock_status == 'low_stock' %}table-warning{% endif %}">
                         {% if is_owner %}<td>{{ row.location_name }}</td>{% endif %}
                         <td>{{ row.item_name }}</td>
                         <td><span class="badge bg-secondary">{{ row.category }}</span></td>
@@ -126,7 +126,7 @@
         <!-- Mobile: one card per item (no horizontal scroll) -->
         <div class="d-md-none">
             {% for row in inventory %}
-            <div class="card mb-2">
+            <div class="card mb-2" style="border-left:4px solid {% if row.stock_status == 'out_of_stock' %}#dc3545{% elif row.stock_status == 'low_stock' %}#ffc107{% else %}transparent{% endif %};">
                 <div class="card-body py-2 px-3">
                     <div class="d-flex justify-content-between align-items-center gap-2">
                         <div style="min-width:0;">

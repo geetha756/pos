@@ -100,8 +100,12 @@ class PrinterBridge(private val context: Context, private val ui: (Runnable) -> 
     /** Save the chosen printer and connect. Returns "ok" or "error:...". */
     @JavascriptInterface
     fun selectPrinter(mac: String, name: String?): String {
+        // Save immediately and connect on a background thread. The Bluetooth
+        // connect can block for several seconds, so doing it inline would freeze
+        // the UI ("app not responding"). The next print reconnects if needed.
         prefs.edit().putString("mac", mac).putString("name", name ?: mac).apply()
-        return if (connect(mac)) "ok" else "error:could not connect (is it on & paired?)"
+        io.execute { connect(mac) }
+        return "ok"
     }
 
     /** Show a native printer picker (used by the web "Printer Settings" button). */

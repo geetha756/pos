@@ -21,20 +21,60 @@
     #mobile-cart-bar #mcb-total { font-weight: 700; font-size: 1.2rem; color: #111827; }
     #mobile-cart-bar #mcb-count { font-size: .72rem; color: #6b7280; }
     #mobile-cart-bar .mcb-btn { margin-left: auto; flex-shrink: 0; }
-    /* Larger, touch-friendly menu tiles on phones */
-    @media (max-width: 575.98px) {
-        .menu-item-btn { min-height: 76px; padding: .6rem .5rem; }
+    /* Big, fast-to-recognise menu tiles. The grid AUTO-FITS the available width,
+       so the tile size stays comfortable and the number-per-row adapts as the
+       tablet rotates (more columns in landscape, fewer in portrait). */
+    .menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: .6rem; }
+    .menu-item-btn { padding: .7rem .6rem; position: relative; }
+    .menu-item-name { font-weight: 700; font-size: 1.02rem; line-height: 1.2; }
+    .menu-item-price { font-weight: 700; font-size: 1.12rem; margin-top: .15rem; color: var(--sns-primary); }
+    /* In-cart quantity badge on a tile */
+    .tile-qty { position: absolute; top: 6px; right: 6px; z-index: 2; min-width: 26px; height: 26px;
+        padding: 0 6px; display: none; align-items: center; justify-content: center; background: var(--sns-primary);
+        color: #fff; font-weight: 700; font-size: .95rem; border-radius: 13px; box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+    /* Category quick-jump chips */
+    .menu-chip { flex: 0 0 auto; border: 1px solid var(--sns-border); background: #fff; color: var(--sns-ink);
+        border-radius: 18px; padding: .3rem .85rem; font-size: .9rem; font-weight: 600; white-space: nowrap; }
+    .menu-chip.active { background: var(--sns-primary); border-color: var(--sns-primary); color: #fff; }
+    #menu-cat-chips::-webkit-scrollbar { height: 0; }
+    /* Bigger, finger-friendly cart quantity steppers */
+    .qty-btn { width: 40px; height: 40px; font-size: 1.3rem; line-height: 1; padding: 0; font-weight: 700; }
+    .qty-num { min-width: 28px; text-align: center; font-weight: 700; font-size: 1.05rem; }
+    /* Landscape / tablet: the cart + Place Order stay fixed in place while only
+       the menu items scroll — so the order block never jumps when the screen
+       rotates. (Phones in portrait keep the stacked layout + bottom cart bar.) */
+    /* Show about 3 items, then the item list scrolls on its own. The Total +
+       Place Order sit right below the list, so once the list is full they stop
+       moving no matter how many items you add — works the same in portrait and
+       landscape (no viewport-height math that could collapse the list). */
+    #cart-list { max-height: 198px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    @media (min-width: 992px) {
+        .pos-menu-body { max-height: calc(100dvh - 190px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .pos-cart { position: sticky; top: 1rem; }
     }
 </style>
+<script src="{{ url_for('static', filename='js/printer.js') }}"></script>
 {% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2"><i class="ri-restaurant-2-line icon me-2"></i>Menu</h1>
-    <a href="{{ url_for('orders.index') }}" class="btn btn-outline-secondary">
-        <i class="ri-arrow-left-line icon me-1"></i>Back to Orders
-    </a>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-secondary" onclick="SnsPrint.openSettings()" title="Set up / change the receipt printer">
+            <i class="ri-bluetooth-line icon me-1"></i>Printer
+        </button>
+        <a href="{{ url_for('orders.index') }}" class="btn btn-outline-secondary">
+            <i class="ri-arrow-left-line icon me-1"></i>Orders
+        </a>
+    </div>
 </div>
+
+{% if request.args.get('placed') %}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="ri-check-line icon me-1"></i>Order <strong>{{ request.args.get('placed') }}</strong> placed &amp; bill printed. Ready for the next order.
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
 
 <!-- Location picker (hidden for store-scoped managers — they're locked to their store) -->
 {% if is_scoped() %}
@@ -70,23 +110,53 @@
     <!-- Menu grid -->
     <div class="col-lg-8 mb-3">
         <div class="card">
-            <div class="card-header"><h5 class="card-title mb-0">Menu</h5></div>
-            <div class="card-body">
-                <div class="row g-2">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h5 class="card-title mb-0">Menu</h5>
+                <div class="btn-group btn-group-sm" role="group" aria-label="Meal section">
+                    <button type="button" class="btn btn-outline-primary section-toggle" data-section-filter="morning">
+                        <i class="ri-sun-line icon me-1"></i>Morning
+                    </button>
+                    <button type="button" class="btn btn-outline-primary section-toggle" data-section-filter="evening">
+                        <i class="ri-moon-line icon me-1"></i>Evening
+                    </button>
+                </div>
+            </div>
+            <!-- Fixed filter bar: search + category quick-jump chips -->
+            <div class="px-3 pt-2 pb-2 border-bottom menu-filterbar">
+                <div class="position-relative mb-2">
+                    <i class="ri-search-line position-absolute text-muted" style="left:12px;top:50%;transform:translateY(-50%);"></i>
+                    <input type="search" id="menu-search" class="form-control" placeholder="Search items…"
+                           autocomplete="off" style="padding-left:36px;">
+                </div>
+                <div id="menu-cat-chips" class="d-flex flex-nowrap gap-2 overflow-auto pb-1"></div>
+            </div>
+            <div class="card-body pos-menu-body">
+                <div class="menu-grid">
                     {% for item in menu_items %}
-                    <div class="col-6 col-md-4">
+                    <div>
                         <button type="button"
                                 class="btn btn-outline-primary w-100 h-100 text-start menu-item-btn"
                                 data-lm-id="{{ item.location_menu_id }}"
                                 data-mm-id="{{ item.master_menu_id }}"
                                 data-name="{{ item.name }}"
+                                data-section="{{ item.section or 'all' }}"
+                                data-category="{{ item.category or '' }}"
                                 data-price="{{ '%.2f'|format(item.price or 0) }}">
-                            <div class="fw-bold">{{ item.name }}</div>
+                            <span class="tile-qty" data-qty-for="{{ item.location_menu_id }}"></span>
+                            {% if item.image_data %}
+                            <img src="{{ item.image_data }}" alt="" loading="lazy"
+                                 style="width:100%;height:104px;object-fit:cover;border-radius:10px;margin-bottom:.4rem;">
+                            {% endif %}
+                            <div class="menu-item-name">{{ item.name }}</div>
                             <div class="small text-muted">{{ item.category or '' }}</div>
-                            <div class="fw-bold mt-1">₹{{ '%.2f'|format(item.price or 0) }}</div>
+                            <div class="menu-item-price">₹{{ '%.2f'|format(item.price or 0) }}</div>
                         </button>
                     </div>
                     {% endfor %}
+                </div>
+                <div id="section-empty" class="text-center text-muted py-4" style="display:none;">
+                    <i class="ri-restaurant-2-line" style="font-size:2rem;"></i>
+                    <div class="empty-msg">No items match. Try another section or search.</div>
                 </div>
             </div>
         </div>
@@ -94,44 +164,38 @@
 
     <!-- Cart -->
     <div class="col-lg-4 mb-3">
-        <div class="card position-sticky" style="top: 1rem;">
+        <div class="card pos-cart" style="top: 1rem;">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Current Order</h5>
                 <button type="button" class="btn btn-sm btn-link text-danger" onclick="clearCart()">Clear</button>
             </div>
-            <div class="card-body">
+            <div class="card-body cart-body">
                 <div id="cart-empty" class="text-muted text-center py-4">
                     <i class="ri-shopping-cart-line" style="font-size:2rem;"></i>
                     <div>Tap menu items to add them.</div>
                 </div>
-                <ul id="cart-list" class="list-group list-group-flush mb-3"></ul>
+                <!-- Only this list scrolls -->
+                <ul id="cart-list" class="list-group list-group-flush"></ul>
 
-                <div class="d-flex justify-content-between fw-bold fs-5 border-top pt-2">
-                    <span>Total</span>
-                    <span>₹<span id="cart-total">0.00</span></span>
+                <!-- Pinned footer: Total + Place Order always stay visible -->
+                <div class="cart-footer">
+                    <div class="d-flex justify-content-between fw-bold fs-5 border-top pt-2 mt-1">
+                        <span>Total</span>
+                        <span>₹<span id="cart-total">0.00</span></span>
+                    </div>
+                    <div class="mt-2">
+                        <div class="small fw-bold text-muted mb-1">Payment</div>
+                        <div class="btn-group w-100" role="group" aria-label="Payment method">
+                            <input type="radio" class="btn-check" name="payment-method" id="pay-cash" value="cash" checked>
+                            <label class="btn btn-outline-secondary" for="pay-cash"><i class="ri-money-rupee-circle-line icon me-1"></i>Cash</label>
+                            <input type="radio" class="btn-check" name="payment-method" id="pay-phonepe" value="phonepe">
+                            <label class="btn btn-outline-secondary" for="pay-phonepe"><i class="ri-smartphone-line icon me-1"></i>PhonePe</label>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-success w-100 mt-3" id="place-order-btn" onclick="placeOrder()" disabled>
+                        <i class="ri-check-line icon me-1"></i>Place Order
+                    </button>
                 </div>
-
-                <hr>
-                <div class="mb-2">
-                    <label class="form-label">Order Type</label>
-                    <select class="form-select form-select-sm" id="order-type">
-                        <option value="dine-in">Dine-in</option>
-                        <option value="takeaway">Takeaway</option>
-                        <option value="delivery">Delivery</option>
-                    </select>
-                </div>
-                <div class="mb-2">
-                    <label class="form-label">Customer name <span class="text-muted">(optional)</span></label>
-                    <input type="text" class="form-control form-control-sm" id="customer-name">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Phone <span class="text-muted">(optional)</span></label>
-                    <input type="text" class="form-control form-control-sm" id="customer-phone">
-                </div>
-
-                <button type="button" class="btn btn-success w-100" id="place-order-btn" onclick="placeOrder()" disabled>
-                    <i class="ri-check-line icon me-1"></i>Place Order
-                </button>
             </div>
         </div>
     </div>
@@ -151,7 +215,6 @@
     </div>
 </div>
 
-<script src="{{ url_for('static', filename='js/printer.js') }}"></script>
 <script>
 const LOCATION_ID = {{ selected_location|tojson }};
 {% set ns = namespace(store=session.get('active_location_name')) %}
@@ -174,19 +237,20 @@ function renderCart() {
         li.className = 'list-group-item px-0';
         li.innerHTML =
             '<div class="d-flex justify-content-between align-items-center">' +
-              '<div class="me-2"><div class="fw-bold">' + it.name + '</div>' +
+              '<div class="me-2" style="min-width:0;"><div class="fw-bold text-truncate">' + it.name + '</div>' +
               '<small class="text-muted">₹' + it.price.toFixed(2) + ' each</small></div>' +
-              '<div class="d-flex align-items-center gap-1">' +
-                '<button class="btn btn-sm btn-outline-secondary" onclick="changeQty(\'' + k + '\',-1)">-</button>' +
-                '<span class="px-1">' + it.qty + '</span>' +
-                '<button class="btn btn-sm btn-outline-secondary" onclick="changeQty(\'' + k + '\',1)">+</button>' +
-                '<span class="ms-2 fw-bold">₹' + line.toFixed(2) + '</span>' +
+              '<div class="d-flex align-items-center gap-1 flex-shrink-0">' +
+                '<button class="btn btn-outline-secondary qty-btn" onclick="changeQty(\'' + k + '\',-1)">−</button>' +
+                '<span class="qty-num">' + it.qty + '</span>' +
+                '<button class="btn btn-outline-secondary qty-btn" onclick="changeQty(\'' + k + '\',1)">+</button>' +
+                '<span class="ms-2 fw-bold" style="min-width:62px;text-align:right;">₹' + line.toFixed(2) + '</span>' +
               '</div>' +
             '</div>';
         list.appendChild(li);
     });
     document.getElementById('cart-total').textContent = total.toFixed(2);
     document.getElementById('place-order-btn').disabled = keys.length === 0;
+    updateTileBadges();
 
     // Keep the mobile sticky cart bar in sync.
     const bar = document.getElementById('mobile-cart-bar');
@@ -196,6 +260,16 @@ function renderCart() {
         document.getElementById('mcb-total').textContent = '₹' + total.toFixed(2);
         bar.style.display = keys.length ? 'block' : 'none';
     }
+}
+
+// Show a quantity badge on each menu tile that's currently in the cart.
+function updateTileBadges() {
+    document.querySelectorAll('.tile-qty').forEach(function (b) {
+        var k = b.getAttribute('data-qty-for');
+        var qty = cart[k] ? cart[k].qty : 0;
+        if (qty > 0) { b.textContent = qty; b.style.display = 'flex'; }
+        else { b.style.display = 'none'; }
+    });
 }
 
 function addItem(btn) {
@@ -223,6 +297,71 @@ document.querySelectorAll('.menu-item-btn').forEach(function (b) {
     b.addEventListener('click', function () { addItem(b); });
 });
 
+// Combined menu filter: Morning/Evening section + category chip + search.
+// (Items marked "all" appear in both sections. Each tile's grid cell is its
+//  direct parent — must NOT climb to the column or the menu would all hide.)
+var currentSection = 'morning', currentCategory = '', currentSearch = '';
+function applyMenuFilter() {
+    var shown = 0;
+    document.querySelectorAll('.menu-item-btn').forEach(function (btn) {
+        var s = btn.getAttribute('data-section') || 'all';
+        var cat = (btn.getAttribute('data-category') || '').toLowerCase();
+        var name = (btn.getAttribute('data-name') || '').toLowerCase();
+        var ok = (s === currentSection || s === 'all')
+              && (!currentCategory || cat === currentCategory)
+              && (!currentSearch || name.indexOf(currentSearch) >= 0);
+        btn.parentElement.style.display = ok ? '' : 'none';
+        if (ok) shown++;
+    });
+    document.querySelectorAll('.section-toggle').forEach(function (t) {
+        t.classList.toggle('active', t.getAttribute('data-section-filter') === currentSection);
+    });
+    var empty = document.getElementById('section-empty');
+    if (empty) empty.style.display = shown ? 'none' : 'block';
+}
+// Section toggle (remembers last choice; defaults to the part of the day).
+(function () {
+    var saved = null; try { saved = localStorage.getItem('sns_section'); } catch (e) {}
+    currentSection = saved || (new Date().getHours() < 16 ? 'morning' : 'evening');
+    document.querySelectorAll('.section-toggle').forEach(function (t) {
+        t.addEventListener('click', function () {
+            currentSection = t.getAttribute('data-section-filter');
+            try { localStorage.setItem('sns_section', currentSection); } catch (e) {}
+            applyMenuFilter();
+        });
+    });
+})();
+// Search box.
+(function () {
+    var el = document.getElementById('menu-search');
+    if (el) el.addEventListener('input', function () { currentSearch = this.value.trim().toLowerCase(); applyMenuFilter(); });
+})();
+// Category quick-jump chips (built from the items on the menu).
+(function () {
+    var wrap = document.getElementById('menu-cat-chips');
+    if (!wrap) return;
+    var cats = [];
+    document.querySelectorAll('.menu-item-btn').forEach(function (b) {
+        var c = (b.getAttribute('data-category') || '').trim();
+        if (c && cats.indexOf(c) < 0) cats.push(c);
+    });
+    function chip(label, val) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'menu-chip' + (val === currentCategory ? ' active' : '');
+        b.textContent = label;
+        b.onclick = function () {
+            currentCategory = val;
+            wrap.querySelectorAll('.menu-chip').forEach(function (x) { x.classList.toggle('active', x === b); });
+            applyMenuFilter();
+        };
+        wrap.appendChild(b);
+    }
+    chip('All', '');
+    cats.sort().forEach(function (c) { chip(c, c.toLowerCase()); });
+})();
+applyMenuFilter();
+
 function placeOrder() {
     const items = Object.keys(cart).map(function (k) {
         const it = cart[k];
@@ -237,55 +376,78 @@ function placeOrder() {
     });
     if (!items.length) return;
 
+    const payment = (document.querySelector('input[name="payment-method"]:checked') || {}).value || 'cash';
+    const total = items.reduce(function (s, it) { return s + it.total_price; }, 0);
+    // Idempotency id — a re-sent / queued order can never duplicate on the server.
+    const clientId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+        : ('c' + Date.now() + Math.random().toString(36).slice(2));
+    const payload = { location_id: LOCATION_ID, payment_method: payment, items: items, client_order_id: clientId };
+
+    const baseReceipt = {
+        store: STORE_NAME,
+        datetime: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+        items: items.map(function (it) { return { name: it.item_name, qty: it.quantity, price: it.unit_price }; }),
+        total: total
+    };
+    function printBill(ref) {
+        var receipt = Object.assign({}, baseReceipt, { orderNumber: ref });
+        try { return SnsPrint.printOrder(receipt); } catch (e) { return false; }
+    }
+    function goNext(label) {
+        window.location.href = '{{ url_for("orders.new_order") }}?location=' + encodeURIComponent(LOCATION_ID || '') + '&placed=' + encodeURIComponent(label || '');
+    }
+
     const btn = document.getElementById('place-order-btn');
     btn.disabled = true;
     btn.innerHTML = '<i class="ri-hourglass-line icon me-1"></i>Placing...';
 
     fetch('{{ url_for("orders.api_create_order") }}', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({
-            location_id: LOCATION_ID,
-            order_type: document.getElementById('order-type').value,
-            customer_name: document.getElementById('customer-name').value,
-            customer_phone: document.getElementById('customer-phone').value,
-            items: items
-        })
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+        body: JSON.stringify(payload)
     })
     .then(function (r) { return r.json(); })
     .then(function (data) {
         if (data.success) {
-            // Auto-print the receipt to the Bluetooth thermal printer, then go
-            // to the orders list. (No-op fallback to browser print on desktop.)
-            try {
-                SnsPrint.printOrder({
-                    store: STORE_NAME,
-                    orderNumber: data.order_number,
-                    datetime: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
-                    orderType: document.getElementById('order-type').value,
-                    customer: document.getElementById('customer-name').value,
-                    phone: document.getElementById('customer-phone').value,
-                    items: items.map(function (it) { return { name: it.item_name, qty: it.quantity, price: it.unit_price }; }),
-                    total: items.reduce(function (s, it) { return s + it.total_price; }, 0)
-                });
-            } catch (e) { /* never block the sale on a print issue */ }
-            var go = function () {
-                window.location.href = '{{ url_for("orders.index") }}?placed=' + encodeURIComponent(data.order_number || '');
-            };
-            // Give the native print bridge a moment to receive the job.
-            if (SnsPrint.isNative()) { setTimeout(go, 700); } else { go(); }
+            // Saved on the server. Print the bill (a printer problem can never
+            // undo the sale) and move on to the next order.
+            var printed = printBill(data.order_number);
+            var note = (SnsPrint.isNative() && !printed) ? 'Printer not connected — bill not printed' : '';
+            btn.className = 'btn btn-success w-100';
+            btn.innerHTML = '<i class="ri-check-line icon me-1"></i>Order placed ✓';
+            showOrderSuccess(data.order_number, total, note, function () { goNext(data.order_number); });
         } else {
             alert('Could not place order: ' + (data.error || 'unknown error'));
             btn.disabled = false;
             btn.innerHTML = '<i class="ri-check-line icon me-1"></i>Place Order';
         }
     })
-    .catch(function (err) {
-        alert('Error placing order: ' + err.message);
-        btn.disabled = false;
-        btn.innerHTML = '<i class="ri-check-line icon me-1"></i>Place Order';
+    .catch(function () {
+        // OFFLINE / network failure: queue the order so it auto-sends when the
+        // connection returns. The idempotency id prevents any duplicate. The
+        // bill still prints (Bluetooth is local) and the manager moves on.
+        try { window.SnsOrderQueue && window.SnsOrderQueue.enqueue(payload); } catch (e) {}
+        var ref = 'PENDING-' + clientId.slice(0, 6).toUpperCase();
+        var printed = printBill(ref);
+        var note = 'Offline — saved & will sync automatically when you are back online' +
+            (SnsPrint.isNative() && !printed ? '. Printer not connected.' : '.');
+        btn.className = 'btn btn-success w-100';
+        btn.innerHTML = '<i class="ri-check-line icon me-1"></i>Saved (offline) ✓';
+        showOrderSuccess('Saved offline', total, note, function () { goNext(''); });
     });
+}
+
+// Big, unmistakable confirmation flash after a sale registers.
+function showOrderSuccess(orderNumber, total, note, cb) {
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;z-index:4000;background:rgba(21,122,94,.97);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:1.5rem;';
+    ov.innerHTML =
+        '<div style="font-size:5rem;line-height:1;">✓</div>' +
+        '<div style="font-size:1.7rem;font-weight:800;margin-top:.4rem;">Order Placed</div>' +
+        '<div style="font-size:1rem;opacity:.85;margin-top:.2rem;">' + (orderNumber || '') + '</div>' +
+        '<div style="font-size:2.3rem;font-weight:800;margin-top:.6rem;">₹' + Number(total || 0).toFixed(2) + '</div>' +
+        (note ? '<div style="font-size:.95rem;margin-top:.7rem;background:rgba(0,0,0,.22);padding:.4rem .8rem;border-radius:8px;">' + note + '</div>' : '');
+    document.body.appendChild(ov);
+    setTimeout(function () { try { ov.remove(); } catch (e) {} if (cb) cb(); }, 1200);
 }
 </script>
 {% endif %}

@@ -123,21 +123,12 @@
             </div>
             <div class="card-body">
                 {% if order.status != 'cancelled' %}
-                <button type="button" class="btn btn-danger w-100 mb-3" onclick="cancelOrder('{{ order.id }}')">
+                <button type="button" class="btn btn-danger w-100" onclick="cancelOrder('{{ order.id }}')">
                     <i class="ri-close-circle-line icon me-1"></i>Cancel Order
                 </button>
                 {% else %}
-                <div class="alert alert-danger py-2 mb-3 text-center mb-3">This order is cancelled.</div>
+                <div class="alert alert-danger py-2 text-center mb-0">This order is cancelled.</div>
                 {% endif %}
-
-                <div class="d-grid gap-2">
-                    <button type="button" class="btn btn-primary" onclick="SnsPrint.printOrder(window.__snsOrder)">
-                        <i class="ri-printer-line icon me-2"></i>Print Receipt
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="SnsPrint.openSettings()">
-                        <i class="ri-bluetooth-line icon me-1"></i>Printer Settings
-                    </button>
-                </div>
             </div>
         </div>
 
@@ -167,24 +158,6 @@
 </div>
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/printer.js') }}"></script>
-<script>
-// Receipt data for the thermal printer (Niyama BT-58 via the native bridge).
-window.__snsOrder = {
-    store: {{ order.location_name|tojson }},
-    orderNumber: {{ order.order_number|tojson }},
-    datetime: {{ (order.created_at | ist)|tojson }},
-    orderType: {{ (order.order_type or '')|tojson }},
-    customer: {{ (order.customer_name or '')|tojson }},
-    phone: {{ (order.customer_phone or '')|tojson }},
-    total: {{ order.total_amount|tojson }},
-    items: [
-        {% for it in order_items %}
-        { name: {{ it.item_name|tojson }}, qty: {{ it.quantity|tojson }}, price: {{ it.unit_price|tojson }} }{% if not loop.last %},{% endif %}
-        {% endfor %}
-    ]
-};
-</script>
 <script>
 // Cancel via AJAX so a flaky mobile connection shows a retry rather than the
 // browser's "site can't be reached" page.

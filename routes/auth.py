@@ -154,6 +154,7 @@ def process_auth():
                 return redirect(url_for('auth.login'))
             
             # Store user information in session
+            session.permanent = True  # honour PERMANENT_SESSION_LIFETIME (stay logged in)
             session['user_id'] = user_email  # legacy key used across app (email)
             session['user_name'] = user_name
             session['user_picture'] = user_picture
@@ -167,6 +168,17 @@ def process_auth():
                 user_row = upsert_user_from_session(user_email, user_name, user_picture)
             except Exception as e:
                 print(f"Failed to upsert user: {e}")
+
+            # If an admin pinned this store manager to a store, lock them to it
+            # (skips the picker; they can't see other stores).
+            try:
+                if user_row and user_row.get('role') == 'worker' and user_row.get('location_id'):
+                    from database import execute_query_one
+                    loc = execute_query_one("SELECT name FROM locations WHERE id = %s", (user_row['location_id'],))
+                    session['active_location_id'] = str(user_row['location_id'])
+                    session['active_location_name'] = loc['name'] if loc else 'Your store'
+            except Exception as e:
+                print(f"Failed to pin manager location: {e}")
 
             # Cache user/staff identifiers for downstream writes
             if user_row:

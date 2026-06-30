@@ -125,25 +125,35 @@ def is_store_manager() -> bool:
     return current_user_role() == ROLE_WORKER
 
 
+def assigned_location_id() -> Optional[str]:
+    """The store an admin has permanently assigned to this user (via Users &
+    Access). When set, the manager is locked to it and cannot see other stores."""
+    user = get_or_create_current_user()
+    return str(user['location_id']) if user and user.get('location_id') else None
+
+
 def active_location_id() -> Optional[str]:
-    """The store a manager picked after login (held in the session)."""
-    return session.get('active_location_id')
+    """The store this manager is operating: their admin-assigned store if set,
+    otherwise the one they picked this session."""
+    return assigned_location_id() or session.get('active_location_id')
+
+
+def is_location_locked() -> bool:
+    """True when a manager is pinned to one store by an admin and may not switch."""
+    return is_store_manager() and assigned_location_id() is not None
 
 
 def current_user_location_id() -> Optional[str]:
-    """The store this user is tied to. Store managers use the location they
-    selected after login (session); owners/managers aren't store-bound."""
+    """The store this user is tied to. Store managers use their admin-assigned
+    store, else the one they selected; owners/managers aren't store-bound."""
     if is_store_manager():
         return active_location_id()
-    user = get_or_create_current_user()
-    if user and user.get('location_id'):
-        return str(user['location_id'])
-    return None
+    return assigned_location_id()
 
 
 def is_location_scoped() -> bool:
     """True when the user is limited to a single store's data. Store managers
-    are always scoped (to the store they selected); owners see every location."""
+    are always scoped; owners see every location."""
     return is_store_manager() and active_location_id() is not None
 
 
@@ -299,6 +309,7 @@ def register_template_helpers(app):
             'scoped_location_id': scoped_location_id,
             'is_store_manager': is_store_manager,
             'active_location_id': active_location_id,
+            'is_location_locked': is_location_locked,
         }
 
 

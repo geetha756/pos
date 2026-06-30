@@ -11,7 +11,7 @@
 
     <!-- Progressive Web App (installable) -->
     <link rel="manifest" href="/manifest.webmanifest">
-    <meta name="theme-color" content="#0d6efd">
+    <meta name="theme-color" content="#1d2433">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -336,6 +336,11 @@
         padding: 1.25rem 1rem;
         border-bottom: 1px solid rgba(148, 163, 184, 0.4);
         box-shadow: inset 0 -1px 0 rgba(15, 23, 42, 0.08);
+        /* Keep the Sip & Snack brand pinned at the top while the menu list
+           below it scrolls (e.g. when Inventory / Users sub-items expand). */
+        position: sticky;
+        top: 0;
+        z-index: 3;
     }
 
     .sidebar .sidebar-logo-link {
@@ -741,7 +746,13 @@
         --sns-bottomnav-h: 64px;
     }
 
-    /* Responsive shell: single column on phones, sidebar on >= md */
+    /* The hidden slide-in menu (offcanvas-end) sits off-screen to the right;
+       clip horizontal overflow so it never creates a sideways scroll / cut-off. */
+    html { overflow-x: hidden; }
+
+    /* Responsive shell: phones + tablet-portrait get a single full-width column
+       with the slide-in drawer + bottom nav; the fixed sidebar only appears on
+       wide screens (>= lg / tablet-landscape / desktop). */
     .app-shell {
         display: grid;
         grid-template-columns: 1fr;
@@ -749,8 +760,16 @@
         min-height: 100vh;
         min-height: 100dvh;
     }
-    @media (min-width: 768px) {
-        .app-shell { grid-template-columns: 220px 1fr; }
+    /* Below lg: the drawer is position:fixed, so the .sidebar wrapper must not
+       reserve any height — otherwise every page's content is pushed off-screen. */
+    @media (max-width: 991.98px) {
+        .app-shell { display: block; }
+        .sidebar { min-height: 0 !important; height: auto !important; }
+    }
+    @media (min-width: 992px) {
+        /* minmax(0,1fr) stops wide content (tables) from widening the column. */
+        .app-shell { grid-template-columns: 220px minmax(0, 1fr); }
+        .sidebar { position: sticky; top: 0; height: 100dvh; align-self: start; }
     }
 
     /* Mobile top app bar */
@@ -856,6 +875,123 @@
         #user-section { display: none !important; }
     }
 
+    /* ============================================================
+       PREMIUM THEME — a deliberate, professional look across the app.
+       Warm paper background, emerald accent, ink top bar, soft cards.
+       ============================================================ */
+    :root {
+        --sns-ink: #1d2433;
+        --sns-ink-soft: #3a4150;
+        --sns-bg: #f4f3ef;
+        --sns-surface: #ffffff;
+        --sns-primary: #157a5e;
+        --sns-primary-dark: #0f5f49;
+        --sns-primary-soft: #e7f3ee;
+        --sns-border: #e9e7e1;
+        --sns-muted: #6b7280;
+        --bs-primary: #157a5e;
+        --bs-primary-rgb: 21,122,94;
+    }
+    body {
+        background: var(--sns-bg);
+        color: var(--sns-ink);
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        /* A touch larger for easy reading at the counter / from a step back. */
+        font-size: 1.04rem;
+        line-height: 1.5;
+    }
+    h1, h2, h3, h4, h5, .h1, .h2, .h3, .h4, .h5 {
+        color: var(--sns-ink); font-weight: 600; letter-spacing: -.01em;
+    }
+    .text-muted { color: var(--sns-muted) !important; }
+
+    /* Cards — soft, premium */
+    .card {
+        border: 1px solid var(--sns-border);
+        border-radius: 16px;
+        box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 2px 6px rgba(16,24,40,.05);
+        background: var(--sns-surface);
+    }
+    .card:hover { transform: none; box-shadow: 0 6px 18px rgba(16,24,40,.08); }
+    .card .card-header {
+        background: transparent;
+        border-bottom: 1px solid var(--sns-border);
+        padding: 14px 18px;
+    }
+    .card .card-header .card-title { color: var(--sns-ink); font-weight: 600; }
+
+    /* Buttons — refined, no cheap hover jump */
+    .btn { border-radius: 11px; font-weight: 600; letter-spacing: .01em; padding: .55rem 1rem;
+        transition: background-color .15s ease, color .15s ease, box-shadow .15s ease, opacity .15s ease; }
+    .btn:hover { transform: none !important; box-shadow: none; }
+    .btn-primary, .btn-success { background: var(--sns-primary); border-color: var(--sns-primary); color: #fff; }
+    .btn-primary:hover, .btn-primary:focus, .btn-success:hover, .btn-success:focus {
+        background: var(--sns-primary-dark); border-color: var(--sns-primary-dark); color: #fff; }
+    .btn-outline-secondary { color: var(--sns-ink-soft) !important; border-color: #d7d4cd !important; }
+    .btn-outline-secondary:hover { background: var(--sns-ink) !important; border-color: var(--sns-ink) !important; color: #fff !important; }
+    .btn-link { color: var(--sns-primary); }
+
+    /* Forms — calmer, rounded */
+    .form-control, .form-select { border-radius: 11px; border: 1px solid #dcd9d2; padding: .6rem .85rem; color: var(--sns-ink); }
+    .form-control:focus, .form-select:focus { border-color: var(--sns-primary); box-shadow: 0 0 0 .2rem rgba(21,122,94,.15); transform: none; }
+    .form-label { font-weight: 600; font-size: .9rem; color: var(--sns-ink-soft); }
+
+    /* Badges */
+    .badge { font-weight: 600; border-radius: 8px; padding: .4em .62em; }
+    .badge.bg-primary { background: var(--sns-primary) !important; }
+    .badge.bg-success { background: var(--sns-primary) !important; }
+
+    /* Premium dark top bar */
+    .mobile-topbar { background: var(--sns-ink) !important; box-shadow: 0 1px 10px rgba(0,0,0,.18); }
+
+    /* Refined bottom nav */
+    .mobile-bottomnav { box-shadow: 0 -1px 12px rgba(16,24,40,.06); border-top: 1px solid var(--sns-border); }
+    .mobile-bottomnav a.active { color: var(--sns-primary) !important; }
+    .mobile-bottomnav a.bn-primary { color: var(--sns-primary) !important; }
+    .mobile-bottomnav a.bn-primary i { background: var(--sns-primary); box-shadow: 0 5px 14px rgba(21,122,94,.42); }
+
+    /* Sidebar accents in brand green */
+    .sidebar .nav .nav-link.active,
+    .sidebar .nav .nav-link:hover,
+    .sidebar .nav .nav-link:focus {
+        background-color: var(--sns-primary-soft) !important;
+        color: var(--sns-primary) !important;
+        box-shadow: inset 3px 0 0 0 var(--sns-primary) !important;
+    }
+
+    /* Alerts — soft */
+    .alert { border-radius: 12px; border: 1px solid transparent; }
+    .alert-success { background: var(--sns-primary-soft); color: var(--sns-primary-dark); }
+
+    /* Order/menu item tiles look like clean product cards */
+    .menu-item-btn {
+        background: var(--sns-surface) !important;
+        border: 1px solid var(--sns-border) !important;
+        border-radius: 14px !important;
+        color: var(--sns-ink) !important;
+        box-shadow: 0 1px 2px rgba(16,24,40,.04);
+        transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .menu-item-btn:hover, .menu-item-btn:active, .menu-item-btn:focus, .menu-item-btn:focus-visible {
+        border-color: var(--sns-primary) !important;
+        box-shadow: 0 5px 14px rgba(21,122,94,.16);
+        background: var(--sns-surface) !important;
+        color: var(--sns-ink) !important;
+    }
+    /* Keep the item NAME + PRICE readable in every state. Bootstrap's button
+       active/focus state turns the text white, which made the name+price
+       disappear on the white tile when a manager tapped an item. */
+    .menu-item-btn .fw-bold,
+    .menu-item-btn:hover .fw-bold,
+    .menu-item-btn:active .fw-bold,
+    .menu-item-btn:focus .fw-bold,
+    .menu-item-btn:focus-visible .fw-bold { color: var(--sns-ink) !important; }
+    .menu-item-btn .text-muted { color: var(--sns-muted) !important; }
+
+    /* Tables — lighter, roomier */
+    .table thead th { color: var(--sns-ink-soft); border-bottom: 1px solid var(--sns-border); }
+    .table td, .table th { border-color: var(--sns-border); }
     </style>
 
     {% block extra_head %}{% endblock %}
@@ -913,11 +1049,14 @@
 
 
     <!-- Mobile top app bar (phones only; opens the sidebar as an off-canvas) -->
-    <header class="mobile-topbar d-md-none">
+    <header class="mobile-topbar d-lg-none">
         <button class="topbar-btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-label="Open menu">
             <i class="ri-menu-line"></i>
         </button>
-        <a href="{{ url_for('main.dashboard') }}" class="topbar-brand">{% if is_store_manager() and session.get('active_location_name') %}{{ session.get('active_location_name') }}{% else %}Sip &amp; Snack{% endif %}</a>
+        <a href="{{ url_for('main.dashboard') }}" class="topbar-brand d-flex align-items-center gap-2">
+            <img src="{{ url_for('static', filename='img/sn15-logo-transparent.png') }}" alt="" style="height:30px;width:30px;object-fit:contain;border-radius:50%;background:#fff;flex-shrink:0;">
+            <span class="text-truncate">{% if is_store_manager() and session.get('active_location_name') %}{{ session.get('active_location_name') }}{% else %}Sip &amp; Snack{% endif %}</span>
+        </a>
         <a href="{{ url_for('auth.logout') }}" class="topbar-btn" aria-label="Logout">
             <i class="ri-logout-box-line"></i>
         </a>
@@ -925,8 +1064,8 @@
 
     <div class="app-shell">
         <div class="sidebar border border-right p-0 bg-body-tertiary">
-            <div class="offcanvas-md offcanvas-end bg-body-tertiary" tabindex="-1" id="sidebarMenu" aria-labelledby="sidebarMenuLabel">
-                <div class="offcanvas-body d-md-flex flex-column p-0 overflow-y-auto" style="padding-bottom: 80px;">
+            <div class="offcanvas-lg offcanvas-start bg-body-tertiary" tabindex="-1" id="sidebarMenu" aria-labelledby="sidebarMenuLabel">
+                <div class="offcanvas-body d-lg-flex flex-column p-0 overflow-y-auto" style="padding-bottom: 80px;">
 
                     <!-- Sidebar Header with Logo -->
                     <div class="sidebar-header">
@@ -936,20 +1075,30 @@
                             </span>
                             <span class="sidebar-logo-text">
                                 <span class="brand-title">Sip &amp; Snack</span>
-                                <span class="brand-subtitle">Studio</span>
                             </span>
                         </a>
                     </div>
 
                     <ul class="nav flex-column">
+                        {% if not is_store_manager() %}
                         <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint == 'main.dashboard' %} active{% endif %}" href="{{ url_for('main.dashboard') }}">
                                 <i class="ri-dashboard-line icon"></i>
                                 <span class="nav-link-label">Dashboard</span>
                             </a>
                         </li>
+                        {% endif %}
                         {% if is_store_manager() %}
                         <li class="nav-item">
+                            {% if is_location_locked() %}
+                            <div class="nav-link d-flex align-items-center gap-2">
+                                <i class="ri-store-2-line icon text-primary"></i>
+                                <span class="nav-link-label">
+                                    <span class="d-block fw-semibold" style="line-height:1.15;">{{ session.get('active_location_name') or 'Your store' }}</span>
+                                    <small class="text-muted">Your store</small>
+                                </span>
+                            </div>
+                            {% else %}
                             <a class="nav-link d-flex align-items-center gap-2" href="{{ url_for('main.select_location') }}" title="Switch store">
                                 <i class="ri-store-2-line icon text-primary"></i>
                                 <span class="nav-link-label">
@@ -957,6 +1106,7 @@
                                     <small class="text-muted">Tap to switch</small>
                                 </span>
                             </a>
+                            {% endif %}
                         </li>
                         {% endif %}
                         {% if has_perm('master_menu.view') %}
@@ -1093,42 +1243,24 @@
                             </div>
                             <div id="nav-inventory" class="collapse{% if request.endpoint and request.endpoint.startswith('inventory') %} show{% endif %}">
                             <ul class="nav flex-column ms-3">
-                                <li class="nav-item">
-                                    <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.location_inventory') %} active{% endif %}" href="{{ url_for('inventory.location_inventory') }}">
-                                        <i class="ri-map-pin-2-line icon icon-sm"></i>
-                                        <span class="nav-link-label">Location Inventory</span>
-                                    </a>
-                                </li>
                                 {% if not is_store_manager() %}
                                 <li class="nav-item">
-                                    <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.master_inventory') %} active{% endif %}" href="{{ url_for('inventory.master_inventory') }}">
-                                        <i class="ri-archive-2-line icon icon-sm"></i>
-                                        <span class="nav-link-label">Master Inventory</span>
+                                    <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.groceries') %} active{% endif %}" href="{{ url_for('inventory.groceries') }}">
+                                        <i class="ri-shopping-basket-2-line icon icon-sm"></i>
+                                        <span class="nav-link-label">Add Groceries</span>
                                     </a>
                                 </li>
                                 {% endif %}
                                 <li class="nav-item">
-                                    <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.purchase_lists') %} active{% endif %}" href="{{ url_for('inventory.purchase_lists') }}">
-                                        <i class="ri-shopping-cart-2-line icon icon-sm"></i>
-                                        <span class="nav-link-label">Purchase Lists</span>
+                                    <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.location_inventory') %} active{% endif %}" href="{{ url_for('inventory.location_inventory') }}">
+                                        <i class="ri-store-2-line icon icon-sm"></i>
+                                        <span class="nav-link-label">{% if is_store_manager() %}My Stock{% else %}Stock &amp; Leftover{% endif %}</span>
                                     </a>
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.daily_usage') %} active{% endif %}" href="{{ url_for('inventory.daily_usage') }}">
                                         <i class="ri-time-line icon icon-sm"></i>
-                                        <span class="nav-link-label">Daily Usage</span>
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.leftover_food') %} active{% endif %}" href="{{ url_for('inventory.leftover_food') }}">
-                                        <i class="ri-restaurant-line icon icon-sm"></i>
-                                        <span class="nav-link-label">Leftover Food</span>
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link{% if request.endpoint and request.endpoint.startswith('inventory.suppliers') %} active{% endif %}" href="{{ url_for('inventory.suppliers') }}">
-                                        <i class="ri-truck-line icon icon-sm"></i>
-                                        <span class="nav-link-label">Suppliers</span>
+                                        <span class="nav-link-label">Record Usage</span>
                                     </a>
                                 </li>
                             </ul>
@@ -1160,7 +1292,7 @@
             </div>
         </div>
 
-        <main class="px-md-4 text-left" style="padding-bottom: 100px; margin-left: 0;">
+        <main class="px-3 px-lg-4 text-left" style="padding-bottom: 100px; margin-left: 0;">
                 {% with messages = get_flashed_messages(with_categories=true) %}
                     {% if messages %}
                         {% for category, message in messages %}
@@ -1178,7 +1310,7 @@
     </div>
 
     <!-- Mobile bottom navigation (phones only) — primary store-manager actions -->
-    <nav class="mobile-bottomnav d-md-none" aria-label="Primary">
+    <nav class="mobile-bottomnav d-lg-none" aria-label="Primary">
         <a href="{{ url_for('main.dashboard') }}" class="{% if request.endpoint == 'main.dashboard' %}active{% endif %}">
             <i class="ri-home-5-line"></i><span>Home</span>
         </a>
@@ -1247,6 +1379,64 @@
                 updateIconRotation();
             });
         });
+    </script>
+
+    <!-- Global offline indicator -->
+    <div id="offline-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:5000;background:#b5450f;color:#fff;text-align:center;padding:.45rem .5rem;font-size:.9rem;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.2);">
+        <i class="ri-wifi-off-line"></i> You're offline — changes may not save. Reconnect to continue.
+    </div>
+    <script>
+        (function () {
+            var b = document.getElementById('offline-banner');
+            function upd() { if (b) b.style.display = navigator.onLine ? 'none' : 'block'; }
+            window.addEventListener('online', upd);
+            window.addEventListener('offline', upd);
+            upd();
+        })();
+    </script>
+
+    <!-- Orders placed during an outage wait here and sync automatically -->
+    <div id="pending-orders-ind" style="display:none;position:fixed;bottom:74px;left:50%;transform:translateX(-50%);z-index:4500;background:#b5872a;color:#fff;padding:.4rem 1rem;border-radius:20px;font-size:.85rem;font-weight:600;box-shadow:0 3px 10px rgba(0,0,0,.3);"></div>
+    <script>
+    // Global offline order queue: orders that fail to send (no connection) are
+    // stored locally and auto-sent when the connection returns. A client-side
+    // idempotency id (sent with each order) means a re-send can never duplicate.
+    window.SnsOrderQueue = (function () {
+        var KEY = 'sns_order_queue';
+        var URL = '{{ url_for("orders.api_create_order") }}';
+        function read() { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; } }
+        function write(a) { try { localStorage.setItem(KEY, JSON.stringify(a)); } catch (e) {} updateBadge(); }
+        function enqueue(payload) { var a = read(); a.push(payload); write(a); }
+        function count() { return read().length; }
+        function updateBadge() {
+            var el = document.getElementById('pending-orders-ind'); if (!el) return;
+            var n = read().length;
+            el.style.display = n ? 'block' : 'none';
+            el.textContent = '⏳ ' + n + ' order' + (n === 1 ? '' : 's') + ' waiting to sync';
+        }
+        var busy = false;
+        function flush() {
+            if (busy || !navigator.onLine) return;
+            var a = read(); if (!a.length) return;
+            busy = true;
+            var payload = a[0];
+            fetch(URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify(payload) })
+                .then(function (r) { return r.json().catch(function () { return {}; }); })
+                .then(function (data) {
+                    // The server RESPONDED (success, or a definitive rejection a
+                    // retry won't fix) -> drop from the queue. The idempotency id
+                    // means an already-saved order just comes back as a duplicate.
+                    var b = read(); b.shift(); write(b);
+                    busy = false;
+                    if (read().length) setTimeout(flush, 300);
+                })
+                .catch(function () { busy = false; });   // network failure -> keep, retry later
+        }
+        window.addEventListener('online', flush);
+        document.addEventListener('DOMContentLoaded', function () { updateBadge(); flush(); });
+        setInterval(flush, 20000);
+        return { enqueue: enqueue, flush: flush, count: count };
+    })();
     </script>
 
     {% block extra_js %}{% endblock %}

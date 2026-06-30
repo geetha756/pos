@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Groceries{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0"><i class="ri-shopping-basket-2-line icon me-2"></i>Groceries</h3>
+    <a href="{{ url_for('inventory.daily_usage') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="ri-history-line icon me-1"></i>Usage records
+    </a>
+</div>
+
+<p class="text-muted small mb-3">Add a grocery purchase and allocate it to a store. The stock shown below is what
+remains after store managers record their daily usage.</p>
+
+<!-- Location picker -->
+<form method="get" class="card mb-3">
+    <div class="card-body py-3">
+        <label class="form-label">Store / Location</label>
+        <select name="location_id" class="form-select" onchange="this.form.submit()">
+            {% for loc in locations %}
+            <option value="{{ loc.id }}" {% if location_id == loc.id|string %}selected{% endif %}>{{ loc.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</form>
+
+<!-- Add & allocate -->
+<div class="card mb-3">
+    <div class="card-header"><span class="card-title fw-bold">Add grocery &amp; allocate</span></div>
+    <div class="card-body">
+        <form method="post" action="{{ url_for('inventory.groceries') }}">
+            <input type="hidden" name="location_id" value="{{ location_id }}">
+            <div class="row g-2">
+                <div class="col-12 col-md-5">
+                    <label class="form-label">Grocery item</label>
+                    <input type="text" name="name" class="form-control" placeholder="e.g. Rice, Oil, Onions" required>
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label">Unit</label>
+                    <input type="text" name="unit" class="form-control" placeholder="kg / L / pcs" value="kg">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label">Quantity</label>
+                    <input type="number" name="quantity" class="form-control" min="0" step="0.01" placeholder="0" required>
+                </div>
+                <div class="col-12 col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100"><i class="ri-add-line icon me-1"></i>Allocate</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Allocated / leftover stock -->
+<div class="card">
+    <div class="card-header"><span class="card-title fw-bold">Allocated stock (leftover)</span></div>
+    <div class="card-body p-0">
+        {% if allocated %}
+        <div class="table-responsive d-none d-md-block">
+            <table class="table mb-0 align-middle">
+                <thead><tr><th>Item</th><th>Unit</th><th class="text-end">In stock</th><th>Last added</th><th></th></tr></thead>
+                <tbody>
+                    {% for r in allocated %}
+                    <tr>
+                        <td class="fw-bold">{{ r.name }}</td>
+                        <td>{{ r.unit }}</td>
+                        <td class="text-end fw-bold">{{ '%g'|format(r.current_stock or 0) }}</td>
+                        <td class="text-muted small">{{ r.last_restock_date or '—' }}{% if r.last_restock_quantity %} (+{{ '%g'|format(r.last_restock_quantity) }}){% endif %}</td>
+                        <td class="text-end">
+                            <form method="post" action="{{ url_for('inventory.remove_grocery', location_id=location_id, item_id=r.master_inventory_id) }}" onsubmit="return confirm('Remove {{ r.name }} from this store?');">
+                                <button class="btn btn-sm btn-outline-danger"><i class="ri-delete-bin-line"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <!-- Mobile cards -->
+        <div class="d-md-none">
+            {% for r in allocated %}
+            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                <div style="min-width:0;">
+                    <div class="fw-bold text-truncate">{{ r.name }}</div>
+                    <div class="small text-muted">{{ '%g'|format(r.current_stock or 0) }} {{ r.unit }} in stock</div>
+                </div>
+                <form method="post" action="{{ url_for('inventory.remove_grocery', location_id=location_id, item_id=r.master_inventory_id) }}" onsubmit="return confirm('Remove {{ r.name }}?');">
+                    <button class="btn btn-sm btn-outline-danger flex-shrink-0"><i class="ri-delete-bin-line"></i></button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+            <i class="ri-shopping-basket-line" style="font-size:2rem;"></i>
+            <div>No groceries allocated to this store yet.</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -8,28 +8,38 @@ import psycopg2
 main_bp = Blueprint('main', __name__)
 
 
-@main_bp.route('/select-location', methods=['GET', 'POST'])
+@main_bp.route('/app')
+def download_app():
+    """Serve the Android app as a real file download (attachment), which some
+    Android browsers handle more reliably than the static 'inline' path."""
+    from flask import send_from_directory, current_app
+    return send_from_directory(
+        os.path.join(current_app.root_path, 'static', 'download'),
+        'sip-snack.apk',
+        mimetype='application/vnd.android.package-archive',
+        as_attachment=True,
+        download_name='SipAndSnack.apk',
+    )
+
+
+@main_bp.route('/install')
+def install_page():
+    """Friendly install page (open in Chrome) with a download button + steps."""
+    return render_template('install_app.html')
+
+
+@main_bp.route('/select-location')
 @login_required
 def select_location():
-    """Store managers pick which store they're operating after login; the choice
-    is held in the session and scopes everything they see. Owners skip this."""
-    from security import is_store_manager
+    """A store manager's store is assigned by an admin only — they cannot pick
+    one. Assigned managers go to the Menu; unassigned ones see a 'contact admin'
+    message until an admin assigns them a store."""
+    from security import is_store_manager, is_location_locked
     if not is_store_manager():
         return redirect(url_for('main.dashboard'))
-
-    locations = execute_query("SELECT id, name, city FROM locations ORDER BY name", fetch=True) or []
-
-    if request.method == 'POST':
-        loc_id = request.form.get('location_id')
-        chosen = next((l for l in locations if str(l['id']) == loc_id), None)
-        if chosen:
-            session['active_location_id'] = str(chosen['id'])
-            session['active_location_name'] = chosen['name']
-            return redirect(url_for('main.dashboard'))
-        flash('Please choose a location to continue.', 'error')
-
-    return render_template('select_location.html', locations=locations,
-                           current=session.get('active_location_id'))
+    if is_location_locked():
+        return redirect(url_for('orders.new_order'))
+    return render_template('no_location.html')
 
 
 @main_bp.route('/.well-known/assetlinks.json')
@@ -71,8 +81,8 @@ def manifest():
         "display": "standalone",
         # 'any' so phones can use portrait and tablets can use landscape.
         "orientation": "any",
-        "background_color": "#ffffff",
-        "theme_color": "#0d6efd",
+        "background_color": "#f4f3ef",
+        "theme_color": "#1d2433",
         "icons": [
             {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
             {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
@@ -87,7 +97,7 @@ def manifest():
 def service_worker():
     """Service worker served from the root so its scope covers the whole app."""
     js = """
-const CACHE = 'sns-cache-v2';
+const CACHE = 'sns-cache-v3';
 const OFFLINE_URL = '/static/offline.html';
 const PRECACHE = [OFFLINE_URL, '/static/css/bootstrap.min.css', '/static/css/dashboard.css', '/static/icons/icon-192.png'];
 
@@ -133,10 +143,13 @@ self.addEventListener('fetch', (e) => {
 @main_bp.route('/')
 @login_required
 def dashboard():
-    """Main dashboard page"""
+    """Home. Store managers go straight to the Menu (their job is taking
+    orders); owners/admins see the management dashboard."""
+    from security import is_store_manager, scoped_location_id
+    if is_store_manager():
+        return redirect(url_for('orders.new_order'))
     try:
         # Scope the tiles to the manager's store when applicable
-        from security import scoped_location_id
         stats = get_dashboard_stats(scoped_location_id())
         return render_template('dashboard.html', stats=stats)
     except Exception as e:
@@ -154,6 +167,7 @@ def get_dashboard_stats(location_id=None):
         'total_revenue': 0.0,
         'cancelled_orders': 0,
         'today_orders': 0,
+        'today_revenue': 0.0,
         'staff': 0,
         'active_staff': 0,
         'departments': 0,
@@ -200,9 +214,12 @@ def get_dashboard_stats(location_id=None):
         result = execute_query_one("SELECT COUNT(*) as count FROM orders WHERE status = 'cancelled' AND (%s IS NULL OR location_id = %s)", (loc, loc))
         stats['cancelled_orders'] = result['count'] if result else 0
 
-        # Today's orders
-        result = execute_query_one("SELECT COUNT(*) as count FROM orders WHERE DATE(created_at) = CURRENT_DATE AND (%s IS NULL OR location_id = %s)", (loc, loc))
+        # Today's orders + revenue — "today" on the IST calendar (created_at is UTC).
+        ist_today = "DATE(created_at + INTERVAL '5 hours 30 minutes') = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date"
+        result = execute_query_one("SELECT COUNT(*) as count FROM orders WHERE " + ist_today + " AND (%s IS NULL OR location_id = %s)", (loc, loc))
         stats['today_orders'] = result['count'] if result else 0
+        result = execute_query_one("SELECT COALESCE(SUM(total_amount), 0) as total FROM orders WHERE " + ist_today + " AND status != 'cancelled' AND (%s IS NULL OR location_id = %s)", (loc, loc))
+        stats['today_revenue'] = float(result['total']) if result else 0.0
 
         # Total staff count
         result = execute_query_one("SELECT COUNT(*) as count FROM staff WHERE (%s IS NULL OR location_id = %s)", (loc, loc))

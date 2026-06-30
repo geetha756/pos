@@ -16,8 +16,10 @@ inventory_bp = Blueprint('inventory', __name__)
 @inventory_bp.route('/')
 @login_required
 def index():
-    """Inventory module landing - redirect to Location Inventory"""
-    return redirect(url_for('inventory.location_inventory'))
+    """Inventory landing: owners manage groceries, managers record usage."""
+    if is_store_manager():
+        return redirect(url_for('inventory.daily_usage'))
+    return redirect(url_for('inventory.groceries'))
 
 @inventory_bp.route('/master-inventory')
 @login_required
@@ -652,6 +654,79 @@ def location_inventory():
         flash(f'Error loading location inventory: {str(e)}', 'error')
         return render_template('inventory/location_inventory.html', inventory=[], locations=[], categories=[])
 
+@inventory_bp.route('/groceries', methods=['GET', 'POST'])
+@login_required
+@owner_required
+def groceries():
+    """Clean admin flow: add a grocery purchase and allocate it to a location.
+    Creates the grocery in the catalog if new, then adds the purchased quantity
+    to that location's stock. The remaining stock here is the 'leftover' the
+    owner sees after store managers record their usage."""
+    locations = execute_query("SELECT id, name FROM locations ORDER BY name", fetch=True) or []
+    location_id = request.values.get('location_id') or (str(locations[0]['id']) if locations else '')
+
+    if request.method == 'POST':
+        location_id = request.form.get('location_id') or ''
+        name = (request.form.get('name') or '').strip()
+        unit = (request.form.get('unit') or 'unit').strip() or 'unit'
+        try:
+            qty = Decimal(str(request.form.get('quantity', '0')))
+        except InvalidOperation:
+            qty = Decimal('-1')
+
+        if not location_id or not name:
+            flash('Choose a location and enter a grocery name.', 'error')
+        elif qty <= 0:
+            flash('Quantity must be greater than zero.', 'error')
+        else:
+            # Find-or-create the grocery in the master catalog (case-insensitive).
+            mi = execute_query_one("SELECT id FROM master_inventory WHERE lower(name) = lower(%s)", (name,))
+            if mi:
+                mi_id = str(mi['id'])
+                execute_query("UPDATE master_inventory SET unit = %s, is_active = TRUE WHERE id = %s", (unit, mi_id))
+            else:
+                execute_query(
+                    "INSERT INTO master_inventory (name, category, unit, is_active) VALUES (%s, 'groceries', %s, TRUE)",
+                    (name, unit))
+                mi_id = str(execute_query_one("SELECT id FROM master_inventory WHERE lower(name) = lower(%s)", (name,))['id'])
+
+            # Allocate: add the purchased quantity onto the location's stock.
+            execute_query("""
+                INSERT INTO location_inventory (location_id, master_inventory_id, current_stock,
+                                                last_restock_date, last_restock_quantity)
+                VALUES (%s, %s, %s, CURRENT_DATE, %s)
+                ON CONFLICT (location_id, master_inventory_id)
+                DO UPDATE SET current_stock = location_inventory.current_stock + EXCLUDED.current_stock,
+                              last_restock_date = CURRENT_DATE,
+                              last_restock_quantity = EXCLUDED.current_stock,
+                              last_updated = CURRENT_TIMESTAMP
+            """, (location_id, mi_id, qty, qty))
+            flash(f'Allocated {qty} {unit} of {name}.', 'success')
+        return redirect(url_for('inventory.groceries', location_id=location_id))
+
+    allocated = []
+    if location_id:
+        allocated = execute_query("""
+            SELECT mi.name, mi.unit, li.current_stock, li.master_inventory_id,
+                   li.last_restock_date, li.last_restock_quantity
+            FROM location_inventory li
+            JOIN master_inventory mi ON mi.id = li.master_inventory_id
+            WHERE li.location_id = %s AND mi.is_active = TRUE
+            ORDER BY mi.name
+        """, (location_id,), fetch=True) or []
+    return render_template('inventory/groceries.html',
+                           locations=locations, location_id=location_id, allocated=allocated)
+
+@inventory_bp.route('/groceries/<uuid:location_id>/<uuid:item_id>/remove', methods=['POST'])
+@login_required
+@owner_required
+def remove_grocery(location_id, item_id):
+    """Remove a grocery allocation from a location."""
+    execute_query("DELETE FROM location_inventory WHERE location_id = %s AND master_inventory_id = %s",
+                  (str(location_id), str(item_id)))
+    flash('Grocery removed from this location.', 'success')
+    return redirect(url_for('inventory.groceries', location_id=str(location_id)))
+
 @inventory_bp.route('/location-inventory/<uuid:location_id>/assign', methods=['GET', 'POST'])
 @login_required
 @owner_required
@@ -913,23 +988,41 @@ def record_daily_usage():
             # Process the form submission
             usage_data = {}
             wastage_data = {}
+            consumed_data = {}  # store-manager simple mode: item_id -> qty used today
             staff_id = get_current_staff_id()
 
             if not staff_id:
                 flash('Your account is not linked to a staff record. Please contact an administrator.', 'error')
                 return redirect(request.url)
 
+            def _f(v):
+                try:
+                    return float(v)
+                except (TypeError, ValueError):
+                    return None
             for key, value in request.form.items():
                 if key.startswith('opening_'):
-                    item_id = key.replace('opening_', '')
-                    usage_data[item_id] = {'opening': float(value)}
+                    fv = _f(value)
+                    if fv is not None:
+                        usage_data[key.replace('opening_', '')] = {'opening': fv}
                 elif key.startswith('closing_'):
                     item_id = key.replace('closing_', '')
-                    if item_id in usage_data:
-                        usage_data[item_id]['closing'] = float(value)
+                    fv = _f(value)
+                    if item_id in usage_data and fv is not None:
+                        usage_data[item_id]['closing'] = fv
                 elif key.startswith('wastage_'):
-                    item_id = key.replace('wastage_', '')
-                    wastage_data[item_id] = float(value)
+                    fv = _f(value)
+                    if fv is not None:
+                        wastage_data[key.replace('wastage_', '')] = fv
+                elif key.startswith('used_'):
+                    fv = _f(value)
+                    if fv is not None:
+                        item_id = key.replace('used_', '')
+                        # Convert grams->kg and ml->L so stock stays in its base unit.
+                        unit = (request.form.get('unit_' + item_id) or '').strip().lower()
+                        if unit in ('g', 'gram', 'grams', 'ml', 'milliliter', 'millilitre', 'millilitres'):
+                            fv = fv / 1000.0
+                        consumed_data[item_id] = fv
 
             # Save usage records
             for item_id, data in usage_data.items():
@@ -958,6 +1051,36 @@ def record_daily_usage():
 
                 # The end-of-day count is the new stock level, so the manager's
                 # usage/wastage reduces the stock the owner sees.
+                execute_query("""
+                    UPDATE location_inventory
+                    SET current_stock = %s, last_updated = CURRENT_TIMESTAMP
+                    WHERE location_id = %s AND master_inventory_id = %s
+                """, (closing, location_id, item_id))
+
+            # Simple consumption mode (store managers): "I used X of this item".
+            # We subtract it from the current stock and add to today's usage.
+            for item_id, qty in consumed_data.items():
+                if not qty or qty <= 0:
+                    continue
+                cur = execute_query_one(
+                    "SELECT current_stock FROM location_inventory WHERE location_id=%s AND master_inventory_id=%s",
+                    (location_id, item_id))
+                if not cur:
+                    continue
+                opening = float(cur['current_stock'])
+                closing = max(opening - qty, 0)
+                execute_query("""
+                    INSERT INTO daily_inventory_usage (
+                        location_id, master_inventory_id, date, opening_stock,
+                        closing_stock, used_quantity, wastage_quantity, recorded_by
+                    ) VALUES (%s, %s, %s, %s, %s, %s, 0, %s)
+                    ON CONFLICT (location_id, master_inventory_id, date)
+                    DO UPDATE SET
+                        used_quantity = daily_inventory_usage.used_quantity + EXCLUDED.used_quantity,
+                        closing_stock = EXCLUDED.closing_stock,
+                        recorded_by = EXCLUDED.recorded_by,
+                        status = 'recorded'
+                """, (location_id, item_id, record_date, opening, closing, qty, staff_id))
                 execute_query("""
                     UPDATE location_inventory
                     SET current_stock = %s, last_updated = CURRENT_TIMESTAMP
@@ -1070,14 +1193,21 @@ def record_leftover_food():
                 flash('Your account is not linked to a staff record. Please contact an administrator.', 'error')
                 return redirect(request.url)
 
+            def _i(v):
+                try:
+                    return int(float(v))
+                except (TypeError, ValueError):
+                    return None
             for key, value in request.form.items():
                 if key.startswith('prepared_'):
-                    menu_item_id = key.replace('prepared_', '')
-                    leftover_data[menu_item_id] = {'prepared': int(value)}
+                    iv = _i(value)
+                    if iv is not None:
+                        leftover_data[key.replace('prepared_', '')] = {'prepared': iv}
                 elif key.startswith('sold_'):
                     menu_item_id = key.replace('sold_', '')
-                    if menu_item_id in leftover_data:
-                        leftover_data[menu_item_id]['sold'] = int(value)
+                    iv = _i(value)
+                    if menu_item_id in leftover_data and iv is not None:
+                        leftover_data[menu_item_id]['sold'] = iv
                 elif key.startswith('disposal_'):
                     menu_item_id = key.replace('disposal_', '')
                     if menu_item_id in leftover_data:

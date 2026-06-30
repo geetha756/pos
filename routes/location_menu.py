@@ -1,7 +1,8 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from database import execute_query, execute_query_one
 from .auth import login_required
 from security import scoped_location_id
+import os, re
 
 location_menu_bp = Blueprint('location_menu', __name__)
 
@@ -52,7 +53,7 @@ def manage(location_id):
 
         # Get all master menu items
         master_menu = execute_query("""
-            SELECT id, name, description, category, is_active
+            SELECT id, name, description, category, is_active, image_data
             FROM master_menu
             WHERE is_active = TRUE
             ORDER BY category, name
@@ -60,7 +61,9 @@ def manage(location_id):
 
         # Get current location menu items (only active ones)
         location_menu = execute_query("""
-            SELECT lm.id, mm.name, mm.description, lm.price, mm.category, lm.is_available, lm.id as location_menu_id
+            SELECT lm.id, mm.name, mm.description, lm.price, mm.category, lm.is_available,
+                   lm.id as location_menu_id, COALESCE(lm.section, 'all') AS section,
+                   lm.master_menu_id, mm.image_data
             FROM location_menu lm
             JOIN master_menu mm ON lm.master_menu_id = mm.id
             WHERE lm.location_id = %s AND lm.is_available = TRUE
@@ -100,6 +103,9 @@ def create_item(location_id):
     category = (request.form.get('category') or '').strip() or None
     description = (request.form.get('description') or '').strip() or None
     price = request.form.get('price')
+    section = (request.form.get('section') or 'all').strip().lower()
+    if section not in ('morning', 'evening', 'all'):
+        section = 'all'
 
     if not name:
         flash('Item name is required', 'error')
@@ -140,13 +146,13 @@ def create_item(location_id):
         )
         if existing:
             execute_query(
-                "UPDATE location_menu SET price = %s, is_available = TRUE WHERE id = %s",
-                (price, existing['id']),
+                "UPDATE location_menu SET price = %s, is_available = TRUE, section = %s WHERE id = %s",
+                (price, section, existing['id']),
             )
         else:
             execute_query(
-                "INSERT INTO location_menu (location_id, master_menu_id, price, is_available) VALUES (%s, %s, %s, TRUE)",
-                (location_id, master_id, price),
+                "INSERT INTO location_menu (location_id, master_menu_id, price, is_available, section) VALUES (%s, %s, %s, TRUE, %s)",
+                (location_id, master_id, price, section),
             )
         flash(f'"{name}" added to this store\'s menu!', 'success')
     except Exception as e:
@@ -214,17 +220,55 @@ def update_item(location_id, location_menu_id):
         return guard
     price = request.form.get('price')
     is_available = True  # Items remain available when updated
+    section = (request.form.get('section') or 'all').strip().lower()
+    if section not in ('morning', 'evening', 'all'):
+        section = 'all'
 
     try:
         execute_query("""
             UPDATE location_menu
-            SET price = %s, is_available = %s
+            SET price = %s, is_available = %s, section = %s
             WHERE id = %s AND location_id = %s
-        """, (float(price), is_available, location_menu_id, location_id))
+        """, (float(price), is_available, section, location_menu_id, location_id))
         flash('Menu item updated!', 'success')
     except Exception as e:
         flash(f'Error updating menu item: {str(e)}', 'error')
 
+    return redirect(url_for('location_menu.manage', location_id=location_id))
+
+@location_menu_bp.route('/<location_id>/upload-image/<master_menu_id>', methods=['POST'])
+@login_required
+def upload_item_image(location_id, master_menu_id):
+    """Upload (or replace) a dish photo for a menu item. Admin OR the store
+    manager can do this from the Location Menu. The photo is resized + saved as
+    a small JPEG and shown on the item everywhere it appears."""
+    guard = _deny_other_store(location_id)
+    if guard:
+        return guard
+    file = request.files.get('image')
+    if not file or not file.filename:
+        flash('Please choose an image to upload.', 'error')
+        return redirect(url_for('location_menu.manage', location_id=location_id))
+    try:
+        from PIL import Image
+        import time
+        img = Image.open(file.stream).convert('RGB')
+        w, h = img.size
+        if w > 700:
+            img = img.resize((700, int(h * 700 / w)), Image.LANCZOS)
+        folder = os.path.join(current_app.static_folder, 'menu-images')
+        os.makedirs(folder, exist_ok=True)
+        fname = 'item-%s.jpg' % re.sub(r'[^a-zA-Z0-9-]', '', str(master_menu_id))
+        img.save(os.path.join(folder, fname), 'JPEG', quality=85, optimize=True)
+        # ?v=timestamp busts the service-worker/browser cache so the new photo
+        # shows right away instead of the previously cached one.
+        url = '/static/menu-images/%s?v=%d' % (fname, int(time.time()))
+        execute_query(
+            "UPDATE master_menu SET image_data = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
+            (url, str(master_menu_id)))
+        flash('Photo updated!', 'success')
+    except Exception as e:
+        flash('Could not process that image: %s' % e, 'error')
     return redirect(url_for('location_menu.manage', location_id=location_id))
 
 @location_menu_bp.route('/<location_id>/remove/<location_menu_id>', methods=['POST'])

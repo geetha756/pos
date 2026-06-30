@@ -20,9 +20,14 @@ body {
  * Sidebar
  */
 
-.sidebar {
-  min-height: 100vh;
-  height: 100vh;
+/* Full-height sidebar only on wide screens (the two-column layout). Below the
+   lg breakpoint the menu is a slide-in drawer, so the wrapper must NOT reserve
+   a full screen of height. */
+@media (min-width: 992px) {
+  .sidebar {
+    min-height: 100vh;
+    height: 100vh;
+  }
 }
 
 .sidebar .offcanvas-body {
@@ -31,15 +36,7 @@ body {
   flex-direction: column;
 }
 
-@media (min-width: 768px) {
-  .sidebar .offcanvas-lg {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 16.666667%; /* col-lg-2 width */
-    height: 100vh;
-    z-index: 1000;
-  }
+@media (min-width: 992px) {
   .navbar-search {
     display: block;
   }
@@ -77,11 +74,7 @@ body {
  * Main content adjustments for fixed sidebar
  */
 
-@media (min-width: 992px) { /* lg breakpoint */
-  main {
-    margin-left: 16.666667%; /* Match sidebar width */
-  }
-}
+/* The .app-shell CSS grid positions <main> next to the sidebar; no margin needed. */
 
 /*
  * Navbar

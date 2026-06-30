@@ -1,58 +1,125 @@
 import psycopg2
 import psycopg2.extras
+import psycopg2.pool
 import os
+import threading
 from flask import current_app
 from typing import Optional, List, Dict, Any, Tuple
 import hashlib
 import secrets
 import json
 
+# ---------------------------------------------------------------------------
+# Connection pool — reuse connections instead of opening a new one per query.
+# This is a large speed-up: each request previously paid a full TCP + auth
+# handshake for every single query.
+# ---------------------------------------------------------------------------
+_pool = None
+_pool_lock = threading.Lock()
+
+
+def _get_pool():
+    global _pool
+    if _pool is None:
+        with _pool_lock:
+            if _pool is None:
+                _pool = psycopg2.pool.ThreadedConnectionPool(
+                    1, 10, dsn=current_app.config['DATABASE_URL']
+                )
+    return _pool
+
+
 def get_db_connection():
-    """Get database connection"""
+    """Borrow a pooled DB connection (falls back to a direct connect if pooling
+    is somehow unavailable)."""
     try:
-        conn = psycopg2.connect(current_app.config['DATABASE_URL'])
-        return conn
+        return _get_pool().getconn()
     except Exception as e:
         print(f"Database connection error: {e}")
-        raise
+        # Last-resort fallback so the app keeps working even if the pool breaks.
+        return psycopg2.connect(current_app.config['DATABASE_URL'])
+
+
+def _put(conn, broken=False):
+    """Return a connection to the pool (or close it if it's broken)."""
+    try:
+        _get_pool().putconn(conn, close=broken)
+    except Exception:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def _execute(query, params, fetch):
+    """fetch: 'all' | 'one' | None. Retries idempotent reads once if a pooled
+    connection turns out to be stale."""
+    for attempt in (1, 2):
+        conn = get_db_connection()
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) if fetch else conn.cursor()
+        try:
+            cursor.execute(query, params or ())
+            result = cursor.fetchall() if fetch == 'all' else (cursor.fetchone() if fetch == 'one' else None)
+            conn.commit()
+            cursor.close()
+            _put(conn)
+            return result
+        except (psycopg2.OperationalError, psycopg2.InterfaceError):
+            try:
+                cursor.close()
+            except Exception:
+                pass
+            _put(conn, broken=True)            # drop the stale/broken connection
+            if fetch and attempt == 1:
+                continue                        # safe to retry a read once
+            raise
+        except Exception:
+            try:
+                cursor.close()
+            except Exception:
+                pass
+            try:
+                conn.rollback()
+                _put(conn)                      # query error; connection still healthy
+            except Exception:
+                _put(conn, broken=True)
+            raise
+
 
 # Utility functions for database operations
 def execute_query(query, params=None, fetch=False):
-    """Execute a database query"""
-    conn = get_db_connection()
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor if fetch else None)
+    """Execute a database query."""
+    return _execute(query, params, 'all' if fetch else None)
 
-    try:
-        cursor.execute(query, params or ())
-        if fetch:
-            result = cursor.fetchall()
-        else:
-            result = None
-        conn.commit()
-        return result
-    except Exception as e:
-        conn.rollback()
-        raise e
-    finally:
-        cursor.close()
-        conn.close()
 
 def execute_query_one(query, params=None):
-    """Execute a query and fetch one result"""
-    conn = get_db_connection()
-    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    """Execute a query and fetch one result."""
+    return _execute(query, params, 'one')
 
+
+def execute_transaction(operations):
+    """Run several (query, params) statements in ONE transaction — all commit
+    together or none do. Use for multi-row writes that must stay consistent
+    (e.g. an order + its items), so a failure can never leave a half-saved row."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
     try:
-        cursor.execute(query, params or ())
-        result = cursor.fetchone()
+        for query, params in operations:
+            cursor.execute(query, params or ())
         conn.commit()
-        return result
-    except Exception as e:
-        conn.rollback()
-        raise e
-    finally:
         cursor.close()
-        conn.close()
+        _put(conn)
+    except Exception:
+        try:
+            cursor.close()
+        except Exception:
+            pass
+        try:
+            conn.rollback()
+            _put(conn)
+        except Exception:
+            _put(conn, broken=True)
+        raise
 
 
 def init_user_admin_schema():
@@ -91,6 +158,18 @@ def init_user_admin_schema():
     # can see an "Edited" marker on the order.
     execute_query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP")
     execute_query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS edited_by UUID")
+
+    # Self-healing migrations for features added over time. Every column uses
+    # "IF NOT EXISTS" so a deploy (fresh DB or existing) always converges to the
+    # right schema with no manual SQL — the safe pattern to follow when payroll
+    # and other modules are switched on later.
+    execute_query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method VARCHAR(20) DEFAULT 'cash'")
+    execute_query("ALTER TABLE location_menu ADD COLUMN IF NOT EXISTS section VARCHAR(20) DEFAULT 'all'")
+    # Idempotency key for offline order queue: a unique client id makes a
+    # re-sent / queued order return the same order instead of duplicating it.
+    execute_query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS client_order_id VARCHAR(64)")
+    execute_query("CREATE UNIQUE INDEX IF NOT EXISTS orders_client_order_id_uniq "
+                  "ON orders (client_order_id) WHERE client_order_id IS NOT NULL")
 
     # Permissions catalog
     execute_query(

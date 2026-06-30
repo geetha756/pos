@@ -6,9 +6,12 @@ import android.bluetooth.BluetoothAdapter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.net.Uri
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -23,6 +26,18 @@ class MainActivity : AppCompatActivity() {
     private val START_URL = "https://pos.snfifteen.com/"
     private lateinit var webView: WebView
     private lateinit var bridge: PrinterBridge
+
+    // Lets the web page's <input type="file"> (e.g. menu-item photo upload) open
+    // the Android file/camera picker. A WebView ignores file inputs without this.
+    private var filePathCallback: ValueCallback<Array<Uri>>? = null
+    private val fileChooserLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val cb = filePathCallback
+            filePathCallback = null
+            cb?.onReceiveValue(
+                WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data)
+            )
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,7 +62,63 @@ class MainActivity : AppCompatActivity() {
         android.webkit.CookieManager.getInstance().setAcceptCookie(true)
         android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
         webView.webViewClient = WebViewClient()       // keep navigation inside the app
-        webView.webChromeClient = WebChromeClient()
+        // Custom chrome client so "Choose File" on a web form opens the Android
+        // file/camera picker and hands the result back to the page.
+        webView.webChromeClient = object : WebChromeClient() {
+            override fun onShowFileChooser(
+                view: WebView?,
+                callback: ValueCallback<Array<Uri>>?,
+                params: FileChooserParams?
+            ): Boolean {
+                filePathCallback?.onReceiveValue(null)   // cancel any pending one
+                filePathCallback = callback
+                return try {
+                    val intent = params?.createIntent() ?: throw IllegalStateException("no intent")
+                    fileChooserLauncher.launch(intent)
+                    true
+                } catch (e: Exception) {
+                    filePathCallback = null
+                    android.widget.Toast.makeText(
+                        applicationContext, "Couldn't open the file picker.",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                    false
+                }
+            }
+        }
+
+        // A WebView ignores file downloads (e.g. the Sales PDF) unless we handle
+        // them. Hand the URL to Android's DownloadManager, passing the login
+        // cookie so the authenticated PDF route can be fetched, and save it to
+        // the device's Downloads folder with a completion notification.
+        webView.setDownloadListener { url, userAgent, contentDisposition, mimetype, _ ->
+            try {
+                val request = android.app.DownloadManager.Request(android.net.Uri.parse(url))
+                android.webkit.CookieManager.getInstance().getCookie(url)?.let {
+                    request.addRequestHeader("Cookie", it)
+                }
+                request.addRequestHeader("User-Agent", userAgent)
+                val fileName = android.webkit.URLUtil.guessFileName(url, contentDisposition, mimetype)
+                request.setMimeType(mimetype)
+                request.setTitle(fileName)
+                request.setDescription("Downloading from Sip & Snack")
+                request.setNotificationVisibility(
+                    android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+                )
+                request.setDestinationInExternalPublicDir(
+                    android.os.Environment.DIRECTORY_DOWNLOADS, fileName
+                )
+                (getSystemService(android.content.Context.DOWNLOAD_SERVICE) as android.app.DownloadManager)
+                    .enqueue(request)
+                android.widget.Toast.makeText(
+                    applicationContext, "Downloading $fileName…", android.widget.Toast.LENGTH_SHORT
+                ).show()
+            } catch (e: Exception) {
+                android.widget.Toast.makeText(
+                    applicationContext, "Download failed: ${e.message}", android.widget.Toast.LENGTH_LONG
+                ).show()
+            }
+        }
 
         bridge = PrinterBridge(this) { runnable -> runOnUiThread(runnable) }
         webView.addJavascriptInterface(bridge, "SnsPrinter")

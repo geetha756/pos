@@ -11,7 +11,7 @@
 
     <!-- Progressive Web App (installable) -->
     <link rel="manifest" href="/manifest.webmanifest">
-    <meta name="theme-color" content="#0d6efd">
+    <meta name="theme-color" content="#1d2433">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Sip & Snack">
@@ -34,7 +34,7 @@
 
     <style>
         body {
-            background: #f8fafc;
+            background: #f4f3ef;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -189,28 +189,7 @@
 <body>
     <div class="login-container">
         <div class="logo-container">
-            <svg class="logo" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <!-- Coffee Cup -->
-                <rect x="20" y="35" width="25" height="20" rx="3" fill="#8B4513" stroke="#654321" stroke-width="2"/>
-                <rect x="22" y="37" width="21" height="16" rx="2" fill="#D2691E"/>
-                <rect x="45" y="40" width="3" height="8" rx="1" fill="#8B4513"/>
-                <circle cx="25" cy="45" r="1" fill="#654321"/>
-                <circle cx="30" cy="48" r="1" fill="#654321"/>
-                
-                <!-- Cookie -->
-                <circle cx="55" cy="25" r="12" fill="#DEB887" stroke="#CD853F" stroke-width="2"/>
-                <circle cx="52" cy="22" r="1" fill="#8B4513"/>
-                <circle cx="58" cy="25" r="1" fill="#8B4513"/>
-                <circle cx="55" cy="30" r="1" fill="#8B4513"/>
-                <circle cx="50" cy="28" r="1" fill="#8B4513"/>
-                
-                <!-- Bite mark -->
-                <path d="M62 25C62 25 60 23 58 25C56 27 62 29 62 29V25Z" fill="white"/>
-                
-                <!-- Steam -->
-                <path d="M30 30C30 30 28 28 30 26C32 24 30 22 30 22" stroke="#D2691E" stroke-width="2" fill="none"/>
-                <path d="M35 28C35 28 33 26 35 24C37 22 35 20 35 20" stroke="#D2691E" stroke-width="2" fill="none"/>
-            </svg>
+            <img class="logo" src="{{ url_for('static', filename='img/sn15-logo-transparent.png') }}" alt="Sip & Snack" style="object-fit:contain;">
         </div>
         <div class="login-header">
             <h1>Sip & Snack Portal</h1>
