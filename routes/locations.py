@@ -126,6 +126,9 @@ def delete(location_id):
     try:
         execute_query("DELETE FROM locations WHERE id = %s", (location_id,))
         flash('Location deleted successfully!', 'success')
+    except psycopg2.errors.ForeignKeyViolation:
+        flash('Cannot delete this location — it still has staff, orders, menu items, '
+              'or other records assigned to it. Reassign or remove those first.', 'error')
     except Exception as e:
         flash(f'Error deleting location: {str(e)}', 'error')
     return redirect(url_for('locations.index'))
