@@ -96,6 +96,13 @@ def get_or_create_current_user() -> Optional[Dict[str, Any]]:
         execute_query("UPDATE users SET role=%s WHERE id=%s", (ROLE_ADMIN, user['id']))
         user['role'] = ROLE_ADMIN
 
+    # A deactivated user has no current-user identity — every login_required /
+    # permission_required check downstream treats this exactly like "not
+    # logged in", which is what makes deactivation actually revoke access.
+    if user and user.get('is_active') is False:
+        g._sn_current_user = None
+        return None
+
     g._sn_current_user = user
     return user
 

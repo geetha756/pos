@@ -122,10 +122,16 @@ def check_name():
 @locations_bp.route('/delete/<location_id>', methods=['POST'])
 @login_required
 def delete(location_id):
-    """Delete location"""
+    """Delete location. If staff, orders, or other records are still linked to
+    this location, the database blocks the delete so we never orphan them or
+    lose sales history; we catch that and show a clear message instead of the
+    raw SQL error."""
     try:
         execute_query("DELETE FROM locations WHERE id = %s", (location_id,))
         flash('Location deleted successfully!', 'success')
+    except psycopg2.IntegrityError:
+        flash("Can't delete this location because staff, orders, or other records "
+              "are still linked to it. Please reassign or remove those first, then try again.", 'error')
     except Exception as e:
         flash(f'Error deleting location: {str(e)}', 'error')
     return redirect(url_for('locations.index'))

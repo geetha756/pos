@@ -145,6 +145,12 @@ def index():
         store = scoped_location_id()
         if store:
             location_filter = store
+        else:
+            # Orders page is locked to Amaravathi only — no cross-location
+            # view and no "All Locations" option for any role.
+            amaravathi = execute_query_one("SELECT id FROM locations WHERE name = %s", ('Amaravathi',))
+            if amaravathi:
+                location_filter = str(amaravathi['id'])
 
         # Shared WHERE clause for both the count and the page query.
         where = " WHERE 1=1"
@@ -172,22 +178,19 @@ def index():
 
         query = ("""
             SELECT o.id, o.order_number, o.customer_name, o.customer_phone, o.order_type,
-                   o.status, o.total_amount, o.created_at, o.updated_at, o.edited_at,
+                   o.status, o.total_amount, o.created_at, o.updated_at, o.edited_at, o.payment_method,
                    l.name as location_name, l.city as location_city
             FROM orders o
             LEFT JOIN locations l ON o.location_id = l.id"""
             + where + " ORDER BY o.created_at DESC LIMIT %s OFFSET %s")
         orders = execute_query(query, tuple(params) + (per_page, (page - 1) * per_page), fetch=True)
 
-        # Get locations for filter dropdown — a store manager only ever sees
-        # their own store, so don't offer other locations (or "All Locations").
-        if store:
-            locations = execute_query("SELECT id, name, city FROM locations WHERE id = %s", (store,), fetch=True)
-        else:
-            locations = execute_query("SELECT id, name, city FROM locations ORDER BY name", fetch=True)
+        # Get locations for filter dropdown — locked to a single location
+        # (the store manager's own store, or Amaravathi), never "All Locations".
+        locations = execute_query("SELECT id, name, city FROM locations WHERE id = %s", (location_filter,), fetch=True) if location_filter else []
 
         # Stats follow the selected date range (default: today).
-        stats = get_order_stats(store, date_from, date_to)
+        stats = get_order_stats(location_filter, date_from, date_to)
 
         return render_template('orders/index.html',
                              orders=orders or [],
@@ -240,7 +243,9 @@ def sales_report_pdf():
     # orders are never counted), so the per-item breakdown and the Cash/PhonePe
     # payment totals always reconcile to the exact same grand total.
     rows = execute_query("""
-        SELECT DATE(o.created_at + INTERVAL '5 hours 30 minutes') AS day, COALESCE(lm.section, 'all') AS section,
+        SELECT DATE(o.created_at + INTERVAL '5 hours 30 minutes') AS day,
+               CASE WHEN (o.created_at + INTERVAL '5 hours 30 minutes')::time <= TIME '13:00:00'
+                    THEN 'morning' ELSE 'evening' END AS section,
                oi.item_name, SUM(oi.quantity) AS plates, SUM(oi.total_price) AS revenue
         FROM order_items oi
         JOIN orders o ON o.id = oi.order_id
@@ -248,7 +253,9 @@ def sales_report_pdf():
         WHERE o.status = 'completed' AND o.location_id = %s
           AND DATE(o.created_at + INTERVAL '5 hours 30 minutes') >= %s
           AND DATE(o.created_at + INTERVAL '5 hours 30 minutes') <= %s
-        GROUP BY DATE(o.created_at + INTERVAL '5 hours 30 minutes'), COALESCE(lm.section, 'all'), oi.item_name
+        GROUP BY DATE(o.created_at + INTERVAL '5 hours 30 minutes'),
+                 CASE WHEN (o.created_at + INTERVAL '5 hours 30 minutes')::time <= TIME '13:00:00'
+                      THEN 'morning' ELSE 'evening' END, oi.item_name
         ORDER BY day, section, oi.item_name
     """, (location_id, date_from, date_to), fetch=True) or []
 

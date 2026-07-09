@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from database import execute_query, execute_query_one, create_api_key, revoke_api_key, record_audit_log
 from .auth import login_required
-from security import permission_required
+from security import permission_required, get_or_create_current_user
 
 users_bp = Blueprint('users', __name__)
 
@@ -90,6 +90,53 @@ def edit(user_id):
     departments = execute_query("SELECT id, name FROM departments WHERE is_active=TRUE ORDER BY name", fetch=True) or []
     locations = execute_query("SELECT id, name, city FROM locations ORDER BY name", fetch=True) or []
     return render_template('users/edit.html', user=user, positions=positions, departments=departments, locations=locations)
+
+
+@users_bp.route('/<user_id>/deactivate', methods=['POST'])
+@login_required
+@permission_required('users.delete')
+def deactivate(user_id):
+    """Soft-delete a user: flips is_active off instead of removing the row,
+    so order/audit history that references them stays intact. Enforced at the
+    auth layer (get_or_create_current_user) so it actually revokes access,
+    not just hides them from this list."""
+    target = execute_query_one("SELECT id, email, is_active FROM users WHERE id=%s", (user_id,))
+    if not target:
+        flash('User not found', 'error')
+        return redirect(url_for('users.index'))
+
+    current_user = get_or_create_current_user()
+    if current_user and str(current_user['id']) == str(user_id):
+        flash("You can't deactivate your own account.", 'error')
+        return redirect(url_for('users.index'))
+
+    execute_query("UPDATE users SET is_active=FALSE, updated_at=CURRENT_TIMESTAMP WHERE id=%s", (user_id,))
+    record_audit_log(actor_user_id=current_user['id'] if current_user else None, actor_api_key_id=None,
+                      action='user.deactivate', target_type='user', target_id=user_id, route=request.path,
+                      method=request.method, status_code=200, ip_address=request.remote_addr,
+                      user_agent=request.headers.get('User-Agent'), success=True, metadata={'email': target['email']})
+    flash(f"User {target['email']} has been deactivated.", 'success')
+    return redirect(url_for('users.index'))
+
+
+@users_bp.route('/<user_id>/reactivate', methods=['POST'])
+@login_required
+@permission_required('users.delete')
+def reactivate(user_id):
+    """Undo a deactivation — restores login access for the user."""
+    target = execute_query_one("SELECT id, email FROM users WHERE id=%s", (user_id,))
+    if not target:
+        flash('User not found', 'error')
+        return redirect(url_for('users.index'))
+
+    current_user = get_or_create_current_user()
+    execute_query("UPDATE users SET is_active=TRUE, updated_at=CURRENT_TIMESTAMP WHERE id=%s", (user_id,))
+    record_audit_log(actor_user_id=current_user['id'] if current_user else None, actor_api_key_id=None,
+                      action='user.reactivate', target_type='user', target_id=user_id, route=request.path,
+                      method=request.method, status_code=200, ip_address=request.remote_addr,
+                      user_agent=request.headers.get('User-Agent'), success=True, metadata={'email': target['email']})
+    flash(f"User {target['email']} has been reactivated.", 'success')
+    return redirect(url_for('users.index'))
 
 
 @users_bp.route('/<user_id>')

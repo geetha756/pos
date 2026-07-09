@@ -119,8 +119,7 @@
         <form method="GET" class="row g-3">
             <div class="col-sm-6 col-lg-3">
                 <label for="location" class="form-label">Location</label>
-                <select class="form-select" id="location" name="location" onchange="this.form.submit()"{% if is_store_manager() %} disabled{% endif %}>
-                    {% if not is_store_manager() %}<option value="">All Locations</option>{% endif %}
+                <select class="form-select" id="location" name="location" onchange="this.form.submit()" disabled>
                     {% for location in locations %}
                     <option value="{{ location.id }}" {% if filters.location == location.id|string %}selected{% endif %}>
                         {{ location.name }}
@@ -167,6 +166,7 @@
                         <th>Status</th>
                         <th>Total</th>
                         <th>Date</th>
+                        <th>Payment</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -190,6 +190,13 @@
                         </td>
                         <td>₹{{ "%.2f"|format(order.total_amount) }}</td>
                         <td>{{ order.created_at | ist }}</td>
+                        <td>
+                            {% if order.payment_method == 'phonepe' %}
+                                <span class="badge bg-primary">PhonePe</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Cash</span>
+                            {% endif %}
+                        </td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group" aria-label="Order actions">
                                 <a href="{{ url_for('orders.view', order_id=order.id) }}" class="btn btn-outline-secondary" title="View">
@@ -225,6 +232,8 @@
                             </a>
                             <div class="small text-muted text-truncate">
                                 {{ order.location_name }} · {{ order.created_at | ist('%d %b, %I:%M %p') }}
+                                ·
+                                {% if order.payment_method == 'phonepe' %}PhonePe{% else %}Cash{% endif %}
                             </div>
                         </div>
                         {% if order.status == 'cancelled' %}

@@ -41,6 +41,17 @@
                             <td>
                                 <a class="btn btn-sm btn-outline-primary" href="{{ url_for('users.view', user_id=u.id) }}">View</a>
                                 <a class="btn btn-sm btn-outline-success" href="{{ url_for('users.edit', user_id=u.id) }}">Edit</a>
+                                {% if has_perm('users.delete') and session.get('user_uuid') != u.id|string %}
+                                    {% if u.is_active %}
+                                    <form method="POST" action="{{ url_for('users.deactivate', user_id=u.id) }}" class="d-inline" onsubmit="return confirm('Deactivate {{ u.email }}? They will be signed out and unable to log back in until reactivated.');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                    </form>
+                                    {% else %}
+                                    <form method="POST" action="{{ url_for('users.reactivate', user_id=u.id) }}" class="d-inline" onsubmit="return confirm('Reactivate {{ u.email }}?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary">Reactivate</button>
+                                    </form>
+                                    {% endif %}
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}

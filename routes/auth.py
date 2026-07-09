@@ -169,6 +169,13 @@ def process_auth():
             except Exception as e:
                 print(f"Failed to upsert user: {e}")
 
+            # A deactivated account may not sign in, even with a valid Google
+            # token — undo the session flags set above and bounce to login.
+            if user_row and user_row.get('is_active') is False:
+                session.clear()
+                flash('Your account has been deactivated. Contact your administrator.', 'error')
+                return redirect(url_for('auth.login'))
+
             # If an admin pinned this store manager to a store, lock them to it
             # (skips the picker; they can't see other stores).
             try:
@@ -252,5 +259,15 @@ def login_required(f):
             except Exception as e:
                 # Fallback if url_for fails
                 return redirect('/login')
+
+        # Catches an account deactivated mid-session — the next request after
+        # an admin flips is_active off signs them out instead of letting an
+        # already-authenticated session keep working.
+        from security import get_or_create_current_user
+        if get_or_create_current_user() is None:
+            session.clear()
+            flash('Your account is inactive. Contact your administrator.', 'error')
+            return redirect(url_for('auth.login'))
+
         return f(*args, **kwargs)
     return decorated_function

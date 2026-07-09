@@ -54,6 +54,15 @@
 
                             <dt class="col-sm-4">Total Amount:</dt>
                             <dd class="col-sm-8"><strong>₹{{ "%.2f"|format(order.total_amount) }}</strong></dd>
+
+                            <dt class="col-sm-4">Payment Method:</dt>
+                            <dd class="col-sm-8">
+                                {% if order.payment_method == 'phonepe' %}
+                                    <span class="badge bg-primary">PhonePe</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Cash</span>
+                                {% endif %}
+                            </dd>
                         </dl>
                     </div>
                     <div class="col-md-6">
