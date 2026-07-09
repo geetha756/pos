@@ -35,8 +35,9 @@
     <i class="ri-calendar-line"></i> Showing: <span class="fw-bold text-dark">{{ stats.period_label }}</span>
     <span class="text-muted">— pick a date range to change this</span>
 </div>
-<div class="row mb-4">
-    <div class="col-6 col-md-3 mb-2">
+{% set _show_payment_split = (current_role() == 'admin') %}
+<div class="row mb-4 g-2 row-cols-2 {{ 'row-cols-md-3 row-cols-xl-6' if _show_payment_split else 'row-cols-md-4' }}">
+    <div class="col mb-2">
         <div class="card stats-card stats-card-info h-100">
             <div class="card-body">
                 <div class="stats-content">
@@ -53,7 +54,7 @@
             </div>
         </div>
     </div>
-    <div class="col-6 col-md-3 mb-2">
+    <div class="col mb-2">
         <div class="card stats-card stats-card-warning h-100">
             <div class="card-body">
                 <div class="stats-content">
@@ -70,7 +71,7 @@
             </div>
         </div>
     </div>
-    <div class="col-6 col-md-3 mb-2">
+    <div class="col mb-2">
         <div class="card stats-card stats-card-success h-100">
             <div class="card-body">
                 <div class="stats-content">
@@ -87,7 +88,7 @@
             </div>
         </div>
     </div>
-    <div class="col-6 col-md-3 mb-2">
+    <div class="col mb-2">
         <div class="card stats-card stats-card-primary h-100">
             <div class="card-body">
                 <div class="stats-content">
@@ -104,6 +105,42 @@
             </div>
         </div>
     </div>
+    {% if _show_payment_split %}
+    <div class="col mb-2">
+        <div class="card stats-card stats-card-cash h-100">
+            <div class="card-body">
+                <div class="stats-content">
+                    <div class="stats-header">
+                        <div class="stats-text">
+                            <div class="stats-title">Cash Orders</div>
+                            <div class="stats-value">{{ stats.cash_orders }}</div>
+                        </div>
+                        <div class="stats-icon">
+                            <i class="ri-cash-line icon"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col mb-2">
+        <div class="card stats-card stats-card-phonepe h-100">
+            <div class="card-body">
+                <div class="stats-content">
+                    <div class="stats-header">
+                        <div class="stats-text">
+                            <div class="stats-title">PhonePe Orders</div>
+                            <div class="stats-value">{{ stats.phonepe_orders }}</div>
+                        </div>
+                        <div class="stats-icon">
+                            <i class="ri-smartphone-line icon"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Filters -->
