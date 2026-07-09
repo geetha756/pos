@@ -129,7 +129,7 @@ def delete(location_id):
     try:
         execute_query("DELETE FROM locations WHERE id = %s", (location_id,))
         flash('Location deleted successfully!', 'success')
-    except psycopg2.IntegrityError:
+    except psycopg2.errors.ForeignKeyViolation:
         flash("Can't delete this location because staff, orders, or other records "
               "are still linked to it. Please reassign or remove those first, then try again.", 'error')
     except Exception as e:
