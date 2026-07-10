@@ -36,7 +36,7 @@
     <span class="text-muted">— pick a date range to change this</span>
 </div>
 {% set _show_payment_split = (current_role() == 'admin') %}
-<div class="row mb-4 g-2 row-cols-2 {{ 'row-cols-md-3 row-cols-xl-6' if _show_payment_split else 'row-cols-md-4' }}">
+<div class="row mb-4 g-2 row-cols-2 {{ 'row-cols-md-3 row-cols-xxl-6' if _show_payment_split else 'row-cols-md-4' }}">
     <div class="col mb-2">
         <div class="card stats-card stats-card-info h-100">
             <div class="card-body">
@@ -112,8 +112,8 @@
                 <div class="stats-content">
                     <div class="stats-header">
                         <div class="stats-text">
-                            <div class="stats-title">Cash Orders</div>
-                            <div class="stats-value">{{ stats.cash_orders }}</div>
+                            <div class="stats-title">Cash Revenue</div>
+                            <div class="stats-value">₹{{ "%.2f"|format(stats.cash_revenue) }}</div>
                         </div>
                         <div class="stats-icon">
                             <i class="ri-cash-line icon"></i>
@@ -129,8 +129,8 @@
                 <div class="stats-content">
                     <div class="stats-header">
                         <div class="stats-text">
-                            <div class="stats-title">PhonePe Orders</div>
-                            <div class="stats-value">{{ stats.phonepe_orders }}</div>
+                            <div class="stats-title">PhonePe Revenue</div>
+                            <div class="stats-value">₹{{ "%.2f"|format(stats.phonepe_revenue) }}</div>
                         </div>
                         <div class="stats-icon">
                             <i class="ri-smartphone-line icon"></i>

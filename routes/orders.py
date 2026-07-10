@@ -210,9 +210,15 @@ def index():
             'total_orders': 0,
             'total_revenue': 0.0,
             'pending_orders': 0,
+            'cancelled_orders': 0,
             'completed_orders': 0,
             'today_orders': 0,
-            'today_revenue': 0.0
+            'today_revenue': 0.0,
+            'cash_orders': 0,
+            'cash_revenue': 0.0,
+            'phonepe_orders': 0,
+            'phonepe_revenue': 0.0,
+            'period_label': 'Today',
         }, filters={})
 
 @orders_bp.route('/report.pdf')
@@ -474,7 +480,9 @@ def get_order_stats(location_id=None, date_from=None, date_to=None):
         'today_orders': 0,
         'today_revenue': 0.0,
         'cash_orders': 0,
+        'cash_revenue': 0.0,
         'phonepe_orders': 0,
+        'phonepe_revenue': 0.0,
         'period_label': 'Today',
     }
 
@@ -518,12 +526,16 @@ def get_order_stats(location_id=None, date_from=None, date_to=None):
 
         # Payment split (admin-only card) — same "sales = not cancelled" scope as total_orders.
         result = execute_query_one(
-            "SELECT COUNT(*) AS count FROM orders WHERE status != 'cancelled' AND COALESCE(payment_method, 'cash') = 'cash'" + where, params)
+            "SELECT COUNT(*) AS count, COALESCE(SUM(total_amount), 0) AS revenue "
+            "FROM orders WHERE status != 'cancelled' AND COALESCE(payment_method, 'cash') = 'cash'" + where, params)
         stats['cash_orders'] = result['count'] if result else 0
+        stats['cash_revenue'] = float(result['revenue']) if result else 0.0
 
         result = execute_query_one(
-            "SELECT COUNT(*) AS count FROM orders WHERE status != 'cancelled' AND payment_method = 'phonepe'" + where, params)
+            "SELECT COUNT(*) AS count, COALESCE(SUM(total_amount), 0) AS revenue "
+            "FROM orders WHERE status != 'cancelled' AND payment_method = 'phonepe'" + where, params)
         stats['phonepe_orders'] = result['count'] if result else 0
+        stats['phonepe_revenue'] = float(result['revenue']) if result else 0.0
     except Exception as e:
         print(f"Error getting order stats: {e}")
 
