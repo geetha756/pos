@@ -73,8 +73,8 @@ def assetlinks():
 def manifest():
     """Web app manifest so the portal can be installed like a native app."""
     data = {
-        "name": "Sip & Snack Portal",
-        "short_name": "Sip & Snack",
+        "name": os.getenv('APP_NAME', 'Sip & Snack Portal'),
+        "short_name": os.getenv('APP_SHORT_NAME', 'Sip & Snack'),
         "description": "Restaurant Chain Management Portal",
         "start_url": "/",
         "scope": "/",
