@@ -156,7 +156,7 @@ function addToCart(locationMenuId, itemName, price, masterMenuId) {
         updateCartDisplay();
     } catch (error) {
         console.error('Error in addToCart:', error);
-        alert('Error adding item to cart: ' + error.message);
+        showToast('danger', 'Error adding item to cart: ' + error.message);
     }
 }
 
@@ -241,7 +241,7 @@ function updateCartDisplay() {
 
 function showOrderSummary() {
     if (Object.keys(cart).length === 0) {
-        alert('Your cart is empty!');
+        showToast('warning', 'Your cart is empty!');
         return;
     }
 
@@ -327,15 +327,18 @@ function placeOrderDirectly() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Order placed successfully! Order #' + data.order_number);
-            window.location.href = '/orders/' + data.order_id;
+            // Brief delay before navigating away so the order number is
+            // actually readable — a toast that vanished mid-redirect would
+            // defeat the point of showing it.
+            showToast('success', 'Order placed successfully! Order #' + data.order_number);
+            setTimeout(() => { window.location.href = '/orders/' + data.order_id; }, 1200);
         } else {
-            alert('Error placing order: ' + data.error);
+            showToast('danger', 'Error placing order: ' + data.error);
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error placing order. Please try again.');
+        showToast('danger', 'Error placing order. Please try again.');
     });
 }
 
@@ -355,7 +358,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 addToCart(itemId, itemName, itemPrice, masterId);
             } catch (error) {
                 console.error('Error adding item to cart:', error);
-                alert('Error adding item to cart: ' + error.message);
+                showToast('danger', 'Error adding item to cart: ' + error.message);
             }
         });
     });

@@ -1000,6 +1000,18 @@
     /* Tables — lighter, roomier */
     .table thead th { color: var(--sns-ink-soft); border-bottom: 1px solid var(--sns-border); }
     .table td, .table th { border-color: var(--sns-border); }
+
+    /* Bootstrap has no purple utility — used for payroll-expense stats to
+       keep them visually distinct from order revenue (both money, but from
+       different domains) without reaching for an inline style each time. */
+    .text-purple { color: #6f42c1 !important; }
+    .bg-purple { background-color: #6f42c1 !important; color: #fff !important; }
+
+    /* Comfortable tap height for action buttons in mobile-card rows (Orders,
+       Inventory) without widening btn-sm's compact horizontal padding — a
+       few buttons side by side on a phone can't afford full btn-default
+       width, but still need >=40px of tap height per touch-target guidance. */
+    .btn-touch.btn-sm { min-height: 40px; padding-top: .5rem; padding-bottom: .5rem; }
     </style>
 
     {% block extra_head %}{% endblock %}
@@ -1391,6 +1403,35 @@
                 
                 // Set initial state
                 updateIconRotation();
+            });
+        });
+    </script>
+
+    <script>
+        // Shared toast helper — one consistent, auto-dismissing notification
+        // style for AJAX feedback across every page, instead of each page
+        // rolling its own (or falling back to a blocking native alert()).
+        window.showToast = function (type, message) {
+            var div = document.createElement('div');
+            div.className = 'alert alert-' + type + ' alert-dismissible fade show position-fixed';
+            div.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px; max-width: 90vw;';
+            div.innerHTML = message + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+            document.body.appendChild(div);
+            setTimeout(function () {
+                if (div.parentNode) div.remove();
+            }, 5000);
+        };
+
+        // Server-rendered flash messages: auto-dismiss the low-stakes ones
+        // (success/info) after a few seconds, same as the toast helper above.
+        // Errors/warnings stay put until the user closes them — those often
+        // need to be read and acted on, not just glanced at.
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('main .alert-success, main .alert-info').forEach(function (el) {
+                setTimeout(function () {
+                    var alert = bootstrap.Alert.getOrCreateInstance(el);
+                    alert.close();
+                }, 6000);
             });
         });
     </script>

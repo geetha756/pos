@@ -165,13 +165,13 @@ function saveOrder() {
         if (data.success) {
             window.location.href = '{{ url_for("orders.view", order_id=order.id) }}';
         } else {
-            alert('Could not save: ' + (data.error || 'unknown error'));
+            showToast('danger', 'Could not save: ' + (data.error || 'unknown error'));
             btn.disabled = false;
             btn.innerHTML = '<i class="ri-save-line icon me-1"></i>Save Changes';
         }
     })
     .catch(function (err) {
-        alert('Error saving: ' + err.message);
+        showToast('danger', 'Error saving: ' + err.message);
         btn.disabled = false;
         btn.innerHTML = '<i class="ri-save-line icon me-1"></i>Save Changes';
     });

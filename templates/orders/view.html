@@ -187,11 +187,11 @@ function cancelOrder(orderId) {
         if (data && data.success) {
             window.location.reload();
         } else {
-            alert('Could not cancel the order: ' + ((data && data.error) || 'please try again.'));
+            showToast('danger', 'Could not cancel the order: ' + ((data && data.error) || 'please try again.'));
         }
     })
     .catch(function () {
-        alert('Network issue — the order was not cancelled. Please check your connection and try again.');
+        showToast('danger', 'Network issue — the order was not cancelled. Please check your connection and try again.');
     });
 }
 </script>

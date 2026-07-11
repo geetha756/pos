@@ -284,14 +284,14 @@
                     <div class="d-flex justify-content-between align-items-center mt-2">
                         <div class="fw-bold fs-5">₹{{ "%.2f"|format(order.total_amount) }}</div>
                         <div class="d-flex gap-1">
-                            <a href="{{ url_for('orders.view', order_id=order.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                            <a href="{{ url_for('orders.view', order_id=order.id) }}" class="btn btn-sm btn-touch btn-outline-primary">View</a>
                             {% if order.status != 'cancelled' %}
                             {% if has_perm('orders.edit') %}
-                            <a href="{{ url_for('orders.edit_order', order_id=order.id) }}" class="btn btn-sm btn-outline-warning">
+                            <a href="{{ url_for('orders.edit_order', order_id=order.id) }}" class="btn btn-sm btn-touch btn-outline-warning">
                                 <i class="ri-pencil-line"></i>
                             </a>
                             {% endif %}
-                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="cancelOrder('{{ order.id }}')">Cancel</button>
+                            <button type="button" class="btn btn-sm btn-touch btn-outline-danger" onclick="cancelOrder('{{ order.id }}')">Cancel</button>
                             {% endif %}
                         </div>
                     </div>
@@ -301,7 +301,7 @@
         </div>
         {% else %}
         <div class="text-center py-5">
-<i class="ri-file-text-line icon mb-3" style="font-size: 48px;"></i>
+<i class="ri-file-text-line icon text-muted mb-3" style="font-size: 48px;"></i>
             <h5 class="text-muted">No orders found</h5>
             <p class="text-muted">Orders from all locations will appear here.</p>
         </div>
@@ -343,11 +343,11 @@ function cancelOrder(orderId) {
         if (data && data.success) {
             window.location.reload();
         } else {
-            alert('Could not cancel the order: ' + ((data && data.error) || 'please try again.'));
+            showToast('danger', 'Could not cancel the order: ' + ((data && data.error) || 'please try again.'));
         }
     })
     .catch(function () {
-        alert('Network issue — the order was not cancelled. Please check your connection and try again.');
+        showToast('danger', 'Network issue — the order was not cancelled. Please check your connection and try again.');
     });
 }
 

@@ -114,7 +114,7 @@ function previewImage(input) {
         // Validate file type
         const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
         if (!allowedTypes.includes(file.type)) {
-            alert('Please select a valid image file (JPEG, PNG, GIF, or WebP).');
+            showToast('warning', 'Please select a valid image file (JPEG, PNG, GIF, or WebP).');
             input.value = '';
             return;
         }
@@ -122,7 +122,7 @@ function previewImage(input) {
         // Validate file size (max 5MB)
         const maxSize = 5 * 1024 * 1024; // 5MB
         if (file.size > maxSize) {
-            alert('Image file is too large. Please select an image smaller than 5MB.');
+            showToast('warning', 'Image file is too large. Please select an image smaller than 5MB.');
             input.value = '';
             return;
         }
@@ -224,7 +224,7 @@ document.getElementById('image_file').addEventListener('change', function(e) {
         const hasValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
 
         if (!hasValidExtension) {
-            alert('Please select a valid image file.');
+            showToast('warning', 'Please select a valid image file.');
             e.target.value = '';
             return;
         }

@@ -416,7 +416,7 @@ function placeOrder() {
             btn.innerHTML = '<i class="ri-check-line icon me-1"></i>Order placed ✓';
             showOrderSuccess(data.order_number, total, note, function () { goNext(data.order_number); });
         } else {
-            alert('Could not place order: ' + (data.error || 'unknown error'));
+            showToast('danger', 'Could not place order: ' + (data.error || 'unknown error'));
             btn.disabled = false;
             btn.innerHTML = '<i class="ri-check-line icon me-1"></i>Place Order';
         }

@@ -152,7 +152,7 @@
                             <span class="text-muted">{{ row.unit|unit_label }}</span>
                             <span class="text-muted small ms-1">min {{ row.minimum_stock_level }} · reorder {{ row.reorder_point }}</span>
                         </div>
-                        <a class="btn btn-sm btn-outline-primary flex-shrink-0"
+                        <a class="btn btn-sm btn-touch btn-outline-primary flex-shrink-0"
                            href="{{ url_for('inventory.adjust_inventory', location_id=row.location_id, item_id=row.master_inventory_id) }}">
                             <i class="ri-edit-line icon me-1"></i>Adjust
                         </a>
@@ -163,9 +163,9 @@
             {% endfor %}
         </div>
         {% else %}
-        <div class="text-center py-4">
-            <i class="ri-archive-stack-line icon text-muted" style="font-size: 3rem;"></i>
-            <h6 class="text-muted mt-2">No items {% if is_owner %}match your filters{% else %}have been assigned to your store yet{% endif %}</h6>
+        <div class="text-center text-muted py-4">
+            <i class="ri-archive-stack-line icon" style="font-size: 3rem;"></i>
+            <h6 class="mt-2 mb-0">No items {% if is_owner %}match your filters{% else %}have been assigned to your store yet{% endif %}</h6>
         </div>
         {% endif %}
     </div>

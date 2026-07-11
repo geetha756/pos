@@ -113,10 +113,10 @@
                 <div class="list-group list-group-flush">
                     <a href="{{ url_for('staff.index') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0">
                         <div class="d-flex align-items-center">
-                            <i class="ri-team-line icon me-3 text-warning"></i>
+                            <i class="ri-team-line icon me-3 text-info"></i>
                             <span>Total Staff</span>
                         </div>
-                        <span class="badge bg-warning">{{ stats.staff }}</span>
+                        <span class="badge bg-info">{{ stats.staff }}</span>
                     </a>
                     <a href="{{ url_for('staff.index') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0">
                         <div class="d-flex align-items-center">
@@ -201,10 +201,10 @@
                     </a>
                     <a href="{{ url_for('payroll.timesheets') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0">
                         <div class="d-flex align-items-center">
-                            <i class="ri-time-line icon me-3 text-light"></i>
+                            <i class="ri-time-line icon me-3 text-primary"></i>
                             <span>Active Timesheets</span>
                         </div>
-                        <span class="badge bg-light text-dark">{{ stats.active_timesheets }}</span>
+                        <span class="badge bg-primary">{{ stats.active_timesheets }}</span>
                     </a>
                 </div>
 
@@ -262,7 +262,7 @@
                             <i class="ri-money-dollar-circle-line icon me-3 text-purple"></i>
                             <span>Payroll Expense</span>
                         </div>
-                        <span class="badge" style="background-color: #6f42c1; color: white;">₹{{ "%.0f"|format(stats.total_payroll_expense) }}</span>
+                        <span class="badge bg-purple">₹{{ "%.0f"|format(stats.total_payroll_expense) }}</span>
                     </a>
                     <a href="{{ url_for('payroll.timesheets') }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0">
                         <div class="d-flex align-items-center">
@@ -506,20 +506,20 @@ function clockInOut() {
     .then(data => {
         if (data.success) {
             // Show success message and update UI
-            showAlert('success', data.message);
+            showToast('success', data.message);
             // Could update button text to show current status
         } else {
-            showAlert('danger', data.message);
+            showToast('danger', data.message);
         }
     })
     .catch(error => {
         console.error('Fetch error:', error);
         if (error.message === 'Authentication required') {
-            showAlert('warning', 'Please log in to use this feature');
+            showToast('warning', 'Please log in to use this feature');
             // Optionally redirect to login
             // window.location.href = '/auth/login';
         } else {
-            showAlert('danger', 'Error processing request: ' + error.message);
+            showToast('danger', 'Error processing request: ' + error.message);
             console.error('Error details:', error);
         }
     })
@@ -527,26 +527,6 @@ function clockInOut() {
         button.innerHTML = originalText;
         button.disabled = false;
     });
-}
-
-function showAlert(type, message) {
-    // Create and show Bootstrap alert
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-    alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-
-    document.body.appendChild(alertDiv);
-
-    // Auto-remove after 5 seconds
-    setTimeout(() => {
-        if (alertDiv.parentNode) {
-            alertDiv.remove();
-        }
-    }, 5000);
 }
 </script>
 {% endblock %}

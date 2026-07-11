@@ -94,15 +94,15 @@ remains after store managers record their daily usage.</p>
                     <div class="small text-muted">{{ '%g'|format(r.current_stock or 0) }} {{ r.unit|unit_label }} in stock</div>
                 </div>
                 <form method="post" action="{{ url_for('inventory.remove_grocery', location_id=location_id, item_id=r.master_inventory_id) }}" onsubmit="return confirm('Remove {{ r.name }}?');">
-                    <button class="btn btn-sm btn-outline-danger flex-shrink-0"><i class="ri-delete-bin-line"></i></button>
+                    <button class="btn btn-sm btn-touch btn-outline-danger flex-shrink-0"><i class="ri-delete-bin-line"></i></button>
                 </form>
             </div>
             {% endfor %}
         </div>
         {% else %}
         <div class="text-center text-muted py-4">
-            <i class="ri-shopping-basket-line" style="font-size:2rem;"></i>
-            <div>No groceries allocated to this store yet.</div>
+            <i class="ri-shopping-basket-line icon" style="font-size: 3rem;"></i>
+            <h6 class="mt-2 mb-0">No groceries allocated to this store yet.</h6>
         </div>
         {% endif %}
     </div>
