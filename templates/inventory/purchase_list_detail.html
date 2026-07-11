@@ -108,7 +108,7 @@
                     {% for it in items %}
                     <tr>
                         <td>{{ it.item_name }}</td>
-                        <td>{{ it.unit }}</td>
+                        <td>{{ it.unit|unit_label }}</td>
                         <td class="text-end">{{ it.quantity_requested }}</td>
                         <td class="text-end">{{ it.quantity_approved or '—' }}</td>
                         <td class="text-end">{{ it.quantity_procured or 0 }}</td>

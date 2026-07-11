@@ -268,6 +268,29 @@ def init_user_admin_schema():
     execute_query("CREATE INDEX IF NOT EXISTS idx_api_keys_user ON api_keys(user_id);")
 
 
+def init_store_purchases_schema():
+    """Create the store_purchases table if it doesn't exist. Workers log what
+    they bought (item, quantity, price); this is a spend log only and does not
+    touch location_inventory stock."""
+    execute_query(
+        """
+        CREATE TABLE IF NOT EXISTS store_purchases (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            location_id UUID REFERENCES locations(id) NOT NULL,
+            item_name VARCHAR(255) NOT NULL,
+            quantity DECIMAL(10,3) NOT NULL,
+            unit VARCHAR(20) NOT NULL DEFAULT 'pieces',
+            price DECIMAL(10,2) NOT NULL,
+            purchased_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            recorded_by UUID REFERENCES staff(id) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """
+    )
+    execute_query("CREATE INDEX IF NOT EXISTS idx_store_purchases_location "
+                  "ON store_purchases(location_id, purchased_at DESC);")
+
+
 def seed_permissions_if_needed():
     """Seed a standard set of module/action permissions if the table is empty."""
     existing = execute_query_one("SELECT COUNT(*) AS c FROM permissions")

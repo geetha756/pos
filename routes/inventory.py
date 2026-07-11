@@ -590,6 +590,77 @@ def remove_purchase_item(list_id, item_id):
     return redirect(url_for('inventory.edit_purchase_list', list_id=list_id))
 
 # ===============================
+# STORE PURCHASES (worker-recorded spend log — does not affect stock)
+# ===============================
+
+@inventory_bp.route('/purchases', methods=['GET', 'POST'])
+@login_required
+def purchases():
+    """Workers log what they bought (item, quantity, price) with an IST
+    timestamp. This is a purchase/spend log only — it does not change
+    location_inventory stock levels."""
+    locations = execute_query("SELECT id, name FROM locations ORDER BY name", fetch=True) or []
+    store = scoped_location_id()
+    location_id = store or request.values.get('location_id') or (str(locations[0]['id']) if locations else '')
+
+    if request.method == 'POST':
+        location_id = store or request.form.get('location_id') or ''
+        item_name = (request.form.get('item_name') or '').strip()
+        unit = (request.form.get('unit') or 'pieces').strip()
+        staff_id = get_current_staff_id()
+
+        try:
+            quantity = Decimal(str(request.form.get('quantity', '0')))
+        except InvalidOperation:
+            quantity = Decimal('-1')
+        try:
+            price = Decimal(str(request.form.get('price', '0')))
+        except InvalidOperation:
+            price = Decimal('-1')
+
+        if not location_id or not item_name:
+            flash('Choose a location and enter an item name.', 'error')
+        elif quantity <= 0:
+            flash('Quantity must be greater than zero.', 'error')
+        elif price <= 0:
+            flash('Price must be greater than zero.', 'error')
+        elif not staff_id:
+            flash('Your account is not linked to a staff record. Please contact an administrator.', 'error')
+        else:
+            execute_query("""
+                INSERT INTO store_purchases (location_id, item_name, quantity, unit, price, recorded_by)
+                VALUES (%s, %s, %s, %s, %s, %s)
+            """, (location_id, item_name, quantity, unit, price, staff_id))
+            flash(f'Recorded purchase: {quantity} {unit} of {item_name}.', 'success')
+        return redirect(url_for('inventory.purchases', location_id=location_id))
+
+    query = """
+        SELECT sp.*, l.name as location_name, s.first_name, s.last_name
+        FROM store_purchases sp
+        JOIN locations l ON sp.location_id = l.id
+        LEFT JOIN staff s ON sp.recorded_by = s.id
+    """
+    params = []
+    if location_id:
+        query += " WHERE sp.location_id = %s"
+        params.append(location_id)
+    query += " ORDER BY sp.purchased_at DESC LIMIT 200"
+
+    records = execute_query(query, params, fetch=True) or []
+
+    return render_template('inventory/purchases.html',
+                         locations=locations, location_id=location_id, records=records)
+
+@inventory_bp.route('/purchases/<uuid:purchase_id>/delete', methods=['POST'])
+@login_required
+@owner_required
+def delete_purchase(purchase_id):
+    """Remove a mistaken purchase entry (owner only)."""
+    execute_query("DELETE FROM store_purchases WHERE id = %s", (str(purchase_id),))
+    flash('Purchase record removed.', 'success')
+    return redirect(url_for('inventory.purchases'))
+
+# ===============================
 # LOCATION INVENTORY MANAGEMENT
 # ===============================
 

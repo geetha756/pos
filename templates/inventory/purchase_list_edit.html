@@ -41,7 +41,7 @@
                             <tr>
                                 <td>{{ it.item_name }}</td>
                                 <td><span class="badge bg-secondary">{{ it.category }}</span></td>
-                                <td>{{ it.unit }}</td>
+                                <td>{{ it.unit|unit_label }}</td>
                                 <td class="text-end">{{ it.quantity_requested }}</td>
                                 <td class="text-end">₹{{ "%.2f"|format(it.cost_per_unit or 0) }}</td>
                                 <td class="text-end">₹{{ "%.2f"|format(it.total_cost or 0) }}</td>
@@ -81,7 +81,7 @@
                         <select id="master_inventory_id" name="master_inventory_id" class="form-select" required>
                             <option value="">Select item</option>
                             {% for ai in available_items %}
-                            <option value="{{ ai.id }}">{{ ai.name }} ({{ ai.category }}) - {{ ai.unit }}</option>
+                            <option value="{{ ai.id }}">{{ ai.name }} ({{ ai.category }}) - {{ ai.unit|unit_label }}</option>
                             {% endfor %}
                         </select>
                     </div>

@@ -1271,6 +1271,12 @@
                                         <span class="nav-link-label">Record Usage</span>
                                     </a>
                                 </li>
+                                <li class="nav-item">
+                                    <a class="nav-link{% if request.endpoint == 'inventory.purchases' %} active{% endif %}" href="{{ url_for('inventory.purchases') }}">
+                                        <i class="ri-receipt-line icon icon-sm"></i>
+                                        <span class="nav-link-label">Purchases</span>
+                                    </a>
+                                </li>
                             </ul>
                             </div>
                         </li>

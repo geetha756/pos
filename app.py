@@ -44,8 +44,10 @@ def create_app():
 
     # Initialize security schema and permissions within app context
     from security import init_security_schema_and_seed, register_audit_hooks
+    from database import init_store_purchases_schema
     with app.app_context():
         init_security_schema_and_seed()
+        init_store_purchases_schema()
 
     # Register blueprints
     from routes.auth import auth_bp
@@ -114,6 +116,20 @@ def create_app():
             return (value + _IST_OFFSET).strftime(fmt)
         except Exception:
             return str(value)
+
+    # Short, consistent display labels for inventory units (kg/g/liter/ml/...).
+    # Unrecognized/legacy free-text unit values (entered before units were a
+    # dropdown) pass through unchanged.
+    _UNIT_LABELS = {
+        'kg': 'kg', 'g': 'g', 'liter': 'L', 'l': 'L', 'ml': 'mL',
+        'pieces': 'pcs', 'boxes': 'box', 'cans': 'can', 'packets': 'pkt',
+    }
+
+    @app.template_filter('unit_label')
+    def _unit_label(value):
+        if not value:
+            return ''
+        return _UNIT_LABELS.get(str(value).strip().lower(), value)
 
     # Store managers must pick which store they're operating before they can use
     # the app; until they do, every page redirects to the location picker.

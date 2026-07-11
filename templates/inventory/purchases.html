@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Purchases{% endblock %}
+
+{% block content %}
+{% set is_owner = not is_store_manager() %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0"><i class="ri-receipt-line icon me-2"></i>Purchases</h3>
+</div>
+
+<p class="text-muted small mb-3">Record what you bought — item, quantity and price paid. This is a purchase log only; it does not change stock levels.</p>
+
+{% if is_owner %}
+<!-- Location picker -->
+<form method="get" class="card mb-3">
+    <div class="card-body py-3">
+        <label class="form-label">Store / Location</label>
+        <select name="location_id" class="form-select" onchange="this.form.submit()">
+            {% for loc in locations %}
+            <option value="{{ loc.id }}" {% if location_id == loc.id|string %}selected{% endif %}>{{ loc.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</form>
+{% endif %}
+
+<!-- Record a purchase -->
+<div class="card mb-3">
+    <div class="card-header"><span class="card-title fw-bold">Record a purchase</span></div>
+    <div class="card-body">
+        <form method="post" action="{{ url_for('inventory.purchases') }}">
+            <input type="hidden" name="location_id" value="{{ location_id }}">
+            <div class="row g-2">
+                <div class="col-12 col-md-4">
+                    <label class="form-label">Item name</label>
+                    <input type="text" name="item_name" class="form-control" placeholder="e.g. Tomatoes, Milk packets" required>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label">Quantity</label>
+                    <input type="number" name="quantity" class="form-control" min="0" step="0.001" inputmode="decimal" placeholder="0" required>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label">Unit</label>
+                    <select class="form-select" name="unit">
+                        <option value="pieces" selected>Pieces</option>
+                        <option value="kg">Kilograms (kg)</option>
+                        <option value="g">Grams (g)</option>
+                        <option value="liter">Liters</option>
+                        <option value="ml">Milliliters (ml)</option>
+                        <option value="boxes">Boxes</option>
+                        <option value="cans">Cans</option>
+                        <option value="packets">Packets</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label">Price paid (₹)</label>
+                    <input type="number" name="price" class="form-control" min="0" step="0.01" inputmode="decimal" placeholder="0" required>
+                </div>
+                <div class="col-6 col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100"><i class="ri-add-line icon me-1"></i>Record</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Recent purchases -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="card-title fw-bold">Recent purchases</span>
+        <div class="small text-muted">Showing {{ records|length }} records</div>
+    </div>
+    <div class="card-body p-0">
+        {% if records %}
+        <!-- Desktop: full table -->
+        <div class="table-responsive d-none d-md-block">
+            <table class="table mb-0 align-middle">
+                <thead>
+                    <tr>
+                        <th>S.No</th>
+                        <th>Item</th>
+                        <th class="text-end">Quantity</th>
+                        <th class="text-end">Price Paid (₹)</th>
+                        {% if is_owner %}<th>Location</th>{% endif %}
+                        <th>Recorded By</th>
+                        <th>Date &amp; Time (IST)</th>
+                        {% if is_owner %}<th></th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in records %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td class="fw-semibold">{{ r.item_name }}</td>
+                        <td class="text-end">{{ '%g'|format(r.quantity) }} {{ r.unit|unit_label }}</td>
+                        <td class="text-end">₹{{ '%.2f'|format(r.price) }}</td>
+                        {% if is_owner %}<td>{{ r.location_name }}</td>{% endif %}
+                        <td>{{ r.first_name }} {{ r.last_name }}</td>
+                        <td>{{ r.purchased_at | ist }}</td>
+                        {% if is_owner %}
+                        <td class="text-end">
+                            <form method="post" action="{{ url_for('inventory.delete_purchase', purchase_id=r.id) }}" onsubmit="return confirm('Remove this purchase record?');">
+                                <button class="btn btn-sm btn-outline-danger" title="Remove"><i class="ri-delete-bin-line"></i></button>
+                            </form>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <!-- Mobile: one card per purchase -->
+        <div class="d-md-none">
+            {% for r in records %}
+            <div class="px-3 py-2 border-bottom">
+                <div class="d-flex justify-content-between align-items-center gap-2">
+                    <div class="fw-bold text-truncate">{{ loop.index }}. {{ r.item_name }}</div>
+                    <div class="fw-bold flex-shrink-0">₹{{ '%.2f'|format(r.price) }}</div>
+                </div>
+                <div class="small text-muted">
+                    {{ '%g'|format(r.quantity) }} {{ r.unit|unit_label }}
+                    {% if is_owner %} · {{ r.location_name }}{% endif %}
+                    · {{ r.purchased_at | ist }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+            <i class="ri-receipt-line" style="font-size:2rem;"></i>
+            <div>No purchases recorded yet.</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -44,7 +44,7 @@
                                     <optgroup label="{{ item.category or 'Uncategorized' }}">
                                     {% set ns.category = item.category %}
                                 {% endif %}
-                                <option value="{{ item.id }}">{{ item.name }} ({{ item.unit }})</option>
+                                <option value="{{ item.id }}">{{ item.name }} ({{ item.unit|unit_label }})</option>
                             {% endfor %}
                             {% if ns.category is not none %}</optgroup>{% endif %}
                         </select>
@@ -124,7 +124,7 @@
                                     <div class="fw-semibold">{{ item.name }}</div>
                                     <div class="text-muted small">{{ item.category or 'Uncategorized' }}</div>
                                 </td>
-                                <td>{{ item.unit }}</td>
+                                <td>{{ item.unit|unit_label }}</td>
                                 <td>{{ item.current_stock }}</td>
                                 <td>{{ item.minimum_stock_level }} / {{ item.maximum_stock_level }}</td>
                                 <td>{{ item.reorder_point }}</td>

@@ -40,8 +40,7 @@
                 <table class="table align-middle">
                     <thead>
                         <tr>
-                            <th style="width: 45%;">Item</th>
-                            <th style="width: 15%;">Unit</th>
+                            <th style="width: 60%;">Item</th>
                             <th style="width: 40%;">Quantity used today</th>
                         </tr>
                     </thead>
@@ -50,14 +49,13 @@
                         {% for item in inventory_items %}
                         {% if item.category != ns.category %}
                         <tr class="table-light">
-                            <td colspan="3" class="fw-semibold">{{ item.category or 'Uncategorized' }}</td>
+                            <td colspan="2" class="fw-semibold">{{ item.category or 'Uncategorized' }}</td>
                         </tr>
                         {% set ns.category = item.category %}
                         {% endif %}
                         {% set item_id = item.master_inventory_id|string %}
                         <tr>
                             <td class="fw-semibold">{{ item.name }}</td>
-                            <td>{{ item.unit }}</td>
                             <td>
                                 <div class="input-group">
                                     <input type="number" step="0.001" min="0" inputmode="decimal"
@@ -74,7 +72,7 @@
                                         <option value="ml">ml</option>
                                     </select>
                                     {% else %}
-                                    <span class="input-group-text">{{ item.unit or 'unit' }}</span>
+                                    <span class="input-group-text">{{ item.unit|unit_label if item.unit else 'unit' }}</span>
                                     <input type="hidden" name="unit_{{ item_id }}" value="{{ item.unit }}">
                                     {% endif %}
                                 </div>
@@ -122,7 +120,7 @@
                                 <div class="fw-semibold">{{ item.name }}</div>
                                 <div class="text-muted small">Current stock: {{ item.current_stock }}</div>
                             </td>
-                            <td>{{ item.unit }}</td>
+                            <td>{{ item.unit|unit_label }}</td>
                             <td>
                                 <input type="number" step="0.001" min="0"
                                        class="form-control opening-input"
