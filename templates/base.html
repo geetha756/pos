@@ -1285,7 +1285,7 @@
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link{% if request.endpoint == 'inventory.purchases' %} active{% endif %}" href="{{ url_for('inventory.purchases') }}">
-                                        <i class="ri-receipt-line icon icon-sm"></i>
+                                        <i class="ri-bill-line icon icon-sm"></i>
                                         <span class="nav-link-label">Purchases</span>
                                     </a>
                                 </li>
@@ -1352,7 +1352,7 @@
         {% endif %}
         {% if has_perm('orders.view') %}
         <a href="{{ url_for('orders.index') }}" class="{% if request.endpoint and request.endpoint.startswith('orders') and request.endpoint != 'orders.new_order' %}active{% endif %}">
-            <i class="ri-receipt-line"></i><span>Orders</span>
+            <i class="ri-bill-line"></i><span>Orders</span>
         </a>
         {% endif %}
         <button type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu">

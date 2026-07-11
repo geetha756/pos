@@ -4,7 +4,7 @@
 {% block content %}
 {% set is_owner = not is_store_manager() %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3 class="mb-0"><i class="ri-receipt-line icon me-2"></i>Purchases</h3>
+    <h3 class="mb-0"><i class="ri-bill-line icon me-2"></i>Purchases</h3>
 </div>
 
 <p class="text-muted small mb-3">Record what you bought — item, quantity and price paid. This is a purchase log only; it does not change stock levels.</p>
@@ -126,7 +126,7 @@
         </div>
         {% else %}
         <div class="text-center text-muted py-4">
-            <i class="ri-receipt-line icon" style="font-size: 3rem;"></i>
+            <i class="ri-bill-line icon" style="font-size: 3rem;"></i>
             <h6 class="mt-2 mb-0">No purchases recorded yet.</h6>
         </div>
         {% endif %}
