@@ -19,6 +19,16 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
     <script>
       if ('serviceWorker' in navigator) {
+        // Proactively refresh the offline-critical screens on every
+        // successful online open — not reliant on staff happening to click
+        // into Menu or Orders that day. Runs automatically, in the
+        // background, with no visible effect while online.
+        function warmOfflineRoutes() {
+          if (!navigator.onLine || !navigator.serviceWorker.controller) return;
+          navigator.serviceWorker.controller.postMessage({
+            type: 'WARM_ROUTES', routes: ['/', '/orders/new', '/orders/']
+          });
+        }
         window.addEventListener('load', function () {
           // updateViaCache: 'none' + an explicit update() call means a new
           // deploy is picked up on the very next app open, instead of
@@ -26,10 +36,12 @@
           // default update-check timer.
           navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(function (reg) {
             reg.update().catch(function () {});
+            navigator.serviceWorker.ready.then(warmOfflineRoutes);
           }).catch(function (err) {
             console.log('Service worker registration failed:', err);
           });
         });
+        window.addEventListener('online', warmOfflineRoutes);
       }
       // Ask the browser not to evict this app's offline cache under storage
       // pressure — matters for a device that sits closed/unused for a long

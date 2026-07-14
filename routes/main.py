@@ -122,6 +122,21 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+// The page asks (on every successful online open) to proactively refresh the
+// offline-critical routes here, instead of only caching them reactively
+// whenever someone happens to click into that screen — so an outage is
+// covered from the very next launch regardless of what anyone visited.
+self.addEventListener('message', (e) => {
+  if (!e.data || e.data.type !== 'WARM_ROUTES' || !Array.isArray(e.data.routes)) return;
+  e.waitUntil(
+    caches.open(CACHE).then((c) => Promise.all(e.data.routes.map((path) =>
+      fetch(path, { credentials: 'same-origin' }).then((resp) => {
+        if (resp.ok) return c.put(path, resp);
+      }).catch(() => {})
+    )))
+  );
+});
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
