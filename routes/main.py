@@ -97,9 +97,14 @@ def manifest():
 def service_worker():
     """Service worker served from the root so its scope covers the whole app."""
     js = """
-const CACHE = 'sns-cache-v3';
+const CACHE = 'sns-cache-v4';
 const OFFLINE_URL = '/static/offline.html';
 const PRECACHE = [OFFLINE_URL, '/static/css/bootstrap.min.css', '/static/css/dashboard.css', '/static/icons/icon-192.png'];
+// Order-taking screens: kept as a live snapshot so they still OPEN with zero
+// connectivity (a cold app restart during an outage, not just a mid-session
+// drop) — not just a generic "you're offline" page. Menu/prices may be a few
+// minutes stale until the next successful load quietly refreshes the cache.
+const OFFLINE_CACHE_ROUTES = ['/orders/new', '/location-menu/'];
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
@@ -118,9 +123,22 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
-  // Network-first for page navigations so role-specific content stays fresh.
+  // Page navigations: network-first so content stays fresh whenever the
+  // server is reachable. On failure, fall back to THIS route's own
+  // last-cached snapshot (order-taking screens only) so the app still opens
+  // and works with no connectivity at all; only show the generic offline
+  // page if we've never cached this route.
   if (req.mode === 'navigate') {
-    e.respondWith(fetch(req).catch(() => caches.match(OFFLINE_URL)));
+    const cacheable = OFFLINE_CACHE_ROUTES.some((p) => url.pathname.startsWith(p));
+    e.respondWith(
+      fetch(req).then((resp) => {
+        if (cacheable && resp.ok) {
+          const copy = resp.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+        }
+        return resp;
+      }).catch(() => caches.match(req).then((r) => r || caches.match(OFFLINE_URL)))
+    );
     return;
   }
   // Cache-first for static assets.

@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from database import execute_query, execute_query_one, execute_transaction
 from .auth import login_required
 from security import scoped_location_id, get_or_create_current_user
+from datetime import datetime, timezone, timedelta
 import psycopg2
 import uuid
 import json
@@ -587,17 +588,43 @@ def api_create_order():
                 return jsonify({'success': True, 'order_id': str(existing['id']),
                                 'order_number': existing['order_number'], 'duplicate': True})
 
+        # An order queued offline can sync hours after the actual sale (once
+        # the connection/server comes back), so trust the device's own
+        # placed_at instead of always stamping "now" — otherwise every order
+        # from an outage gets bunched onto the sync time, corrupting "today's
+        # sales" and the IST day-boundary reports. Sanity-bound it (small
+        # future allowance for clock skew; reject anything absurdly old,
+        # which is more likely a bug than a real outage) rather than trusting
+        # it blindly.
+        placed_at = None
+        raw_placed_at = (data.get('placed_at') or '').strip()
+        if raw_placed_at:
+            try:
+                dt = datetime.fromisoformat(raw_placed_at.replace('Z', '+00:00'))
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                now = datetime.now(timezone.utc)
+                if now - timedelta(days=7) <= dt <= now + timedelta(minutes=5):
+                    placed_at = dt.astimezone(timezone.utc).replace(tzinfo=None)
+            except (ValueError, TypeError):
+                pass
+
         # Create order
         order_id = str(uuid.uuid4())
         # POS sales are final the moment they're placed, so an order starts as
         # 'completed' (shown as "Success"). Cancelling sets 'cancelled';
         # editing keeps it a sale but stamps edited_at (shown as "Edited").
+        columns = ['id', 'location_id', 'order_number', 'customer_name', 'customer_phone',
+                   'customer_email', 'order_type', 'total_amount', 'notes', 'status',
+                   'payment_method', 'client_order_id']
+        values = [order_id, data['location_id'], order_number, customer_name, customer_phone,
+                  None, order_type, total_amount, notes, 'completed', payment_method, client_order_id]
+        if placed_at:
+            columns.append('created_at')
+            values.append(placed_at)
         ops = [(
-            """INSERT INTO orders (id, location_id, order_number, customer_name, customer_phone,
-                              customer_email, order_type, total_amount, notes, status, payment_method, client_order_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'completed', %s, %s)""",
-            (order_id, data['location_id'], order_number, customer_name, customer_phone,
-             None, order_type, total_amount, notes, payment_method, client_order_id)
+            f"INSERT INTO orders ({', '.join(columns)}) VALUES ({', '.join(['%s'] * len(values))})",
+            tuple(values)
         )]
         for item in data['items']:
             ops.append((

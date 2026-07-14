@@ -381,7 +381,11 @@ function placeOrder() {
     // Idempotency id — a re-sent / queued order can never duplicate on the server.
     const clientId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
         : ('c' + Date.now() + Math.random().toString(36).slice(2));
-    const payload = { location_id: LOCATION_ID, payment_method: payment, items: items, client_order_id: clientId };
+    // Captured now, at the actual moment of sale — an offline order may not
+    // reach the server until much later, and the server trusts this over its
+    // own insert-time so reports reflect when it really happened.
+    const placedAt = new Date().toISOString();
+    const payload = { location_id: LOCATION_ID, payment_method: payment, items: items, client_order_id: clientId, placed_at: placedAt };
 
     const baseReceipt = {
         store: STORE_NAME,
