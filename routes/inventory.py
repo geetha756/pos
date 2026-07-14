@@ -3,7 +3,7 @@ from database import execute_query, execute_query_one
 from .auth import login_required
 from .helpers import get_current_staff_id
 from security import scoped_location_id, owner_required, is_store_manager
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from decimal import Decimal, InvalidOperation
 import uuid
 
@@ -659,6 +659,71 @@ def delete_purchase(purchase_id):
     execute_query("DELETE FROM store_purchases WHERE id = %s", (str(purchase_id),))
     flash('Purchase record removed.', 'success')
     return redirect(url_for('inventory.purchases'))
+
+@inventory_bp.route('/analytics')
+@login_required
+@owner_required
+def analytics():
+    """Admin-only sales-revenue analytics. READ-ONLY: it only aggregates the
+    existing orders table (no writes, no schema changes). Revenue is defined
+    exactly as on the Orders page: SUM(total_amount) for orders that are not
+    cancelled, on the IST calendar date."""
+    # Default window: 1st of the current month -> today, on the IST calendar.
+    ist_today = (datetime.utcnow() + timedelta(hours=5, minutes=30)).date()
+    date_from = request.args.get('date_from') or ist_today.replace(day=1).isoformat()
+    date_to = request.args.get('date_to') or ist_today.isoformat()
+    location_filter = request.args.get('location', '')
+
+    # Shared IST-date + not-cancelled filter for every query below.
+    where = ("WHERE o.status != 'cancelled'"
+             " AND DATE(o.created_at + INTERVAL '5 hours 30 minutes') >= %s"
+             " AND DATE(o.created_at + INTERVAL '5 hours 30 minutes') <= %s")
+    params = [date_from, date_to]
+    if location_filter:
+        where += " AND o.location_id = %s"
+        params.append(location_filter)
+
+    stats = {'total_orders': 0, 'total_revenue': 0.0, 'avg_order_value': 0.0,
+             'cash_orders': 0, 'cash_revenue': 0.0,
+             'phonepe_orders': 0, 'phonepe_revenue': 0.0}
+    by_location, by_day = [], []
+    try:
+        row = execute_query_one(
+            "SELECT COUNT(*) AS orders, COALESCE(SUM(o.total_amount), 0) AS revenue, "
+            "COALESCE(SUM(CASE WHEN COALESCE(o.payment_method,'cash')='cash' THEN o.total_amount ELSE 0 END), 0) AS cash_revenue, "
+            "COUNT(*) FILTER (WHERE COALESCE(o.payment_method,'cash')='cash') AS cash_orders, "
+            "COALESCE(SUM(CASE WHEN o.payment_method='phonepe' THEN o.total_amount ELSE 0 END), 0) AS phonepe_revenue, "
+            "COUNT(*) FILTER (WHERE o.payment_method='phonepe') AS phonepe_orders "
+            "FROM orders o " + where, tuple(params))
+        if row:
+            stats['total_orders'] = row['orders']
+            stats['total_revenue'] = float(row['revenue'])
+            stats['cash_orders'] = row['cash_orders']
+            stats['cash_revenue'] = float(row['cash_revenue'])
+            stats['phonepe_orders'] = row['phonepe_orders']
+            stats['phonepe_revenue'] = float(row['phonepe_revenue'])
+            if row['orders']:
+                stats['avg_order_value'] = stats['total_revenue'] / row['orders']
+
+        by_location = execute_query(
+            "SELECT l.name AS location_name, COUNT(*) AS orders, "
+            "COALESCE(SUM(o.total_amount), 0) AS revenue "
+            "FROM orders o LEFT JOIN locations l ON o.location_id = l.id " + where +
+            " GROUP BY l.name ORDER BY revenue DESC", tuple(params), fetch=True) or []
+
+        by_day = execute_query(
+            "SELECT DATE(o.created_at + INTERVAL '5 hours 30 minutes') AS day, "
+            "COUNT(*) AS orders, COALESCE(SUM(o.total_amount), 0) AS revenue "
+            "FROM orders o " + where +
+            " GROUP BY day ORDER BY day DESC", tuple(params), fetch=True) or []
+    except Exception as e:
+        flash(f'Error loading analytics: {str(e)}', 'error')
+
+    locations = execute_query("SELECT id, name FROM locations ORDER BY name", fetch=True) or []
+    return render_template('inventory/analytics.html',
+                         stats=stats, by_location=by_location, by_day=by_day,
+                         locations=locations, date_from=date_from, date_to=date_to,
+                         location_filter=location_filter)
 
 # ===============================
 # LOCATION INVENTORY MANAGEMENT

@@ -1314,6 +1314,14 @@
                                         <span class="nav-link-label">Purchases</span>
                                     </a>
                                 </li>
+                                {% if not is_store_manager() %}
+                                <li class="nav-item">
+                                    <a class="nav-link{% if request.endpoint == 'inventory.analytics' %} active{% endif %}" href="{{ url_for('inventory.analytics') }}">
+                                        <i class="ri-line-chart-line icon icon-sm"></i>
+                                        <span class="nav-link-label">Analytics</span>
+                                    </a>
+                                </li>
+                                {% endif %}
                             </ul>
                             </div>
                         </li>
