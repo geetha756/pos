@@ -1274,19 +1274,19 @@
                         {% endif %}
                         {% if has_perm('inventory.view') %}
                         <li class="nav-item">
-                            <div class="d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('inventory') %} bg-nav-active{% endif %}">
-                                <a class="nav-link flex-grow-1 d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('inventory') and not request.endpoint.startswith('inventory.suppliers') %} active{% endif %}"
+                            <div class="d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('inventory') and request.endpoint != 'inventory.analytics' %} bg-nav-active{% endif %}">
+                                <a class="nav-link flex-grow-1 d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('inventory') and not request.endpoint.startswith('inventory.suppliers') and request.endpoint != 'inventory.analytics' %} active{% endif %}"
                                    href="{{ url_for('inventory.location_inventory') }}">
                                     <i class="ri-archive-line icon"></i>
                                     <span class="nav-link-label">Inventory</span>
                                 </a>
                                 <button class="btn btn-link p-0 ms-auto" type="button" data-bs-toggle="collapse"
-                                        data-bs-target="#nav-inventory" aria-expanded="{{ 'true' if request.endpoint and request.endpoint.startswith('inventory') else 'false' }}"
+                                        data-bs-target="#nav-inventory" aria-expanded="{{ 'true' if request.endpoint and request.endpoint.startswith('inventory') and request.endpoint != 'inventory.analytics' else 'false' }}"
                                         aria-controls="nav-inventory" title="Toggle">
                                     <i class="ri-arrow-down-s-line icon"></i>
                                 </button>
                             </div>
-                            <div id="nav-inventory" class="collapse{% if request.endpoint and request.endpoint.startswith('inventory') %} show{% endif %}">
+                            <div id="nav-inventory" class="collapse{% if request.endpoint and request.endpoint.startswith('inventory') and request.endpoint != 'inventory.analytics' %} show{% endif %}">
                             <ul class="nav flex-column ms-3">
                                 {% if not is_store_manager() %}
                                 <li class="nav-item">
@@ -1314,16 +1314,16 @@
                                         <span class="nav-link-label">Purchases</span>
                                     </a>
                                 </li>
-                                {% if not is_store_manager() %}
-                                <li class="nav-item">
-                                    <a class="nav-link{% if request.endpoint == 'inventory.analytics' %} active{% endif %}" href="{{ url_for('inventory.analytics') }}">
-                                        <i class="ri-line-chart-line icon icon-sm"></i>
-                                        <span class="nav-link-label">Analytics</span>
-                                    </a>
-                                </li>
-                                {% endif %}
                             </ul>
                             </div>
+                        </li>
+                        {% endif %}
+                        {% if has_perm('inventory.view') and not is_store_manager() %}
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint == 'inventory.analytics' %} active{% endif %}" href="{{ url_for('inventory.analytics') }}">
+                                <i class="ri-line-chart-line icon"></i>
+                                <span class="nav-link-label">Analytics</span>
+                            </a>
                         </li>
                         {% endif %}
                     </ul>
@@ -1374,7 +1374,7 @@
             <i class="ri-home-5-line"></i><span>Home</span>
         </a>
         {% if has_perm('inventory.view') %}
-        <a href="{{ url_for('inventory.location_inventory') }}" class="{% if request.endpoint and request.endpoint.startswith('inventory') %}active{% endif %}">
+        <a href="{{ url_for('inventory.location_inventory') }}" class="{% if request.endpoint and request.endpoint.startswith('inventory') and request.endpoint != 'inventory.analytics' %}active{% endif %}">
             <i class="ri-archive-line"></i><span>Inventory</span>
         </a>
         {% endif %}
