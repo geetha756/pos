@@ -264,3 +264,8 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 *.zip
+
+# android-printer-app (Gradle build artifacts, machine-specific SDK path)
+android-printer-app/.gradle/
+android-printer-app/local.properties
+android-printer-app/app/build/

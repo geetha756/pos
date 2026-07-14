@@ -9,6 +9,9 @@ import android.os.Bundle
 import android.net.Uri
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.result.contract.ActivityResultContracts
@@ -16,16 +19,72 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import org.json.JSONArray
+import org.json.JSONTokener
+import java.io.File
 
 /**
  * Thin native shell: loads the live POS in a full-screen WebView and injects the
  * Bluetooth printer bridge so the web app can print to the BT-58.
+ *
+ * Offline resilience: unlike a browser-based PWA (whose cache lives in Chrome's
+ * storage and is bound by a service worker's lifecycle), this app owns its
+ * WebView outright, so it keeps its own on-disk snapshot of the screens that
+ * matter for continuing to take orders during an outage (Dashboard, the order
+ * screen, and the order list). Whenever one of those loads successfully, its
+ * HTML is saved to this app's private storage; if a later load fails — either
+ * a flat-out connection failure (no signal at all) or an HTTP error (the
+ * device is online but the origin/tunnel behind Cloudflare is down, which
+ * surfaces as a 5xx from Cloudflare's edge rather than a connection error) —
+ * the last saved snapshot for that exact route is shown instead of a blank
+ * error page. Nothing is snapshotted before its first successful load; there
+ * is no way to show data this device has never actually been given.
  */
 class MainActivity : AppCompatActivity() {
 
-    private val START_URL = "https://pos.snfifteen.com/"
+    private val START_URL = "https://test-pos.snfifteen.com/"
+
+    // Routes worth keeping a snapshot of for offline continuity. Keyed by
+    // path only (query strings like /orders/new?location=...&placed=...
+    // change on every visit and would never match on lookup otherwise).
+    private val OFFLINE_SNAPSHOT_PATHS = setOf("/", "/orders/", "/orders/new")
+
     private lateinit var webView: WebView
     private lateinit var bridge: PrinterBridge
+
+    private fun snapshotFile(path: String): File {
+        val safeName = path.replace(Regex("[^a-zA-Z0-9]"), "_").ifEmpty { "root" }
+        return File(filesDir, "offline_snapshot$safeName.html")
+    }
+
+    private fun pathOf(urlString: String): String? = try {
+        Uri.parse(urlString).path
+    } catch (e: Exception) {
+        null
+    }
+
+    private fun saveSnapshot(urlString: String, html: String) {
+        val path = pathOf(urlString) ?: return
+        if (path !in OFFLINE_SNAPSHOT_PATHS) return
+        try {
+            snapshotFile(path).writeText(html)
+        } catch (e: Exception) {
+            // Best-effort — a failed save just means the next outage falls
+            // back to whatever was last saved successfully, if anything.
+        }
+    }
+
+    private fun loadSnapshot(urlString: String): String? {
+        val path = pathOf(urlString) ?: return null
+        if (path !in OFFLINE_SNAPSHOT_PATHS) return null
+        val f = snapshotFile(path)
+        return if (f.exists()) try { f.readText() } catch (e: Exception) { null } else null
+    }
+
+    /** Serve the saved snapshot for this request's URL, if there is one. */
+    private fun tryOfflineFallback(view: WebView?, requestUrl: String) {
+        val snapshot = loadSnapshot(requestUrl) ?: return
+        view?.loadDataWithBaseURL(requestUrl, snapshot, "text/html", "UTF-8", requestUrl)
+    }
 
     // Lets the web page's <input type="file"> (e.g. menu-item photo upload) open
     // the Android file/camera picker. A WebView ignores file inputs without this.
@@ -61,7 +120,50 @@ class MainActivity : AppCompatActivity() {
         // Persist cookies (keeps the login session across app restarts).
         android.webkit.CookieManager.getInstance().setAcceptCookie(true)
         android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
-        webView.webViewClient = WebViewClient()       // keep navigation inside the app
+        webView.webViewClient = object : WebViewClient() {
+            // Keep navigation inside the app (same as the default WebViewClient).
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                val path = url?.let { pathOf(it) } ?: return
+                if (path !in OFFLINE_SNAPSHOT_PATHS) return
+                // evaluateJavascript returns the value JSON-encoded (a quoted,
+                // escaped string) — JSONTokener reverses that back to the raw
+                // HTML before it's saved.
+                view?.evaluateJavascript("document.documentElement.outerHTML") { encoded ->
+                    try {
+                        val html = JSONTokener(encoded).nextValue() as? String
+                        if (html != null) saveSnapshot(url, html)
+                    } catch (e: Exception) { /* best-effort */ }
+                }
+            }
+
+            // No signal at all (airplane mode, no wifi/data) — a connection-
+            // level failure on the main page request.
+            override fun onReceivedError(
+                view: WebView?, request: WebResourceRequest?, error: WebResourceError?
+            ) {
+                super.onReceivedError(view, request, error)
+                if (request?.isForMainFrame == true) {
+                    tryOfflineFallback(view, request.url.toString())
+                }
+            }
+
+            // Device IS online and reaches Cloudflare's edge fine, but the
+            // origin/tunnel behind it is down — that surfaces as a 5xx HTTP
+            // response from Cloudflare, not a connection error, so it needs
+            // its own check (a power cut takes down the origin server and
+            // cloudflared together, which is exactly this case).
+            override fun onReceivedHttpError(
+                view: WebView?, request: WebResourceRequest?, errorResponse: WebResourceResponse?
+            ) {
+                super.onReceivedHttpError(view, request, errorResponse)
+                val code = errorResponse?.statusCode ?: 0
+                if (request?.isForMainFrame == true && code >= 500) {
+                    tryOfflineFallback(view, request.url.toString())
+                }
+            }
+        }
         // Custom chrome client so "Choose File" on a web form opens the Android
         // file/camera picker and hands the result back to the page.
         webView.webChromeClient = object : WebChromeClient() {
