@@ -149,7 +149,14 @@
       // benefit — there's no printer to reach there either way. Quietly say
       // so instead. On a plain desktop/browser tab, the print-preview
       // fallback below is still genuinely useful, so it stays.
-      var inTwa = document.referrer.indexOf('android-app://') === 0;
+      // referrer only says "android-app://" on the very first page load of
+      // the session — once you navigate around inside the app (e.g. the
+      // redirect after placing an order), it becomes the previous in-app
+      // page instead, so it can't be trusted on its own. display-mode:
+      // standalone holds true for the whole session regardless of how many
+      // in-app navigations happen, so that's the primary check.
+      var inTwa = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+        document.referrer.indexOf('android-app://') === 0;
       if (inTwa) {
         this._toast('Printer not connected — bill not printed. Open Printer Settings.', true);
         return;
