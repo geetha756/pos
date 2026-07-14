@@ -97,7 +97,7 @@ def manifest():
 def service_worker():
     """Service worker served from the root so its scope covers the whole app."""
     js = """
-const CACHE = 'sns-cache-v5';
+const CACHE = 'sns-cache-v6';
 const OFFLINE_URL = '/static/offline.html';
 const PRECACHE = [OFFLINE_URL, '/static/css/bootstrap.min.css', '/static/css/dashboard.css', '/static/icons/icon-192.png'];
 // Order-taking screens (+ the app's own launch route, '/' — the installed
@@ -139,7 +139,11 @@ self.addEventListener('fetch', (e) => {
       fetch(req).then((resp) => {
         if (cacheable && resp.ok) {
           const copy = resp.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy));
+          // waitUntil keeps the worker alive until this write actually
+          // finishes — without it, the browser can (and on mobile, will)
+          // tear the worker down right after `resp` is returned below,
+          // silently cutting off the cache write before it lands.
+          e.waitUntil(caches.open(CACHE).then((c) => c.put(req, copy)));
         }
         return resp;
       }).catch(() => caches.match(req).then((r) => r || caches.match(OFFLINE_URL)))
@@ -151,7 +155,7 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(
       caches.match(req).then((r) => r || fetch(req).then((resp) => {
         const copy = resp.clone();
-        caches.open(CACHE).then((c) => c.put(req, copy));
+        e.waitUntil(caches.open(CACHE).then((c) => c.put(req, copy)));
         return resp;
       }))
     );
