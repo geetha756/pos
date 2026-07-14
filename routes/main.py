@@ -97,7 +97,7 @@ def manifest():
 def service_worker():
     """Service worker served from the root so its scope covers the whole app."""
     js = """
-const CACHE = 'sns-cache-v9';
+const CACHE = 'sns-cache-v10';
 const OFFLINE_URL = '/static/offline.html';
 const PRECACHE = [OFFLINE_URL, '/static/css/bootstrap.min.css', '/static/css/dashboard.css', '/static/icons/icon-192.png'];
 // Order-taking screens (+ the app's own launch route, '/' — the installed
@@ -107,7 +107,7 @@ const PRECACHE = [OFFLINE_URL, '/static/css/bootstrap.min.css', '/static/css/das
 // app restart during an outage, not just a mid-session drop) — not just a
 // generic "you're offline" page. Menu/prices may be a few minutes stale
 // until the next successful load quietly refreshes the cache.
-const OFFLINE_CACHE_EXACT = ['/', '/select-location'];
+const OFFLINE_CACHE_EXACT = ['/', '/select-location', '/orders/'];
 const OFFLINE_CACHE_PREFIX = ['/orders/new', '/location-menu/'];
 
 self.addEventListener('install', (e) => {

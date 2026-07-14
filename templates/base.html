@@ -31,6 +31,13 @@
           });
         });
       }
+      // Ask the browser not to evict this app's offline cache under storage
+      // pressure — matters for a device that sits closed/unused for a long
+      // stretch, so the cached menu/order screens are still there whenever
+      // it's next opened, not silently cleared in the meantime.
+      if (navigator.storage && navigator.storage.persist) {
+        navigator.storage.persist().catch(function () {});
+      }
     </script>
 
     <!-- Local Fonts - Roboto -->
