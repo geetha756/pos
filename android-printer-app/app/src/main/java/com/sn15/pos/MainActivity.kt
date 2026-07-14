@@ -43,30 +43,35 @@ class MainActivity : AppCompatActivity() {
 
     private val START_URL = "https://test-pos.snfifteen.com/"
 
-    // Routes worth keeping a snapshot of for offline continuity. Keyed by
-    // path only (query strings like /orders/new?location=...&placed=...
-    // change on every visit and would never match on lookup otherwise).
+    // Routes worth keeping a snapshot of for offline continuity.
     private val OFFLINE_SNAPSHOT_PATHS = setOf("/", "/orders/", "/orders/new")
 
     private lateinit var webView: WebView
     private lateinit var bridge: PrinterBridge
 
-    private fun snapshotFile(path: String): File {
-        val safeName = path.replace(Regex("[^a-zA-Z0-9]"), "_").ifEmpty { "root" }
+    private fun snapshotFile(key: String): File {
+        val safeName = key.replace(Regex("[^a-zA-Z0-9]"), "_").ifEmpty { "root" }
         return File(filesDir, "offline_snapshot$safeName.html")
     }
 
-    private fun pathOf(urlString: String): String? = try {
-        Uri.parse(urlString).path
-    } catch (e: Exception) {
-        null
+    // Cache key = path + the `location` query param if present, so switching
+    // stores (a full-page reload to /orders/new?location=<id>) gets its own
+    // snapshot instead of colliding with whichever store was cached last.
+    // `placed` is deliberately dropped — it changes on every single order
+    // placed and isn't a meaningfully different page, just noise that would
+    // otherwise make every visit miss the previous one's cache entry.
+    private fun canonicalKey(urlString: String): String? {
+        val uri = try { Uri.parse(urlString) } catch (e: Exception) { return null }
+        val path = uri.path ?: return null
+        if (path !in OFFLINE_SNAPSHOT_PATHS) return null
+        val location = uri.getQueryParameter("location")
+        return if (!location.isNullOrEmpty()) "$path?location=$location" else path
     }
 
     private fun saveSnapshot(urlString: String, html: String) {
-        val path = pathOf(urlString) ?: return
-        if (path !in OFFLINE_SNAPSHOT_PATHS) return
+        val key = canonicalKey(urlString) ?: return
         try {
-            snapshotFile(path).writeText(html)
+            snapshotFile(key).writeText(html)
         } catch (e: Exception) {
             // Best-effort — a failed save just means the next outage falls
             // back to whatever was last saved successfully, if anything.
@@ -74,9 +79,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadSnapshot(urlString: String): String? {
-        val path = pathOf(urlString) ?: return null
-        if (path !in OFFLINE_SNAPSHOT_PATHS) return null
-        val f = snapshotFile(path)
+        val key = canonicalKey(urlString) ?: return null
+        val f = snapshotFile(key)
         return if (f.exists()) try { f.readText() } catch (e: Exception) { null } else null
     }
 
@@ -125,8 +129,7 @@ class MainActivity : AppCompatActivity() {
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
-                val path = url?.let { pathOf(it) } ?: return
-                if (path !in OFFLINE_SNAPSHOT_PATHS) return
+                if (url == null || canonicalKey(url) == null) return
                 // evaluateJavascript returns the value JSON-encoded (a quoted,
                 // escaped string) — JSONTokener reverses that back to the raw
                 // HTML before it's saved.
