@@ -97,7 +97,7 @@ def manifest():
 def service_worker():
     """Service worker served from the root so its scope covers the whole app."""
     js = """
-const CACHE = 'sns-cache-v6';
+const CACHE = 'sns-cache-v7';
 const OFFLINE_URL = '/static/offline.html';
 const PRECACHE = [OFFLINE_URL, '/static/css/bootstrap.min.css', '/static/css/dashboard.css', '/static/icons/icon-192.png'];
 // Order-taking screens (+ the app's own launch route, '/' — the installed
@@ -135,6 +135,12 @@ self.addEventListener('fetch', (e) => {
   if (req.mode === 'navigate') {
     const cacheable = OFFLINE_CACHE_EXACT.includes(url.pathname) ||
       OFFLINE_CACHE_PREFIX.some((p) => url.pathname.startsWith(p));
+    // Key on the path alone, ignoring query strings — /orders/new carries a
+    // ?location=...&placed=... that changes on every visit (a new order ref
+    // each time), so keying on the full URL meant a write from one visit
+    // could never match a lookup from another and always missed. This
+    // keeps exactly one entry per route, updated in place each time.
+    const cacheKey = url.origin + url.pathname;
     e.respondWith(
       fetch(req).then((resp) => {
         if (cacheable && resp.ok) {
@@ -143,10 +149,10 @@ self.addEventListener('fetch', (e) => {
           // finishes — without it, the browser can (and on mobile, will)
           // tear the worker down right after `resp` is returned below,
           // silently cutting off the cache write before it lands.
-          e.waitUntil(caches.open(CACHE).then((c) => c.put(req, copy)));
+          e.waitUntil(caches.open(CACHE).then((c) => c.put(cacheKey, copy)));
         }
         return resp;
-      }).catch(() => caches.match(req).then((r) => r || caches.match(OFFLINE_URL)))
+      }).catch(() => caches.match(cacheKey).then((r) => r || caches.match(OFFLINE_URL)))
     );
     return;
   }
