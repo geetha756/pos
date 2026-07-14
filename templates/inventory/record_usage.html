@@ -35,13 +35,16 @@
             <input type="hidden" name="location_id" value="{{ location.id }}">
 
             {% if is_store_manager() %}
-            <!-- Store manager: simple "what did you use today" entry (no stock shown) -->
+            <!-- Store manager: simple entry, but with opening stock and a live
+                 closing-stock preview for context — not just a bare input. -->
             <div class="table-responsive">
                 <table class="table align-middle">
                     <thead>
                         <tr>
-                            <th style="width: 60%;">Item</th>
-                            <th style="width: 40%;">Quantity used today</th>
+                            <th style="width: 30%;">Item</th>
+                            <th style="width: 15%;" class="text-end">Opening</th>
+                            <th style="width: 35%;">Used today</th>
+                            <th style="width: 20%;" class="text-end">Closing</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -49,17 +52,18 @@
                         {% for item in inventory_items %}
                         {% if item.category != ns.category %}
                         <tr class="table-light">
-                            <td colspan="2" class="fw-semibold">{{ item.category or 'Uncategorized' }}</td>
+                            <td colspan="4" class="fw-semibold">{{ item.category or 'Uncategorized' }}</td>
                         </tr>
                         {% set ns.category = item.category %}
                         {% endif %}
                         {% set item_id = item.master_inventory_id|string %}
-                        <tr>
+                        <tr data-simple-usage-row="{{ item_id }}" data-opening="{{ item.current_stock or 0 }}">
                             <td class="fw-semibold">{{ item.name }}</td>
+                            <td class="text-end text-muted">{{ item.current_stock or 0 }} {{ item.unit|unit_label }}</td>
                             <td>
                                 <div class="input-group">
                                     <input type="number" step="0.001" min="0" inputmode="decimal"
-                                           class="form-control" name="used_{{ item_id }}" placeholder="0">
+                                           class="form-control used-simple-input" name="used_{{ item_id }}" placeholder="0">
                                     {% set u = (item.unit or '')|lower %}
                                     {% if u in ['kg','kgs','kilogram','kilograms'] %}
                                     <select class="form-select flex-grow-0" style="max-width:84px;" name="unit_{{ item_id }}">
@@ -77,6 +81,7 @@
                                     {% endif %}
                                 </div>
                             </td>
+                            <td class="text-end closing-simple-output text-muted">{{ item.current_stock or 0 }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -84,7 +89,7 @@
             </div>
             <div class="alert alert-info mt-3">
                 <i class="ri-information-line icon me-2"></i>
-                Enter how much of each item you used today. Leave blank for items you didn't use.
+                Enter how much of each item you used today. Leave blank for items you didn't use. Closing updates automatically as you type.
             </div>
             {% else %}
             <!-- Owner: detailed opening / closing / wastage -->
@@ -169,6 +174,19 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    // Store manager's simple form: opening is fixed (informational), closing
+    // is just a live preview as they type — the server computes the real
+    // closing value the same way on submit.
+    document.querySelectorAll('[data-simple-usage-row]').forEach(row => {
+        const opening = parseFloat(row.dataset.opening) || 0;
+        const used = row.querySelector('.used-simple-input');
+        const closingOutput = row.querySelector('.closing-simple-output');
+        used.addEventListener('input', () => {
+            const usedVal = parseFloat(used.value) || 0;
+            closingOutput.textContent = Math.max(opening - usedVal, 0).toFixed(2);
+        });
+    });
+
     document.querySelectorAll('[data-usage-row]').forEach(row => {
         const opening = row.querySelector('.opening-input');
         const closing = row.querySelector('.closing-output');
