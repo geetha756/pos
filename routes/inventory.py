@@ -9,6 +9,22 @@ import uuid
 
 inventory_bp = Blueprint('inventory', __name__)
 
+
+def _ist_today():
+    """Current date on the IST calendar (timestamps are stored in UTC)."""
+    return (datetime.utcnow() + timedelta(hours=5, minutes=30)).date()
+
+
+def _worker_can_edit(entry_location_id, entry_ist_date):
+    """Owners/managers may edit any entry. A worker (store manager) may only edit
+    their own store's entries dated today (IST); older records lock to the owner."""
+    if not is_store_manager():
+        return True
+    store = scoped_location_id()
+    if not store or str(entry_location_id) != str(store):
+        return False
+    return entry_ist_date == _ist_today()
+
 # ===============================
 # MASTER INVENTORY MANAGEMENT
 # ===============================
@@ -635,10 +651,12 @@ def purchases():
         return redirect(url_for('inventory.purchases', location_id=location_id))
 
     query = """
-        SELECT sp.*, l.name as location_name, s.first_name, s.last_name
+        SELECT sp.*, l.name as location_name, s.first_name, s.last_name,
+               e.first_name AS editor_first_name, e.last_name AS editor_last_name
         FROM store_purchases sp
         JOIN locations l ON sp.location_id = l.id
         LEFT JOIN staff s ON sp.recorded_by = s.id
+        LEFT JOIN staff e ON sp.edited_by = e.id
     """
     params = []
     if location_id:
@@ -647,9 +665,59 @@ def purchases():
     query += " ORDER BY sp.purchased_at DESC LIMIT 200"
 
     records = execute_query(query, params, fetch=True) or []
+    # Mark which rows the current user may edit (owner: any; worker: own store, today).
+    for r in records:
+        p_date = (r['purchased_at'] + timedelta(hours=5, minutes=30)).date() if r.get('purchased_at') else None
+        r['editable'] = _worker_can_edit(r['location_id'], p_date)
 
     return render_template('inventory/purchases.html',
                          locations=locations, location_id=location_id, records=records)
+
+@inventory_bp.route('/purchases/<uuid:purchase_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_purchase(purchase_id):
+    """Correct a purchase entry. Owners may edit any; a worker may only edit their
+    own store's same-day entries. Edits stamp edited_at/edited_by for the admin."""
+    purchase = execute_query_one(
+        "SELECT sp.*, l.name AS location_name FROM store_purchases sp "
+        "JOIN locations l ON sp.location_id = l.id WHERE sp.id = %s", (str(purchase_id),))
+    if not purchase:
+        flash('Purchase record not found.', 'error')
+        return redirect(url_for('inventory.purchases'))
+
+    p_date = (purchase['purchased_at'] + timedelta(hours=5, minutes=30)).date() if purchase.get('purchased_at') else None
+    if not _worker_can_edit(purchase['location_id'], p_date):
+        flash('You can only edit your store\'s entries from today. Ask the owner to change older records.', 'error')
+        return redirect(url_for('inventory.purchases'))
+
+    if request.method == 'POST':
+        item_name = (request.form.get('item_name') or '').strip()
+        unit = (request.form.get('unit') or 'pieces').strip()
+        staff_id = get_current_staff_id()
+        try:
+            quantity = Decimal(str(request.form.get('quantity', '0')))
+        except InvalidOperation:
+            quantity = Decimal('-1')
+        try:
+            price = Decimal(str(request.form.get('price', '0')))
+        except InvalidOperation:
+            price = Decimal('-1')
+
+        if not item_name:
+            flash('Enter an item name.', 'error')
+        elif quantity <= 0:
+            flash('Quantity must be greater than zero.', 'error')
+        elif price <= 0:
+            flash('Price must be greater than zero.', 'error')
+        else:
+            execute_query(
+                "UPDATE store_purchases SET item_name=%s, quantity=%s, unit=%s, price=%s, "
+                "edited_at=CURRENT_TIMESTAMP, edited_by=%s WHERE id=%s",
+                (item_name, quantity, unit, price, staff_id, str(purchase_id)))
+            flash('Purchase updated.', 'success')
+            return redirect(url_for('inventory.purchases', location_id=str(purchase['location_id'])))
+
+    return render_template('inventory/edit_purchase.html', purchase=purchase)
 
 @inventory_bp.route('/purchases/<uuid:purchase_id>/delete', methods=['POST'])
 @login_required
@@ -1074,11 +1142,13 @@ def daily_usage():
         # Get daily usage records
         query = """
             SELECT du.*, mi.name as item_name, mi.unit, l.name as location_name,
-                   s.first_name, s.last_name
+                   s.first_name, s.last_name,
+                   e.first_name AS editor_first_name, e.last_name AS editor_last_name
             FROM daily_inventory_usage du
             JOIN master_inventory mi ON du.master_inventory_id = mi.id
             JOIN locations l ON du.location_id = l.id
             LEFT JOIN staff s ON du.recorded_by = s.id
+            LEFT JOIN staff e ON du.edited_by = e.id
             WHERE du.date = %s
         """
 
@@ -1090,6 +1160,9 @@ def daily_usage():
         query += " ORDER BY l.name, mi.name"
 
         usage_records = execute_query(query, params, fetch=True) or []
+        # Mark which rows the current user may edit (owner: any; worker: own store, today).
+        for r in usage_records:
+            r['editable'] = _worker_can_edit(r['location_id'], r.get('date'))
 
         return render_template('inventory/daily_usage.html',
                              usage_records=usage_records, locations=locations,
@@ -1250,6 +1323,73 @@ def record_daily_usage():
     except Exception as e:
         flash(f'Error recording daily usage: {str(e)}', 'error')
         return redirect(url_for('inventory.daily_usage'))
+
+@inventory_bp.route('/daily-usage/<uuid:usage_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_daily_usage(usage_id):
+    """Correct a single usage record. Owners may edit any; a worker may only
+    edit their own store's same-day entries. Unlike the record-usage form
+    (which adds to today's total in simple mode), this SETS the values, so a
+    typo can actually be fixed. Edits stamp edited_at/edited_by for the admin
+    and recompute location_inventory.current_stock from the corrected closing
+    stock, same as the original recording does."""
+    record = execute_query_one("""
+        SELECT du.*, mi.name AS item_name, mi.unit, l.name AS location_name
+        FROM daily_inventory_usage du
+        JOIN master_inventory mi ON du.master_inventory_id = mi.id
+        JOIN locations l ON du.location_id = l.id
+        WHERE du.id = %s
+    """, (str(usage_id),))
+    if not record:
+        flash('Usage record not found.', 'error')
+        return redirect(url_for('inventory.daily_usage'))
+
+    if not _worker_can_edit(record['location_id'], record['date']):
+        flash('You can only edit your store\'s entries from today. Ask the owner to change older records.', 'error')
+        return redirect(url_for('inventory.daily_usage'))
+
+    owner_view = not is_store_manager()
+
+    if request.method == 'POST':
+        staff_id = get_current_staff_id()
+        if not staff_id:
+            flash('Your account is not linked to a staff record. Please contact an administrator.', 'error')
+            return redirect(request.url)
+
+        def _f(v, default=None):
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return default
+
+        opening = _f(request.form.get('opening_stock'), float(record['opening_stock'])) if owner_view else float(record['opening_stock'])
+        wastage = _f(request.form.get('wastage_quantity'), float(record['wastage_quantity'] or 0)) if owner_view else float(record['wastage_quantity'] or 0)
+        used = _f(request.form.get('used_quantity'))
+
+        if used is None or used < 0:
+            flash('Enter a valid used quantity.', 'error')
+            return render_template('inventory/edit_daily_usage.html', record=record, owner_view=owner_view)
+
+        closing = max(opening - used - wastage, 0)
+
+        execute_query("""
+            UPDATE daily_inventory_usage
+            SET opening_stock = %s, closing_stock = %s, used_quantity = %s,
+                wastage_quantity = %s, edited_at = CURRENT_TIMESTAMP, edited_by = %s
+            WHERE id = %s
+        """, (opening, closing, used, wastage, staff_id, str(usage_id)))
+
+        # Keep the owner's stock view consistent with the corrected closing stock.
+        execute_query("""
+            UPDATE location_inventory
+            SET current_stock = %s, last_updated = CURRENT_TIMESTAMP
+            WHERE location_id = %s AND master_inventory_id = %s
+        """, (closing, record['location_id'], record['master_inventory_id']))
+
+        flash('Usage record updated.', 'success')
+        return redirect(url_for('inventory.daily_usage', date=record['date'].isoformat(), location_id=str(record['location_id'])))
+
+    return render_template('inventory/edit_daily_usage.html', record=record, owner_view=owner_view)
 
 # ===============================
 # LEFTOVER FOOD TRACKING

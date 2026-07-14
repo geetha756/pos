@@ -83,26 +83,33 @@
                         {% if is_owner %}<th>Location</th>{% endif %}
                         <th>Recorded By</th>
                         <th>Date &amp; Time (IST)</th>
-                        {% if is_owner %}<th></th>{% endif %}
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for r in records %}
                     <tr>
                         <td>{{ loop.index }}</td>
-                        <td class="fw-semibold">{{ r.item_name }}</td>
+                        <td class="fw-semibold">{{ r.item_name }}
+                            {% if r.edited_at %}<span class="badge bg-light text-muted border ms-1" title="Edited by {{ r.editor_first_name }} {{ r.editor_last_name }} · {{ r.edited_at | ist }}"><i class="ri-pencil-line"></i> Edited</span>{% endif %}
+                        </td>
                         <td class="text-end">{{ '%g'|format(r.quantity) }} {{ r.unit|unit_label }}</td>
                         <td class="text-end">₹{{ '%.2f'|format(r.price) }}</td>
                         {% if is_owner %}<td>{{ r.location_name }}</td>{% endif %}
                         <td>{{ r.first_name }} {{ r.last_name }}</td>
                         <td>{{ r.purchased_at | ist }}</td>
-                        {% if is_owner %}
                         <td class="text-end">
-                            <form method="post" action="{{ url_for('inventory.delete_purchase', purchase_id=r.id) }}" onsubmit="return confirm('Remove this purchase record?');">
-                                <button class="btn btn-sm btn-outline-danger" title="Remove"><i class="ri-delete-bin-line"></i></button>
-                            </form>
+                            <div class="d-flex gap-1 justify-content-end">
+                                {% if r.editable %}
+                                <a class="btn btn-sm btn-outline-primary" title="Edit" href="{{ url_for('inventory.edit_purchase', purchase_id=r.id) }}"><i class="ri-edit-line"></i></a>
+                                {% endif %}
+                                {% if is_owner %}
+                                <form method="post" action="{{ url_for('inventory.delete_purchase', purchase_id=r.id) }}" onsubmit="return confirm('Remove this purchase record?');">
+                                    <button class="btn btn-sm btn-outline-danger" title="Remove"><i class="ri-delete-bin-line"></i></button>
+                                </form>
+                                {% endif %}
+                            </div>
                         </td>
-                        {% endif %}
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -113,13 +120,20 @@
             {% for r in records %}
             <div class="px-3 py-2 border-bottom">
                 <div class="d-flex justify-content-between align-items-center gap-2">
-                    <div class="fw-bold text-truncate">{{ loop.index }}. {{ r.item_name }}</div>
+                    <div class="fw-bold text-truncate">{{ loop.index }}. {{ r.item_name }}
+                        {% if r.edited_at %}<span class="badge bg-light text-muted border ms-1"><i class="ri-pencil-line"></i></span>{% endif %}
+                    </div>
                     <div class="fw-bold flex-shrink-0">₹{{ '%.2f'|format(r.price) }}</div>
                 </div>
-                <div class="small text-muted">
-                    {{ '%g'|format(r.quantity) }} {{ r.unit|unit_label }}
-                    {% if is_owner %} · {{ r.location_name }}{% endif %}
-                    · {{ r.purchased_at | ist }}
+                <div class="small text-muted d-flex justify-content-between align-items-center">
+                    <span>
+                        {{ '%g'|format(r.quantity) }} {{ r.unit|unit_label }}
+                        {% if is_owner %} · {{ r.location_name }}{% endif %}
+                        · {{ r.purchased_at | ist }}
+                    </span>
+                    {% if r.editable %}
+                    <a class="btn btn-sm btn-outline-primary flex-shrink-0 ms-2" href="{{ url_for('inventory.edit_purchase', purchase_id=r.id) }}"><i class="ri-edit-line"></i></a>
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}

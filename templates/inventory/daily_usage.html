@@ -55,19 +55,27 @@
                         <th>Used</th>
                         <th>Wastage</th>
                         <th>Recorded By</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for r in usage_records %}
                     <tr>
                         <td>{{ r.location_name }}</td>
-                        <td>{{ r.item_name }}</td>
+                        <td>{{ r.item_name }}
+                            {% if r.edited_at %}<span class="badge bg-light text-muted border ms-1" title="Edited by {{ r.editor_first_name }} {{ r.editor_last_name }} · {{ r.edited_at | ist }}"><i class="ri-pencil-line"></i> Edited</span>{% endif %}
+                        </td>
                         <td>{{ r.unit }}</td>
                         <td>{{ r.opening_stock }}</td>
                         <td>{{ r.closing_stock }}</td>
                         <td>{{ r.used_quantity }}</td>
                         <td>{{ r.wastage_quantity }}</td>
                         <td>{% if r.first_name %}{{ r.first_name }} {{ r.last_name }}{% else %}-{% endif %}</td>
+                        <td class="text-end">
+                            {% if r.editable %}
+                            <a class="btn btn-sm btn-outline-primary" title="Edit" href="{{ url_for('inventory.edit_daily_usage', usage_id=r.id) }}"><i class="ri-edit-line"></i></a>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>

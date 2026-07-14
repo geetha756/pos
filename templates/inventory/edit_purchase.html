@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Edit Purchase{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="ri-edit-line icon me-2"></i>Edit Purchase</h1>
+    <a href="{{ url_for('inventory.purchases', location_id=purchase.location_id) }}" class="btn btn-outline-secondary">
+        <i class="ri-arrow-left-line icon me-2"></i>Back to Purchases
+    </a>
+</div>
+
+<div class="card" style="max-width: 640px;">
+    <div class="card-header">
+        <span class="card-title fw-bold">{{ purchase.location_name }} &middot; {{ purchase.purchased_at | ist }}</span>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            <div class="row g-3">
+                <div class="col-12">
+                    <label class="form-label">Item name</label>
+                    <input type="text" name="item_name" class="form-control" value="{{ purchase.item_name }}" required>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Quantity</label>
+                    <input type="number" name="quantity" class="form-control" min="0" step="0.001" inputmode="decimal" value="{{ purchase.quantity }}" required>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Unit</label>
+                    <select class="form-select" name="unit">
+                        {% for val, label in [('pieces','Pieces'),('kg','Kilograms (kg)'),('g','Grams (g)'),('liter','Liters'),('ml','Milliliters (ml)'),('boxes','Boxes'),('cans','Cans'),('packets','Packets')] %}
+                        <option value="{{ val }}" {% if purchase.unit == val %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="form-label">Price paid (₹)</label>
+                    <input type="number" name="price" class="form-control" min="0" step="0.01" inputmode="decimal" value="{{ purchase.price }}" required>
+                </div>
+            </div>
+            <div class="mt-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary"><i class="ri-save-line icon me-2"></i>Save changes</button>
+                <a href="{{ url_for('inventory.purchases', location_id=purchase.location_id) }}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

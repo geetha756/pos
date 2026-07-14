@@ -289,6 +289,13 @@ def init_store_purchases_schema():
     )
     execute_query("CREATE INDEX IF NOT EXISTS idx_store_purchases_location "
                   "ON store_purchases(location_id, purchased_at DESC);")
+    # Edit tracking: when/by whom a purchase was corrected, so the admin sees an
+    # "Edited" marker (workers may correct their own store's same-day entries).
+    execute_query("ALTER TABLE store_purchases ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP")
+    execute_query("ALTER TABLE store_purchases ADD COLUMN IF NOT EXISTS edited_by UUID")
+    # Same edit-tracking on daily usage records.
+    execute_query("ALTER TABLE daily_inventory_usage ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP")
+    execute_query("ALTER TABLE daily_inventory_usage ADD COLUMN IF NOT EXISTS edited_by UUID")
 
 
 def seed_permissions_if_needed():
