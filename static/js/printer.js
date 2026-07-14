@@ -143,6 +143,17 @@
     },
 
     _browserPrint: function (text) {
+      // Inside an installed TWA (a generic PWABuilder wrapper, not the custom
+      // native app with the real Bluetooth bridge), a popup window/tab has
+      // nowhere useful to go and just breaks the fullscreen app feel with no
+      // benefit — there's no printer to reach there either way. Quietly say
+      // so instead. On a plain desktop/browser tab, the print-preview
+      // fallback below is still genuinely useful, so it stays.
+      var inTwa = document.referrer.indexOf('android-app://') === 0;
+      if (inTwa) {
+        this._toast('Printer not connected — bill not printed. Open Printer Settings.', true);
+        return;
+      }
       var w = window.open('', '_blank', 'width=320,height=640');
       if (!w) { alert(text); return; }
       // Strip ESC/POS control codes (keep newlines) so the on-screen fallback is clean.
