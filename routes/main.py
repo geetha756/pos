@@ -22,6 +22,20 @@ def download_app():
     )
 
 
+@main_bp.route('/app/download/native')
+def download_native_app():
+    """Serve the native Android app (android-printer-app) — real Bluetooth
+    printing plus on-disk offline snapshots, unlike the PWA/TWA at /app."""
+    from flask import send_from_directory, current_app
+    return send_from_directory(
+        os.path.join(current_app.root_path, 'static', 'download'),
+        'sip-snack-native.apk',
+        mimetype='application/vnd.android.package-archive',
+        as_attachment=True,
+        download_name='SipAndSnackNative.apk',
+    )
+
+
 @main_bp.route('/install')
 def install_page():
     """Friendly install page (open in Chrome) with a download button + steps."""
