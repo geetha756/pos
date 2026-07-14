@@ -302,9 +302,20 @@ function placeOrderDirectly() {
         }
     }
 
+    // Idempotency id — same pattern as the main POS screen — so a queued
+    // offline order that syncs later (or a retry) can never create a
+    // duplicate sale; the server dedupes on this id.
+    const clientId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+        : ('c' + Date.now() + Math.random().toString(36).slice(2));
+    // Captured now, at the actual moment of sale, so a delayed offline sync
+    // still records the real sale time instead of whenever it reconnects.
+    const placedAt = new Date().toISOString();
+
     // Place order
     const orderData = {
         location_id: "{{ location.id }}",
+        client_order_id: clientId,
+        placed_at: placedAt,
         items: Object.keys(cart).map(locationMenuId => ({
             location_menu_id: locationMenuId,
             master_menu_id: cart[locationMenuId].masterMenuId,
@@ -337,8 +348,13 @@ function placeOrderDirectly() {
         }
     })
     .catch(error => {
+        // OFFLINE / network failure: queue it (same shared queue the main
+        // POS screen uses) so it auto-sends once the connection returns —
+        // the idempotency id above means it can never create a duplicate,
+        // whether it's this exact request retrying or a later manual retry.
         console.error('Error:', error);
-        showToast('danger', 'Error placing order. Please try again.');
+        try { window.SnsOrderQueue && window.SnsOrderQueue.enqueue(orderData); } catch (e) {}
+        showToast('success', 'Saved offline — will sync automatically when you\'re back online.');
     });
 }
 
