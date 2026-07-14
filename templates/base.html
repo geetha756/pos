@@ -20,7 +20,13 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function () {
-          navigator.serviceWorker.register('/sw.js').catch(function (err) {
+          // updateViaCache: 'none' + an explicit update() call means a new
+          // deploy is picked up on the very next app open, instead of
+          // sitting stale for up to ~24h waiting on the browser's own
+          // default update-check timer.
+          navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(function (reg) {
+            reg.update().catch(function () {});
+          }).catch(function (err) {
             console.log('Service worker registration failed:', err);
           });
         });
