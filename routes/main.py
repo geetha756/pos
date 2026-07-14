@@ -97,14 +97,18 @@ def manifest():
 def service_worker():
     """Service worker served from the root so its scope covers the whole app."""
     js = """
-const CACHE = 'sns-cache-v4';
+const CACHE = 'sns-cache-v5';
 const OFFLINE_URL = '/static/offline.html';
 const PRECACHE = [OFFLINE_URL, '/static/css/bootstrap.min.css', '/static/css/dashboard.css', '/static/icons/icon-192.png'];
-// Order-taking screens: kept as a live snapshot so they still OPEN with zero
-// connectivity (a cold app restart during an outage, not just a mid-session
-// drop) — not just a generic "you're offline" page. Menu/prices may be a few
-// minutes stale until the next successful load quietly refreshes the cache.
-const OFFLINE_CACHE_ROUTES = ['/orders/new', '/location-menu/'];
+// Order-taking screens (+ the app's own launch route, '/' — the installed
+// app opens there first per the manifest's start_url, so it must be
+// cacheable too or a cold offline launch never gets past the entry page):
+// kept as a live snapshot so they still OPEN with zero connectivity (a cold
+// app restart during an outage, not just a mid-session drop) — not just a
+// generic "you're offline" page. Menu/prices may be a few minutes stale
+// until the next successful load quietly refreshes the cache.
+const OFFLINE_CACHE_EXACT = ['/', '/select-location'];
+const OFFLINE_CACHE_PREFIX = ['/orders/new', '/location-menu/'];
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
@@ -129,7 +133,8 @@ self.addEventListener('fetch', (e) => {
   // and works with no connectivity at all; only show the generic offline
   // page if we've never cached this route.
   if (req.mode === 'navigate') {
-    const cacheable = OFFLINE_CACHE_ROUTES.some((p) => url.pathname.startsWith(p));
+    const cacheable = OFFLINE_CACHE_EXACT.includes(url.pathname) ||
+      OFFLINE_CACHE_PREFIX.some((p) => url.pathname.startsWith(p));
     e.respondWith(
       fetch(req).then((resp) => {
         if (cacheable && resp.ok) {
