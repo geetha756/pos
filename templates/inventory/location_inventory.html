@@ -20,7 +20,7 @@
 </div>
 
 {% if not is_owner %}
-<div class="alert alert-info py-2 small"><i class="ri-information-line icon me-1"></i>These are the items your store stocks. Record what you use on the <a href="{{ url_for('inventory.daily_usage') }}">Daily Usage</a> page. Stock quantities are managed by the owner.</div>
+<div class="alert alert-info py-2 small"><i class="ri-information-line icon me-1"></i>These are the items {{ session.get('active_location_name') or 'your store' }} stocks. Record what you use on the <a href="{{ url_for('inventory.daily_usage') }}">Daily Usage</a> page. Stock quantities are managed by the owner.</div>
 {% endif %}
 
 <div class="card mb-3">
@@ -165,7 +165,7 @@
         {% else %}
         <div class="text-center text-muted py-4">
             <i class="ri-archive-stack-line icon" style="font-size: 3rem;"></i>
-            <h6 class="mt-2 mb-0">No items {% if is_owner %}match your filters{% else %}have been assigned to your store yet{% endif %}</h6>
+            <h6 class="mt-2 mb-0">No items {% if is_owner %}match your filters{% else %}have been assigned to {{ session.get('active_location_name') or 'your store' }} yet{% endif %}</h6>
         </div>
         {% endif %}
     </div>
