@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from database import execute_query, execute_query_one
+from database import execute_query, execute_query_one, execute_transaction
 from .auth import login_required
 from .helpers import get_current_staff_id
 from security import scoped_location_id, owner_required, is_store_manager
@@ -670,8 +670,112 @@ def purchases():
         p_date = (r['purchased_at'] + timedelta(hours=5, minutes=30)).date() if r.get('purchased_at') else None
         r['editable'] = _worker_can_edit(r['location_id'], p_date)
 
+    master_inventory_items = execute_query("""
+        SELECT id, name, category, unit FROM master_inventory
+        WHERE is_active = TRUE ORDER BY category, name
+    """, fetch=True) or []
+
     return render_template('inventory/purchases.html',
-                         locations=locations, location_id=location_id, records=records)
+                         locations=locations, location_id=location_id, records=records,
+                         master_inventory_items=master_inventory_items)
+
+
+@inventory_bp.route('/purchases/scan', methods=['POST'])
+@login_required
+@owner_required
+def scan_purchase_bill():
+    """Send a photo of a handwritten purchase list to Gemini (ocr.py) and
+    return a draft list of items for the user to review — nothing is saved
+    here. See templates/inventory/purchases.html for the crop/review UI."""
+    photo = request.files.get('photo')
+    if not photo or not photo.filename:
+        return jsonify({'success': False, 'error': 'No photo was received.'}), 400
+    try:
+        import ocr
+        items = ocr.extract_purchase_items(photo.read(), mime_type=photo.mimetype or 'image/jpeg')
+        return jsonify({'success': True, 'items': items})
+    except Exception as e:
+        print(f"OCR scan failed: {e}")
+        return jsonify({'success': False, 'error': 'Could not read that photo. Please try again or enter items manually.'}), 500
+
+
+@inventory_bp.route('/purchases/bulk', methods=['POST'])
+@login_required
+@owner_required
+def confirm_scanned_purchases():
+    """Save a reviewed/edited batch of purchase rows (from the scan-bill
+    flow). Each row optionally links to an existing inventory catalog item —
+    never auto-matched or auto-created from OCR text. A linked row also
+    increases that item's real stock, using the same update-then-log pattern
+    as adjust_inventory() (routes/inventory.py), wrapped in one transaction
+    so the whole batch commits together or not at all."""
+    data = request.get_json(silent=True) or {}
+    location_id = data.get('location_id') or scoped_location_id()
+    rows = data.get('rows') or []
+
+    if not location_id:
+        return jsonify({'success': False, 'error': 'A location is required.'}), 400
+    if not rows:
+        return jsonify({'success': False, 'error': 'No rows to save.'}), 400
+
+    staff_id = get_current_staff_id()
+    if not staff_id:
+        return jsonify({'success': False, 'error': 'Your account is not linked to a staff record.'}), 400
+
+    ops = []
+    for row in rows:
+        item_name = (row.get('item_name') or '').strip()
+        try:
+            quantity = Decimal(str(row.get('quantity', '0')))
+            price = Decimal(str(row.get('price', '0')))
+        except InvalidOperation:
+            return jsonify({'success': False, 'error': f'Invalid quantity/price for "{item_name}".'}), 400
+        unit = (row.get('unit') or 'pieces').strip()
+        master_inventory_id = row.get('master_inventory_id') or None
+
+        if not item_name or quantity <= 0 or price <= 0:
+            return jsonify({'success': False, 'error': f'"{item_name or "(unnamed row)"}" needs a name, quantity, and price greater than zero.'}), 400
+
+        purchase_id = str(uuid.uuid4())
+        ops.append((
+            """INSERT INTO store_purchases
+               (id, location_id, item_name, quantity, unit, price, recorded_by, master_inventory_id)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+            (purchase_id, location_id, item_name, quantity, unit, price, staff_id, master_inventory_id)
+        ))
+
+        if master_inventory_id:
+            inv = execute_query_one("""
+                SELECT current_stock FROM location_inventory
+                WHERE location_id = %s AND master_inventory_id = %s
+            """, (location_id, master_inventory_id))
+            if inv is None:
+                return jsonify({'success': False, 'error': f'"{item_name}" is linked to an item not stocked at this location yet. Unlink it or add it to this store\'s inventory first.'}), 400
+            current_stock = Decimal(str(inv['current_stock']))
+            new_stock = current_stock + quantity
+            ops.append((
+                """UPDATE location_inventory
+                   SET current_stock = %s, last_updated = CURRENT_TIMESTAMP
+                   WHERE location_id = %s AND master_inventory_id = %s""",
+                (new_stock, location_id, master_inventory_id)
+            ))
+            ops.append((
+                """INSERT INTO inventory_transactions
+                   (location_id, master_inventory_id, transaction_type, quantity,
+                    previous_stock, new_stock, recorded_by, reference_id, reference_type, notes)
+                   VALUES (%s, %s, 'restock', %s, %s, %s, %s, %s, 'store_purchase', %s)""",
+                (location_id, master_inventory_id, quantity, current_stock, new_stock,
+                 staff_id, purchase_id, f'Scanned purchase: {item_name}')
+            ))
+
+    try:
+        execute_transaction(ops)
+    except Exception as e:
+        print(f"Error saving scanned purchases: {e}")
+        return jsonify({'success': False, 'error': 'Failed to save. Nothing was recorded — please try again.'}), 500
+
+    return jsonify({'success': True, 'saved': len(rows)})
+
 
 @inventory_bp.route('/purchases/<uuid:purchase_id>/edit', methods=['GET', 'POST'])
 @login_required

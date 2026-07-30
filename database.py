@@ -293,6 +293,10 @@ def init_store_purchases_schema():
     # "Edited" marker (workers may correct their own store's same-day entries).
     execute_query("ALTER TABLE store_purchases ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP")
     execute_query("ALTER TABLE store_purchases ADD COLUMN IF NOT EXISTS edited_by UUID")
+    # Optional link to the inventory catalog (set only when a scanned/reviewed
+    # purchase row is confirmed with a chosen catalog item — see
+    # inventory.confirm_scanned_purchases). NULL for every plain manual entry.
+    execute_query("ALTER TABLE store_purchases ADD COLUMN IF NOT EXISTS master_inventory_id UUID REFERENCES master_inventory(id)")
     # Same edit-tracking on daily usage records.
     execute_query("ALTER TABLE daily_inventory_usage ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP")
     execute_query("ALTER TABLE daily_inventory_usage ADD COLUMN IF NOT EXISTS edited_by UUID")

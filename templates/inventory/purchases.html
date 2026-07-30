@@ -25,7 +25,14 @@
 
 <!-- Record a purchase -->
 <div class="card mb-3">
-    <div class="card-header"><span class="card-title fw-bold">Record a purchase</span></div>
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="card-title fw-bold">Record a purchase</span>
+        {% if is_owner %}
+        <button type="button" class="btn btn-sm btn-outline-primary" onclick="ScanBill.open()">
+            <i class="ri-camera-line icon me-1"></i>Scan bill
+        </button>
+        {% endif %}
+    </div>
     <div class="card-body">
         <form method="post" action="{{ url_for('inventory.purchases') }}">
             <input type="hidden" name="location_id" value="{{ location_id }}">
@@ -146,4 +153,319 @@
         {% endif %}
     </div>
 </div>
+
+{% if is_owner %}
+<!-- Scan bill: capture -> crop -> OCR review -> confirm. Nothing saves until
+     the user reviews/edits every row and taps "Save All". -->
+<div class="modal fade" id="scanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="ri-camera-line icon me-1"></i>Scan a purchase bill</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="scan-stage-capture" class="text-center py-4">
+                    <i class="ri-image-add-line" style="font-size:3rem;color:#9ca3af;"></i>
+                    <p class="text-muted mt-2">Take a photo of a handwritten purchase list, or choose one from your gallery.</p>
+                    <input type="file" id="scan-file-input" accept="image/*" capture="environment" class="d-none">
+                    <button type="button" class="btn btn-primary" onclick="document.getElementById('scan-file-input').click()">
+                        <i class="ri-camera-line icon me-1"></i>Take / Choose Photo
+                    </button>
+                </div>
+
+                <div id="scan-stage-crop" class="d-none">
+                    <p class="text-muted small">Drag the box corners to frame just the list, then confirm.</p>
+                    <div id="scan-crop-stage" style="position:relative;max-width:100%;touch-action:none;">
+                        <img id="scan-img" style="max-width:100%;display:block;user-select:none;">
+                        <div id="scan-crop-box" style="position:absolute;border:2px solid #198754;box-shadow:0 0 0 2000px rgba(0,0,0,.35);cursor:move;">
+                            <div class="scan-handle" data-corner="nw" style="position:absolute;top:-8px;left:-8px;width:16px;height:16px;background:#198754;border-radius:50%;cursor:nwse-resize;"></div>
+                            <div class="scan-handle" data-corner="ne" style="position:absolute;top:-8px;right:-8px;width:16px;height:16px;background:#198754;border-radius:50%;cursor:nesw-resize;"></div>
+                            <div class="scan-handle" data-corner="sw" style="position:absolute;bottom:-8px;left:-8px;width:16px;height:16px;background:#198754;border-radius:50%;cursor:nesw-resize;"></div>
+                            <div class="scan-handle" data-corner="se" style="position:absolute;bottom:-8px;right:-8px;width:16px;height:16px;background:#198754;border-radius:50%;cursor:nwse-resize;"></div>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button type="button" class="btn btn-outline-secondary" onclick="ScanBill.reset()">Cancel</button>
+                        <button type="button" class="btn btn-success" onclick="ScanBill.confirmCrop()">
+                            <i class="ri-scan-line icon me-1"></i>Use This Crop &amp; Scan
+                        </button>
+                    </div>
+                </div>
+
+                <div id="scan-stage-review" class="d-none">
+                    <div id="scan-loading" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="text-muted mt-2 mb-0">Reading the bill…</p>
+                    </div>
+                    <div id="scan-review-body" class="d-none">
+                        <p class="text-muted small">Check every row before saving — nothing is saved automatically.</p>
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Item name</th>
+                                        <th style="width:90px;">Qty</th>
+                                        <th style="width:110px;">Unit</th>
+                                        <th style="width:110px;">Price (₹)</th>
+                                        <th style="width:200px;">Link to inventory (optional)</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="scan-review-rows"></tbody>
+                            </table>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary mb-3" onclick="ScanBill.addRow()">
+                            <i class="ri-add-line icon me-1"></i>Add row
+                        </button>
+                        <div id="scan-save-error" class="alert alert-danger d-none"></div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-outline-secondary" onclick="ScanBill.reset()">Cancel</button>
+                            <button type="button" class="btn btn-success" id="scan-save-btn" onclick="ScanBill.saveAll()">
+                                <i class="ri-save-line icon me-1"></i>Save All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+window.ScanBill = (function () {
+    var LOCATION_ID = {{ location_id|tojson }};
+    var CATALOG = {{ master_inventory_items|tojson }};
+    var UNITS = ['pieces', 'kg', 'g', 'liter', 'ml', 'boxes', 'cans', 'packets'];
+    var modalEl, modal, naturalW, naturalH;
+
+    function el(id) { return document.getElementById(id); }
+    function showStage(name) {
+        ['capture', 'crop', 'review'].forEach(function (s) {
+            el('scan-stage-' + s).classList.toggle('d-none', s !== name);
+        });
+    }
+
+    function open() {
+        if (!modalEl) modalEl = el('scanModal');
+        if (!modal) modal = new bootstrap.Modal(modalEl);
+        reset();
+        modal.show();
+    }
+
+    function reset() {
+        showStage('capture');
+        el('scan-file-input').value = '';
+        el('scan-review-rows').innerHTML = '';
+        el('scan-loading').classList.remove('d-none');
+        el('scan-review-body').classList.add('d-none');
+        el('scan-save-error').classList.add('d-none');
+    }
+
+    // --- Capture -> load into crop stage ---
+    document.addEventListener('DOMContentLoaded', function () {
+        el('scan-file-input').addEventListener('change', function (e) {
+            var file = e.target.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function (ev) {
+                var img = el('scan-img');
+                img.onload = function () {
+                    naturalW = img.naturalWidth;
+                    naturalH = img.naturalHeight;
+                    initCropBox();
+                    showStage('crop');
+                };
+                img.src = ev.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    });
+
+    // --- Crop box: drag to move, corner handles to resize ---
+    function initCropBox() {
+        var stage = el('scan-crop-stage');
+        var box = el('scan-crop-box');
+        // Start the box covering the middle 80% of the displayed image.
+        function reposition() {
+            var w = stage.clientWidth, h = stage.clientHeight;
+            box.style.left = (w * 0.1) + 'px';
+            box.style.top = (h * 0.1) + 'px';
+            box.style.width = (w * 0.8) + 'px';
+            box.style.height = (h * 0.8) + 'px';
+        }
+        // Wait a tick for the image to lay out and report real dimensions.
+        setTimeout(reposition, 50);
+
+        var dragging = null; // {mode: 'move'|corner, startX, startY, startBox: {left,top,width,height}}
+
+        function pointerPos(e) {
+            var t = e.touches && e.touches[0] ? e.touches[0] : e;
+            return { x: t.clientX, y: t.clientY };
+        }
+
+        function startDrag(mode, e) {
+            e.preventDefault();
+            var p = pointerPos(e);
+            dragging = {
+                mode: mode, startX: p.x, startY: p.y,
+                startBox: { left: box.offsetLeft, top: box.offsetTop, width: box.offsetWidth, height: box.offsetHeight }
+            };
+        }
+
+        box.addEventListener('mousedown', function (e) { if (e.target === box) startDrag('move', e); });
+        box.addEventListener('touchstart', function (e) { if (e.target === box) startDrag('move', e); }, { passive: false });
+        box.querySelectorAll('.scan-handle').forEach(function (h) {
+            h.addEventListener('mousedown', function (e) { e.stopPropagation(); startDrag(h.dataset.corner, e); });
+            h.addEventListener('touchstart', function (e) { e.stopPropagation(); startDrag(h.dataset.corner, e); }, { passive: false });
+        });
+
+        function onMove(e) {
+            if (!dragging) return;
+            var p = pointerPos(e);
+            var dx = p.x - dragging.startX, dy = p.y - dragging.startY;
+            var sb = dragging.startBox;
+            var stageW = stage.clientWidth, stageH = stage.clientHeight;
+            var left = sb.left, top = sb.top, width = sb.width, height = sb.height;
+
+            if (dragging.mode === 'move') {
+                left = Math.max(0, Math.min(stageW - sb.width, sb.left + dx));
+                top = Math.max(0, Math.min(stageH - sb.height, sb.top + dy));
+            } else {
+                var minSize = 30;
+                if (dragging.mode.indexOf('n') >= 0) { top = sb.top + dy; height = sb.height - dy; }
+                if (dragging.mode.indexOf('s') >= 0) { height = sb.height + dy; }
+                if (dragging.mode.indexOf('w') >= 0) { left = sb.left + dx; width = sb.width - dx; }
+                if (dragging.mode.indexOf('e') >= 0) { width = sb.width + dx; }
+                if (width < minSize) { width = minSize; left = sb.left + (dragging.mode.indexOf('w') >= 0 ? sb.width - minSize : 0); }
+                if (height < minSize) { height = minSize; top = sb.top + (dragging.mode.indexOf('n') >= 0 ? sb.height - minSize : 0); }
+                left = Math.max(0, left); top = Math.max(0, top);
+                width = Math.min(width, stageW - left); height = Math.min(height, stageH - top);
+            }
+            box.style.left = left + 'px'; box.style.top = top + 'px';
+            box.style.width = width + 'px'; box.style.height = height + 'px';
+        }
+        function onUp() { dragging = null; }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+        document.addEventListener('touchmove', onMove, { passive: false });
+        document.addEventListener('touchend', onUp);
+    }
+
+    // --- Crop confirm: draw the selected region to an offscreen canvas, send it ---
+    function confirmCrop() {
+        var stage = el('scan-crop-stage'), img = el('scan-img'), box = el('scan-crop-box');
+        var scaleX = naturalW / stage.clientWidth, scaleY = naturalH / stage.clientHeight;
+        var sx = box.offsetLeft * scaleX, sy = box.offsetTop * scaleY;
+        var sw = box.offsetWidth * scaleX, sh = box.offsetHeight * scaleY;
+
+        var canvas = document.createElement('canvas');
+        canvas.width = sw; canvas.height = sh;
+        canvas.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+
+        showStage('review');
+        el('scan-loading').classList.remove('d-none');
+        el('scan-review-body').classList.add('d-none');
+
+        canvas.toBlob(function (blob) {
+            var fd = new FormData();
+            fd.append('photo', blob, 'scan.jpg');
+            fetch('{{ url_for("inventory.scan_purchase_bill") }}', { method: 'POST', body: fd, credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    el('scan-loading').classList.add('d-none');
+                    if (!data.success) {
+                        showStage('crop');
+                        alert(data.error || 'Could not read that photo.');
+                        return;
+                    }
+                    el('scan-review-body').classList.remove('d-none');
+                    renderReviewRows(data.items || []);
+                })
+                .catch(function () {
+                    el('scan-loading').classList.add('d-none');
+                    showStage('crop');
+                    alert('Network error — please try again.');
+                });
+        }, 'image/jpeg', 0.9);
+    }
+
+    // --- Review table ---
+    function catalogOptionsHtml(selectedId) {
+        var html = '<option value="">— not linked —</option>';
+        CATALOG.forEach(function (it) {
+            html += '<option value="' + it.id + '"' + (selectedId === it.id ? ' selected' : '') + '>' + it.name + '</option>';
+        });
+        return html;
+    }
+    function unitOptionsHtml(selected) {
+        return UNITS.map(function (u) {
+            return '<option value="' + u + '"' + (u === selected ? ' selected' : '') + '>' + u + '</option>';
+        }).join('');
+    }
+    function addRowEl(item) {
+        item = item || { item_name: '', quantity: '', unit: 'pieces', price: '' };
+        var tr = document.createElement('tr');
+        tr.innerHTML =
+            '<td><input type="text" class="form-control form-control-sm scan-f-name" value=""></td>' +
+            '<td><input type="number" step="0.001" min="0" class="form-control form-control-sm scan-f-qty" value="' + (item.quantity || '') + '"></td>' +
+            '<td><select class="form-select form-select-sm scan-f-unit">' + unitOptionsHtml(item.unit) + '</select></td>' +
+            '<td><input type="number" step="0.01" min="0" class="form-control form-control-sm scan-f-price" value="' + (item.price || '') + '"></td>' +
+            '<td><select class="form-select form-select-sm scan-f-link">' + catalogOptionsHtml(null) + '</select></td>' +
+            '<td><button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest(\'tr\').remove()"><i class="ri-close-line"></i></button></td>';
+        tr.querySelector('.scan-f-name').value = item.item_name || '';
+        el('scan-review-rows').appendChild(tr);
+    }
+    function renderReviewRows(items) {
+        el('scan-review-rows').innerHTML = '';
+        if (!items.length) { addRowEl(); return; }
+        items.forEach(addRowEl);
+    }
+    function addRow() { addRowEl(); }
+
+    // --- Save ---
+    function saveAll() {
+        var rows = [];
+        el('scan-review-rows').querySelectorAll('tr').forEach(function (tr) {
+            rows.push({
+                item_name: tr.querySelector('.scan-f-name').value.trim(),
+                quantity: tr.querySelector('.scan-f-qty').value,
+                unit: tr.querySelector('.scan-f-unit').value,
+                price: tr.querySelector('.scan-f-price').value,
+                master_inventory_id: tr.querySelector('.scan-f-link').value || null
+            });
+        });
+        rows = rows.filter(function (r) { return r.item_name; });
+        if (!rows.length) { alert('Add at least one item.'); return; }
+
+        var btn = el('scan-save-btn');
+        btn.disabled = true;
+        el('scan-save-error').classList.add('d-none');
+        fetch('{{ url_for("inventory.confirm_scanned_purchases") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ location_id: LOCATION_ID, rows: rows })
+        })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                btn.disabled = false;
+                if (!data.success) {
+                    el('scan-save-error').textContent = data.error || 'Could not save.';
+                    el('scan-save-error').classList.remove('d-none');
+                    return;
+                }
+                window.location.reload();
+            })
+            .catch(function () {
+                btn.disabled = false;
+                el('scan-save-error').textContent = 'Network error — please try again.';
+                el('scan-save-error').classList.remove('d-none');
+            });
+    }
+
+    return { open: open, reset: reset, confirmCrop: confirmCrop, addRow: addRow, saveAll: saveAll };
+})();
+</script>
+{% endif %}
 {% endblock %}
