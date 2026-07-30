@@ -2,13 +2,26 @@
 Machines API Routes
 Handles data ingestion from Node-RED flows for Vada and Idly machines
 """
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, render_template
 from database import execute_query, execute_query_one
+from .auth import login_required
+from security import permission_required
 from datetime import datetime
 import uuid
 import json
 
 machines_bp = Blueprint('machines', __name__)
+
+
+@machines_bp.route('/')
+@login_required
+@permission_required('machines.view')
+def dashboard():
+    """Machines dashboard — currently just an Idly card linking out to the
+    real external Idly monitoring dashboard. Vada has no card here (its data
+    collection via /api/push/vada stays intact and reversible, just not
+    surfaced in this UI)."""
+    return render_template('machines/dashboard.html', idly_dashboard_url='https://idly-machine.snfifteen.com/ui')
 
 
 def init_machines_schema():

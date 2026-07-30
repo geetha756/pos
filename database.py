@@ -299,12 +299,11 @@ def init_store_purchases_schema():
 
 
 def seed_permissions_if_needed():
-    """Seed a standard set of module/action permissions if the table is empty."""
-    existing = execute_query_one("SELECT COUNT(*) AS c FROM permissions")
-    count = existing['c'] if existing else 0
-    if count and count > 0:
-        return
-
+    """Seed the standard set of module/action permissions. Each INSERT is
+    ON CONFLICT DO NOTHING, so this is safe (and necessary) to run on every
+    startup — a previous version returned early whenever the table had any
+    rows at all, which meant a newly-added module here would silently never
+    get its permission codes inserted on an already-seeded database."""
     modules_actions: Dict[str, List[str]] = {
         'dashboard': ['view'],
         'master_menu': ['view','create','edit','delete','export'],
@@ -316,7 +315,8 @@ def seed_permissions_if_needed():
         'positions': ['view','create','edit','delete'],
         'payroll': ['view','create','edit','approve','export'],
         'inventory': ['view','create','edit','delete','adjust','export'],
-        'users': ['view','create','edit','delete','manage_permissions','manage_api_keys','view_audit']
+        'users': ['view','create','edit','delete','manage_permissions','manage_api_keys','view_audit'],
+        'machines': ['view'],
     }
 
     for module, actions in modules_actions.items():

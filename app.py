@@ -62,9 +62,7 @@ def create_app():
     from routes.payroll import payroll_bp
     from routes.inventory import inventory_bp
     from routes.users import users_bp
-    # Machines module is disabled for now (not in use). Re-enable by restoring
-    # this import, its registration, and the schema init below.
-    # from routes.machines import machines_bp, init_machines_schema
+    from routes.machines import machines_bp, init_machines_schema
 
     # Role-based access control: lock management sections behind their module's
     # view permission. Must be attached before the blueprints are registered.
@@ -80,6 +78,10 @@ def create_app():
     inventory_bp.before_request(require_module_view('inventory.view'))
     users_bp.before_request(require_module_view('users.view'))
     payroll_bp.before_request(payroll_access_guard)
+    # No blueprint-wide guard for machines_bp: its /api/push/* routes are
+    # called by Node-RED hardware with no login session at all (matching the
+    # other system's documented, intentional design). Only the dashboard page
+    # itself is permission-gated — see @permission_required in routes/machines.py.
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
@@ -93,11 +95,10 @@ def create_app():
     app.register_blueprint(payroll_bp, url_prefix='/payroll')
     app.register_blueprint(inventory_bp, url_prefix='/inventory')
     app.register_blueprint(users_bp, url_prefix='/users')
-    # app.register_blueprint(machines_bp, url_prefix='/machines')  # disabled
+    app.register_blueprint(machines_bp, url_prefix='/machines')
 
-    # Machines schema init disabled along with the module:
-    # with app.app_context():
-    #     init_machines_schema()
+    with app.app_context():
+        init_machines_schema()
 
     # Make has_perm()/current_role available in templates (nav gating)
     register_template_helpers(app)

@@ -1194,6 +1194,14 @@
                             </a>
                         </li>
                         {% endif %}
+                        {% if has_perm('machines.view') %}
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('machines') %} active{% endif %}" href="{{ url_for('machines.dashboard') }}">
+                                <i class="ri-cpu-line icon"></i>
+                                <span class="nav-link-label">Machines</span>
+                            </a>
+                        </li>
+                        {% endif %}
                         {% if has_perm('staff.view') %}
                         <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('staff') %} active{% endif %}" href="{{ url_for('staff.index') }}">
