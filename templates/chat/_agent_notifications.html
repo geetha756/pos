@@ -1,0 +1,73 @@
+{# Assigned-BitBerry-agent notification cards. Include on any page every
+   signed-in user (including store managers/workers) lands on. Fetches
+   /chat/api/agents client-side rather than server-side, so a slow/failed
+   BitBerry call never blocks or breaks the page it's embedded in. #}
+{% if has_perm('chat.view') %}
+<style>
+    .agent-notif-icon {
+        width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0;
+        display: inline-flex; align-items: center; justify-content: center; font-size: 18px;
+        background: linear-gradient(135deg, var(--sns-primary), var(--sns-primary-dark));
+        color: #fff;
+    }
+</style>
+<div id="agent-notif-widget" class="mb-4 d-none">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <h2 class="h6 text-uppercase text-muted mb-0" style="letter-spacing:.05em;">Your AI Helpers</h2>
+    </div>
+    <div class="row g-3" id="agent-notif-cards"></div>
+    <div id="agent-notif-empty" class="text-muted small d-none">No agents are currently assigned to you.</div>
+</div>
+<script>
+(function () {
+    var widget = document.getElementById('agent-notif-widget');
+    var cardsEl = document.getElementById('agent-notif-cards');
+    var emptyEl = document.getElementById('agent-notif-empty');
+
+    function escapeHtml(s) {
+        var d = document.createElement('div');
+        d.textContent = s == null ? '' : String(s);
+        return d.innerHTML;
+    }
+
+    // "Your Assistants" (the heading above) is the stable label this widget
+    // always shows; an agent's own BitBerry name is a secondary detail
+    // inside its card, with this fallback if that name is ever blank.
+    function agentDisplayName(a) {
+        var name = (a && a.name || '').trim();
+        return name || 'AI Helper';
+    }
+
+    fetch({{ url_for('chat.api_agents') | tojson }}, { credentials: 'same-origin' })
+        .then(function (resp) { return resp.ok ? resp.json() : { agents: [] }; })
+        .then(function (data) {
+            var agents = data.agents || [];
+            if (!agents.length) {
+                widget.classList.remove('d-none');
+                emptyEl.classList.remove('d-none');
+                return;
+            }
+            agents.forEach(function (a) {
+                var col = document.createElement('div');
+                col.className = 'col-md-6 col-lg-4';
+                col.innerHTML =
+                    '<div class="card h-100">' +
+                        '<div class="card-body d-flex flex-column">' +
+                            '<div class="d-flex align-items-center gap-2 mb-2">' +
+                                '<span class="agent-notif-icon"><i class="ri-sparkling-2-fill"></i></span>' +
+                                '<h5 class="card-title mb-0">' + escapeHtml(agentDisplayName(a)) + '</h5>' +
+                            '</div>' +
+                            '<p class="text-muted small flex-grow-1 mb-3">' + escapeHtml(a.description || '') + '</p>' +
+                            '<a class="btn btn-primary btn-sm align-self-start" target="_blank" rel="noopener" href="{{ url_for('chat.dashboard') }}?agent=' + encodeURIComponent(a.id) + '">' +
+                                '<i class="ri-chat-3-line icon icon-sm me-1"></i>Open Chat' +
+                            '</a>' +
+                        '</div>' +
+                    '</div>';
+                cardsEl.appendChild(col);
+            });
+            widget.classList.remove('d-none');
+        })
+        .catch(function () { /* silent — BitBerry being unreachable shouldn't disrupt this page */ });
+})();
+</script>
+{% endif %}

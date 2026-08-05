@@ -4,6 +4,7 @@ from google.oauth2 import id_token
 import requests as req
 import os
 import json
+from urllib.parse import quote
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -31,7 +32,14 @@ def google_auth():
     if not GOOGLE_CLIENT_ID:
         flash('Google OAuth not configured. Please set GOOGLE_CLIENT_ID environment variable.', 'error')
         return redirect(url_for('auth.login'))
-    
+
+    # Where to send the user after a successful callback (defaults to the
+    # dashboard). Used by silent-reauth (see /auth/google/silent below) so a
+    # feature like chat can send the user right back to what they were doing.
+    next_url = request.args.get('next')
+    if next_url:
+        session['post_login_next'] = next_url
+
     # Google OAuth URL
     auth_url = (
         f"https://accounts.google.com/o/oauth2/v2/auth?"
@@ -43,7 +51,41 @@ def google_auth():
         f"prompt=select_account&"
         f"include_granted_scopes=true"
     )
-    
+
+    return redirect(auth_url)
+
+
+@auth_bp.route('/auth/google/silent')
+def google_auth_silent():
+    """Re-run the OAuth flow with prompt=none: Google issues a fresh code
+    with no visible consent/account screen as long as the browser still has
+    an active Google session, so this refreshes an expired ID token
+    invisibly. If Google can't do it silently (no active Google session), it
+    redirects to /auth/callback with error=login_required/interaction_required,
+    and that callback falls back to the normal visible login screen.
+    """
+    if not GOOGLE_CLIENT_ID:
+        flash('Google OAuth not configured. Please set GOOGLE_CLIENT_ID environment variable.', 'error')
+        return redirect(url_for('auth.login'))
+
+    next_url = request.args.get('next')
+    if next_url:
+        session['post_login_next'] = next_url
+
+    auth_url = (
+        f"https://accounts.google.com/o/oauth2/v2/auth?"
+        f"client_id={quote(GOOGLE_CLIENT_ID)}&"
+        f"redirect_uri={quote(GOOGLE_REDIRECT_URI, safe='')}&"
+        f"scope=openid email profile&"
+        f"response_type=code&"
+        f"prompt=none&"
+        f"include_granted_scopes=true&"
+        # login_hint is an email; must be percent-encoded (a '+' in a
+        # Gmail-style plus-addressed email is otherwise read as a literal
+        # space by Google's query parser and the hint silently breaks).
+        f"login_hint={quote(session.get('user_id', ''), safe='')}"
+    )
+
     return redirect(auth_url)
 
 @auth_bp.route('/auth/callback')
@@ -51,15 +93,22 @@ def google_callback():
     """Handle Google OAuth callback"""
     code = request.args.get('code')
     error = request.args.get('error')
-    
+
     if error:
+        # These two are Google's expected response to a prompt=none silent
+        # reauth when it can't complete one without user interaction (no
+        # active Google browser session) — fall through to a normal, visible
+        # login instead of showing an "authentication failed" error for what
+        # is really just "silent refresh wasn't possible this time".
+        if error in ('login_required', 'interaction_required'):
+            return redirect(url_for('auth.login'))
         flash(f'Authentication failed: {error}', 'error')
         return redirect(url_for('auth.login'))
-    
+
     if not code:
         flash('No authorization code received', 'error')
         return redirect(url_for('auth.login'))
-    
+
     # Show loading page first
     return render_template('auth/loading.html')
 
@@ -156,9 +205,21 @@ def process_auth():
             # Store user information in session
             session.permanent = True  # honour PERMANENT_SESSION_LIFETIME (stay logged in)
             session['user_id'] = user_email  # legacy key used across app (email)
+            # Keep the raw ID token around (not just its decoded claims) so
+            # features that call out to services expecting a Google ID token
+            # as a bearer credential (e.g. the BitBerry chat agent) have one
+            # to send. It's short-lived (~1h, per the 'exp' claim) — routes/
+            # chat.py checks that and silently re-runs this OAuth flow via
+            # prompt=none when it's expired, instead of storing it forever.
+            session['google_id_token'] = id_token_jwt
+            session['google_id_token_exp'] = idinfo.get('exp')
             session['user_name'] = user_name
             session['user_picture'] = user_picture
             session['authenticated'] = True
+            # A fresh sign-in always re-fetches the BitBerry-assigned agent
+            # list rather than trusting whatever was cached under the old
+            # token/session (assignments may have changed since last login).
+            session.pop('bitberry_agents_cache', None)
 
             user_row = None
 
@@ -212,6 +273,12 @@ def process_auth():
             except Exception as e:
                 print(f"Failed to log user session: {e}")
             
+            next_url = session.pop('post_login_next', None)
+            if next_url and next_url.startswith('/'):  # only ever follow a same-site path, never an absolute/external URL
+                # No "Welcome" flash here — this branch is also used by the
+                # silent (prompt=none) token-refresh redirect, which should
+                # be invisible to the user rather than surface a login toast.
+                return redirect(next_url)
             flash(f'Welcome, {user_name}!', 'success')
             return redirect(url_for('main.dashboard'))
             

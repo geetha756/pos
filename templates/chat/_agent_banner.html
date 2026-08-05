@@ -1,0 +1,40 @@
+{# Compact one-line version of the assigned-agent notification, for pages
+   where a full card grid would be too heavy (e.g. the store manager's
+   order-taking screen). Links straight to the agent if there's exactly one;
+   otherwise to the chat picker. #}
+{% if has_perm('chat.view') %}
+<div id="agent-banner" class="alert alert-info d-none d-flex align-items-center justify-content-between py-2 px-3 mb-3" role="status">
+    <span><i class="ri-robot-2-line icon icon-sm me-1"></i><span id="agent-banner-text"></span></span>
+    <a href="#" id="agent-banner-link" class="btn btn-sm btn-primary" target="_blank" rel="noopener">Open Chat</a>
+</div>
+<script>
+(function () {
+    var banner = document.getElementById('agent-banner');
+    var textEl = document.getElementById('agent-banner-text');
+    var linkEl = document.getElementById('agent-banner-link');
+
+    // "AI Helper available: ..." keeps "AI Helper" as the stable label;
+    // the name after the colon is BitBerry's, with a fallback if blank.
+    function agentDisplayName(a) {
+        var name = (a && a.name || '').trim();
+        return name || 'AI Helper';
+    }
+
+    fetch({{ url_for('chat.api_agents') | tojson }}, { credentials: 'same-origin' })
+        .then(function (resp) { return resp.ok ? resp.json() : { agents: [] }; })
+        .then(function (data) {
+            var agents = data.agents || [];
+            if (!agents.length) return;
+            if (agents.length === 1) {
+                textEl.textContent = 'AI Helper available: ' + agentDisplayName(agents[0]);
+                linkEl.href = '{{ url_for("chat.dashboard") }}?agent=' + encodeURIComponent(agents[0].id);
+            } else {
+                textEl.textContent = agents.length + ' AI Helpers are assigned to you';
+                linkEl.href = '{{ url_for("chat.dashboard") }}';
+            }
+            banner.classList.remove('d-none');
+        })
+        .catch(function () { /* silent — this page's main job isn't chat */ });
+})();
+</script>
+{% endif %}

@@ -321,6 +321,7 @@ def seed_permissions_if_needed():
         'inventory': ['view','create','edit','delete','adjust','export'],
         'users': ['view','create','edit','delete','manage_permissions','manage_api_keys','view_audit'],
         'machines': ['view'],
+        'chat': ['view'],
     }
 
     for module, actions in modules_actions.items():

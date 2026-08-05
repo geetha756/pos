@@ -63,6 +63,7 @@ def create_app():
     from routes.inventory import inventory_bp
     from routes.users import users_bp
     from routes.machines import machines_bp, init_machines_schema
+    from routes.chat import chat_bp
 
     # Role-based access control: lock management sections behind their module's
     # view permission. Must be attached before the blueprints are registered.
@@ -96,6 +97,7 @@ def create_app():
     app.register_blueprint(inventory_bp, url_prefix='/inventory')
     app.register_blueprint(users_bp, url_prefix='/users')
     app.register_blueprint(machines_bp, url_prefix='/machines')
+    app.register_blueprint(chat_bp, url_prefix='/chat')
 
     with app.app_context():
         init_machines_schema()
@@ -160,4 +162,4 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5002)
