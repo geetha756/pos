@@ -74,28 +74,8 @@
                     </div>
                     <div class="col-md-6">
                         <div class="mb-3">
-                            <label class="form-label fw-bold">Manager</label>
-                            <p class="form-control-plaintext">{{ staff.manager_name or '-' }}</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
                             <label class="form-label fw-bold">Hire Date</label>
                             <p class="form-control-plaintext">{{ staff.hire_date.strftime('%B %d, %Y') if staff.hire_date else '-' }}</p>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Salary</label>
-                            <p class="form-control-plaintext">
-                                {% if staff.salary %}
-                                    ₹{{ "%.2f"|format(staff.salary) }}
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </p>
                         </div>
                     </div>
                 </div>
@@ -109,19 +89,7 @@
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Email</label>
-                            <p class="form-control-plaintext">
-                                {% if staff.email %}
-                                    <a href="mailto:{{ staff.email }}">{{ staff.email }}</a>
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </p>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
+                    <div class="col-md-12">
                         <div class="mb-3">
                             <label class="form-label fw-bold">Phone</label>
                             <p class="form-control-plaintext">
@@ -131,6 +99,49 @@
                                     -
                                 {% endif %}
                             </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bank & Payroll Details -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Bank & Payroll Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Bank Account Number</label>
+                            <p class="form-control-plaintext">{{ staff.bank_account_number or '-' }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">IFSC Code</label>
+                            <p class="form-control-plaintext">{{ staff.ifsc_code or '-' }}</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Monthly Salary</label>
+                            <p class="form-control-plaintext">₹{{ "%.2f"|format(staff.monthly_salary) if staff.monthly_salary else "0.00" }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Per Hour Salary</label>
+                            <p class="form-control-plaintext">₹{{ "%.2f"|format(staff.per_hour_salary) }} / hr</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Per Day Salary</label>
+                            <p class="form-control-plaintext">₹{{ "%.2f"|format(staff.per_day_salary) }} / day</p>
                         </div>
                     </div>
                 </div>
@@ -174,39 +185,6 @@
             </div>
         </div>
 
-        <!-- Emergency Contact -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Emergency Contact</h5>
-            </div>
-            <div class="card-body">
-                {% if staff.emergency_contact_name or staff.emergency_contact_phone %}
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Contact Name</label>
-                            <p class="form-control-plaintext">{{ staff.emergency_contact_name or '-' }}</p>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Contact Phone</label>
-                            <p class="form-control-plaintext">
-                                {% if staff.emergency_contact_phone %}
-                                    <a href="tel:{{ staff.emergency_contact_phone }}">{{ staff.emergency_contact_phone }}</a>
-                                {% else %}
-                                    -
-                                {% endif %}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                {% else %}
-                <p class="text-muted mb-0">No emergency contact information provided.</p>
-                {% endif %}
-            </div>
-        </div>
-
         <!-- Notes -->
         {% if staff.notes %}
         <div class="card">
@@ -221,35 +199,6 @@
     </div>
 
     <div class="col-lg-4">
-        <!-- Quick Stats -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h6 class="card-title mb-0">Quick Stats</h6>
-            </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Employee Since</label>
-                    <p class="form-control-plaintext">
-                        {% if staff.created_at %}
-                            {{ staff.created_at.strftime('%B %d, %Y') }}
-                        {% else %}
-                            -
-                        {% endif %}
-                    </p>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Last Updated</label>
-                    <p class="form-control-plaintext">
-                        {% if staff.updated_at %}
-                            {{ staff.updated_at.strftime('%B %d, %Y') }}
-                        {% else %}
-                            -
-                        {% endif %}
-                    </p>
-                </div>
-            </div>
-        </div>
-
         <!-- Subordinates -->
         {% if subordinates %}
         <div class="card">

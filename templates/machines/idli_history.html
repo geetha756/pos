@@ -1,0 +1,227 @@
+{% extends "base.html" %}
+
+{% block title %}Electric Idli Machine — History{% endblock %}
+
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/eidli-hmi.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="eidli-app">
+    {% include "machines/_idli_nav.html" with context %}
+
+    <!-- Global date/time range — applies across Sessions / Cycles / Events / Commands -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex flex-wrap gap-2 mb-3">
+                <span class="text-muted small align-self-center me-1">Quick range:</span>
+                <button type="button" class="btn btn-sm btn-outline-secondary eidli-date-preset" data-preset="today">Today</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary eidli-date-preset" data-preset="yesterday">Yesterday</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary eidli-date-preset" data-preset="week">Last 7 Days</button>
+            </div>
+            <div class="row g-3 align-items-end">
+                <div class="col-sm-6 col-lg-3">
+                    <label class="form-label" for="eidli-hist-from-date">From</label>
+                    <div class="d-flex gap-2">
+                        <input type="date" class="form-control" id="eidli-hist-from-date">
+                        <input type="time" class="form-control" id="eidli-hist-from-time" value="00:00" style="max-width:105px;">
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                    <label class="form-label" for="eidli-hist-to-date">To</label>
+                    <div class="d-flex gap-2">
+                        <input type="date" class="form-control" id="eidli-hist-to-date">
+                        <input type="time" class="form-control" id="eidli-hist-to-time" value="23:59" style="max-width:105px;">
+                    </div>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <button type="button" class="btn btn-success w-100" id="eidli-hist-apply">Apply</button>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <button type="button" class="btn btn-outline-secondary w-100" id="eidli-hist-clear">Clear</button>
+                </div>
+            </div>
+            <p class="eidli-today-note mb-0 mt-2">
+                Date alone covers the entire day — set a time only if you need a precise cutoff. Applies as a
+                server-side range across Sessions, Heating Cycles, Events, Commands, and Machine Runtime Analytics —
+                stays active while switching tabs, until changed again.
+            </p>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs mb-3" id="eidli-hist-tabs" role="tablist">
+        <li class="nav-item" role="presentation"><button class="nav-link active" data-tab="sessions" type="button">Sessions</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-tab="cycles" type="button">Heating Cycles</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-tab="events" type="button">Events</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-tab="commands" type="button">Commands</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-tab="runtime" type="button">Machine Runtime Analytics</button></li>
+    </ul>
+
+    <!-- Sessions -->
+    <div class="eidli-hist-pane" data-pane="sessions">
+        <div class="card">
+            <div class="card-header">
+                <span class="eidli-panel-title">Cooking Sessions</span>
+                <div class="d-flex align-items-center gap-2">
+                    <select class="form-select form-select-sm" id="eidli-sessions-status" style="width:auto;" aria-label="Filter sessions by status">
+                        <option value="">All statuses</option>
+                        <option value="active">Active</option>
+                        <option value="completed">Completed</option>
+                        <option value="stopped">Stopped</option>
+                        <option value="interrupted">Interrupted</option>
+                        <option value="faulted">Faulted</option>
+                    </select>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="eidli-sessions-refresh" aria-label="Refresh sessions"><i class="ri-refresh-line icon-sm"></i></button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="eidli-sessions-body"><div class="eidli-section-loading">Loading…</div></div>
+                <div class="text-center mt-2"><button type="button" class="btn btn-sm btn-outline-secondary" id="eidli-sessions-more" style="display:none;">Load more</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Heating cycles -->
+    <div class="eidli-hist-pane" data-pane="cycles" style="display:none;">
+        <div class="card">
+            <div class="card-header">
+                <span class="eidli-panel-title">Heating Cycles</span>
+                <div class="d-flex align-items-center gap-2">
+                    <select class="form-select form-select-sm" id="eidli-cycles-status" style="width:auto;" aria-label="Filter heating cycles by status">
+                        <option value="">All</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="abandoned">Abandoned</option>
+                    </select>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="eidli-cycles-refresh" aria-label="Refresh heating cycles"><i class="ri-refresh-line icon-sm"></i></button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="eidli-cycles-body"><div class="eidli-section-loading">Loading…</div></div>
+                <div class="text-center mt-2"><button type="button" class="btn btn-sm btn-outline-secondary" id="eidli-cycles-more" style="display:none;">Load more</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Event log -->
+    <div class="eidli-hist-pane" data-pane="events" style="display:none;">
+        <div class="card">
+            <div class="card-header">
+                <span class="eidli-panel-title">Event Log</span>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="eidli-events-refresh" aria-label="Refresh events"><i class="ri-refresh-line icon-sm"></i></button>
+            </div>
+            <div class="card-body">
+                <div id="eidli-events-body"><div class="eidli-section-loading">Loading…</div></div>
+                <div class="text-center mt-2"><button type="button" class="btn btn-sm btn-outline-secondary" id="eidli-events-more" style="display:none;">Load more</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Command history -->
+    <div class="eidli-hist-pane" data-pane="commands" style="display:none;">
+        <div class="card">
+            <div class="card-header">
+                <span class="eidli-panel-title">Command History</span>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="eidli-commands-refresh" aria-label="Refresh commands"><i class="ri-refresh-line icon-sm"></i></button>
+            </div>
+            <div class="card-body">
+                <div id="eidli-commands-body"><div class="eidli-section-loading">Loading…</div></div>
+                <div class="text-center mt-2"><button type="button" class="btn btn-sm btn-outline-secondary" id="eidli-commands-more" style="display:none;">Load more</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Machine Runtime Analytics — fifth top-level tab, same level as
+         Sessions/Cycles/Events/Commands. Shown/hidden by the same generic
+         .eidli-hist-pane display toggle in activateTab(). -->
+    <div class="eidli-hist-pane" data-pane="runtime" style="display:none;">
+        <div class="card">
+            <div class="card-header">
+                <span class="eidli-panel-title">Machine Runtime Analytics</span>
+                <!-- No separate range buttons here anymore — the shared
+                     date-range filter card at the top of the page (From/To
+                     + Apply) now governs every History section including
+                     this one, so Runtime Analytics can't disagree with
+                     Sessions/Cycles/Events/Commands about what "Yesterday"
+                     means. -->
+                <div class="d-flex flex-wrap align-items-center gap-2" id="eidli-runtime-type-group" role="group" aria-label="Runtime chart type">
+                    <button type="button" class="btn btn-sm btn-success" data-runtime-type="bar">📊 Bar Chart</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-runtime-type="line">📈 Line Chart</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Summary cards reuse the existing .eidli-stat-card pattern
+                     (already used on the Dashboard) verbatim, just wrapped in
+                     a Bootstrap row/col grid — no new CSS. -->
+                <div class="row g-2 mb-3">
+                    <div class="col-6 col-lg-3">
+                        <div class="eidli-stat-card">
+                            <div class="eidli-stat-label">Total Runtime</div>
+                            <div class="eidli-stat-value" id="eidli-runtime-total">—</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="eidli-stat-card">
+                            <div class="eidli-stat-label">Total Sessions</div>
+                            <div class="eidli-stat-value" id="eidli-runtime-count">—</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="eidli-stat-card">
+                            <div class="eidli-stat-label">Avg Runtime / Session</div>
+                            <div class="eidli-stat-value" id="eidli-runtime-avg">—</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-lg-3">
+                        <div class="eidli-stat-card">
+                            <div class="eidli-stat-label">Longest Session</div>
+                            <div class="eidli-stat-value" id="eidli-runtime-longest">—</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="eidli-chart-wrap" id="eidli-runtime-chart-wrap">
+                    <canvas id="eidli-runtime-chart"></canvas>
+                </div>
+                <div id="eidli-runtime-loading" class="eidli-section-loading" style="display:none;">Loading…</div>
+                <div id="eidli-runtime-empty" class="eidli-section-empty" style="display:none;">No runtime data available for the selected period.</div>
+                <div id="eidli-runtime-error" class="eidli-section-error" style="display:none;">Unable to load runtime analytics.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Session detail modal -->
+    <div class="modal fade" id="eidli-session-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Cooking Session Detail</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="eidli-session-modal-body">
+                    <div class="eidli-section-loading">Loading session…</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
+<script>
+    window.EIDLI_CONFIG = {
+        configured: {{ eidli_configured|tojson }},
+        urls: {
+            machine: '{{ url_for("machines.idli_machine") }}',
+            status: '{{ url_for("machines.idli_status") }}',
+            events: '{{ url_for("machines.idli_events") }}',
+            commands: '{{ url_for("machines.idli_commands") }}',
+            sessions: '{{ url_for("machines.idli_sessions") }}',
+            sessionDetailTpl: '{{ url_for("machines.idli_session_detail", session_id="__ID__") }}',
+            heatingCycles: '{{ url_for("machines.idli_heating_cycles") }}'
+        }
+    };
+</script>
+<script src="{{ url_for('static', filename='js/eidli/core.js') }}"></script>
+<script src="{{ url_for('static', filename='js/eidli/history.js') }}"></script>
+{% endblock %}

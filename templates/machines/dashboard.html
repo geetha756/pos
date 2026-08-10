@@ -10,8 +10,8 @@
         width: 64px; height: 64px; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
         font-size: 30px; color: #fff;
-        background: radial-gradient(circle at 30% 30%, #34d399, #059669);
-        box-shadow: inset 0 -4px 8px rgba(0,0,0,.15), 0 4px 10px rgba(5,150,105,.35);
+        background: radial-gradient(circle at 30% 30%, #157a5e, #0f5f49);
+        box-shadow: inset 0 -4px 8px rgba(0,0,0,.15), 0 4px 10px rgba(21,122,94,.35);
         margin-bottom: 1rem;
     }
 </style>
@@ -27,10 +27,10 @@
         <div class="card machine-card h-100">
             <div class="card-body text-center py-4">
                 <div class="machine-icon-circle mx-auto"><i class="ri-drop-line"></i></div>
-                <h5 class="card-title mb-1">Idly Machine</h5>
-                <p class="text-muted small mb-3">Live temperature, pressure &amp; production monitoring</p>
-                <a href="{{ idly_dashboard_url }}" target="_blank" rel="noopener" class="btn btn-success w-100">
-                    <i class="ri-external-link-line icon me-1"></i>Open Dashboard
+                <h5 class="card-title mb-1">Electric Idli Machine</h5>
+                <p class="text-muted small mb-3">Live temperature, heater, sensor &amp; cooking-session monitoring</p>
+                <a href="{{ url_for('machines.idli_detail') }}" class="btn btn-success w-100">
+                    <i class="ri-cpu-line icon me-1"></i>View Machine
                 </a>
             </div>
         </div>

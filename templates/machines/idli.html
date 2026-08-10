@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}Electric Idli Machine — Dashboard{% endblock %}
+
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/eidli-hmi.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="eidli-app">
+    {% include "machines/_idli_nav.html" %}
+
+    <!-- Priority 1: faults/safety — empty and invisible under normal operation -->
+    <div id="eidli-fault-banner"></div>
+
+    <!-- Priority 2/3: machine state, temperature, heater, sensor, mode — answers
+         "is it online / running / hot / heating / healthy / auto-or-manual" in one glance -->
+    <div class="eidli-stat-grid">
+        <div class="eidli-stat-card">
+            <div class="eidli-stat-label"><i class="ri-cpu-line"></i> Machine</div>
+            <div class="eidli-stat-value" id="eidli-grid-machine">—</div>
+        </div>
+        <div class="eidli-stat-card">
+            <div class="eidli-stat-label"><i class="ri-thermometer-line"></i> Temperature</div>
+            <div class="eidli-stat-value eidli-emph" id="eidli-grid-temp">—</div>
+        </div>
+        <div class="eidli-stat-card">
+            <div class="eidli-stat-label"><i class="ri-fire-line"></i> Heater</div>
+            <div class="eidli-stat-value" id="eidli-grid-heater">—</div>
+        </div>
+        <div class="eidli-stat-card">
+            <div class="eidli-stat-label"><i class="ri-radar-line"></i> Sensor</div>
+            <div class="eidli-stat-value" id="eidli-grid-sensor">—</div>
+        </div>
+        <div class="eidli-stat-card">
+            <div class="eidli-stat-label"><i class="ri-settings-3-line"></i> Mode</div>
+            <div class="eidli-stat-value" id="eidli-grid-mode">—</div>
+        </div>
+    </div>
+
+    <!-- Priority 4: controls — session start/complete is the primary run
+         control, mode + manual heater controls sit right beside it, restart
+         is the secondary/danger action kept visually apart -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
+                <div class="eidli-control-row">
+                    <div class="eidli-control-box">
+                        <div class="eidli-stat-label mb-2 justify-content-center">Cooking Session</div>
+                        <div id="eidli-session-controls">
+                            <button type="button" class="btn btn-success" id="eidli-session-start-btn" disabled>
+                                <i class="ri-play-circle-line icon-sm me-1"></i>Start Cooking Session
+                            </button>
+                        </div>
+                    </div>
+                    <div class="eidli-control-box">
+                        <div class="eidli-stat-label mb-2 justify-content-center">Operating Mode</div>
+                        <div class="eidli-mode-toggle" id="eidli-mode-toggle" role="group" aria-label="Operating mode">
+                            <button type="button" data-mode="auto" aria-pressed="false" disabled>Automatic</button>
+                            <button type="button" data-mode="manual" aria-pressed="false" disabled>Manual</button>
+                        </div>
+                    </div>
+                    <div id="eidli-manual-controls" class="eidli-control-box" style="display:none;">
+                        <div class="eidli-stat-label mb-2 justify-content-center">Heater Control (Manual)</div>
+                        <div class="d-flex align-items-center justify-content-center flex-wrap gap-3">
+                            <span class="small text-muted fw-semibold">OFF</span>
+                            <div class="form-check form-switch mb-0">
+                                <input class="form-check-input eidli-heater-switch" type="checkbox" role="switch" id="eidli-heater-toggle" disabled aria-label="Heater power toggle">
+                            </div>
+                            <span class="small text-muted fw-semibold">ON</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="ms-auto text-end">
+                    <div class="eidli-stat-label mb-2">&nbsp;</div>
+                    <button type="button" class="btn btn-outline-danger" id="eidli-restart-btn" disabled title="Hard-restarts the machine — not for routine use">
+                        <i class="ri-restart-line icon-sm me-1"></i>Restart Machine
+                    </button>
+                </div>
+            </div>
+            <div id="eidli-command-status" class="eidli-cmd-status"></div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <!-- Temperature panel + current session -->
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-header"><span class="eidli-panel-title">Temperature</span></div>
+                <div class="card-body">
+                    <div class="eidli-temp-hero" id="eidli-temp-hero">—</div>
+                    <div class="eidli-temp-sub" id="eidli-temp-hero-sub">Waiting for data…</div>
+                    <div class="eidli-threshold-row">
+                        <span class="eidli-threshold"><span class="swatch" style="background:#f04747;"></span>Off at <strong id="eidli-threshold-off">—</strong></span>
+                        <span class="eidli-threshold"><span class="swatch" style="background:#4098ff;"></span>Restart at <strong id="eidli-threshold-restart">—</strong></span>
+                    </div>
+                    <div id="eidli-settings-error"></div>
+                    <hr style="border-color: var(--eidli-border);">
+                    <div class="eidli-stat-label mb-2">Current Session</div>
+                    <div id="eidli-session-mini">
+                        <div class="eidli-section-loading">Loading…</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live temperature graph -->
+        <div class="col-lg-7">
+            <div class="card h-100">
+                <div class="card-header">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <span class="eidli-panel-title">Live Temperature Trend</span>
+                        <span class="small text-success" id="eidli-temp-apply-confirm" style="display:none;"></span>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="eidli-temp-refresh" aria-label="Refresh temperature chart">
+                        <i class="ri-refresh-line icon-sm"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2 mb-3" id="eidli-temp-range-group" role="group" aria-label="Temperature history range">
+                        <button type="button" class="btn btn-sm btn-success" data-range="today">Today</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-range="yesterday">Yesterday</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-range="7days">Last 7 Days</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-range="30days">Last 30 Days</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-range="custom">Custom Range</button>
+                    </div>
+                    <div class="row g-2 align-items-end mb-2">
+                        <div class="col-6 col-lg-3">
+                            <label class="form-label mb-1" for="eidli-temp-from">From</label>
+                            <input type="date" class="form-control form-control-sm" id="eidli-temp-from">
+                        </div>
+                        <div class="col-6 col-lg-3">
+                            <label class="form-label mb-1" for="eidli-temp-to">To</label>
+                            <input type="date" class="form-control form-control-sm" id="eidli-temp-to">
+                        </div>
+                        <div class="col-6 col-lg-2">
+                            <button type="button" class="btn btn-sm btn-success w-100" id="eidli-temp-apply">Apply</button>
+                        </div>
+                    </div>
+                    <div class="small text-muted mb-3" id="eidli-temp-active-filter"></div>
+                    <div class="eidli-chart-wrap">
+                        <canvas id="eidli-temp-chart"></canvas>
+                        <div id="eidli-temp-chart-loading" class="eidli-chart-overlay" style="display:none;">
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            <span id="eidli-temp-chart-loading-text">Loading…</span>
+                        </div>
+                    </div>
+                    <div id="eidli-temp-chart-empty" class="eidli-section-empty" style="display:none;">No temperature history available for the selected period.</div>
+                    <div id="eidli-temp-chart-error" class="eidli-section-error" style="display:none;">Couldn't refresh this range — showing the previously loaded data.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <!-- Recent heating cycles (latest 3 only) -->
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <span class="eidli-panel-title">Recent Heating Cycles</span>
+                    <a href="{{ url_for('machines.idli_history_page') }}?tab=cycles" class="eidli-view-all">View All →</a>
+                </div>
+                <div class="card-body">
+                    <div id="eidli-recent-cycles-body"><div class="eidli-section-loading">Loading…</div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent events (latest 5 only) -->
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <span class="eidli-panel-title">Recent Events</span>
+                    <a href="{{ url_for('machines.idli_history_page') }}?tab=events" class="eidli-view-all">View All →</a>
+                </div>
+                <div class="card-body">
+                    <div id="eidli-recent-events-body"><div class="eidli-section-loading">Loading…</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Today / lifetime production summary -->
+    <div class="card mb-3">
+        <div class="card-header"><span class="eidli-panel-title">Session Summary</span></div>
+        <div class="card-body">
+            <div class="eidli-today-strip" id="eidli-today-strip">
+                <div class="eidli-section-loading">Loading…</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
+<script>
+    window.EIDLI_CONFIG = {
+        configured: {{ eidli_configured|tojson }},
+        urls: {
+            machine: '{{ url_for("machines.idli_machine") }}',
+            status: '{{ url_for("machines.idli_status") }}',
+            settings: '{{ url_for("machines.idli_get_settings") }}',
+            temperatureLogs: '{{ url_for("machines.idli_temperature_logs") }}',
+            events: '{{ url_for("machines.idli_events") }}',
+            commands: '{{ url_for("machines.idli_commands") }}',
+            heaterOn: '{{ url_for("machines.idli_heater_on") }}',
+            heaterOff: '{{ url_for("machines.idli_heater_off") }}',
+            restart: '{{ url_for("machines.idli_restart") }}',
+            settingsSync: '{{ url_for("machines.idli_settings_sync") }}',
+            sessionStart: '{{ url_for("machines.idli_session_start") }}',
+            sessionCurrent: '{{ url_for("machines.idli_session_current") }}',
+            sessionsToday: '{{ url_for("machines.idli_session_today") }}',
+            sessions: '{{ url_for("machines.idli_sessions") }}',
+            sessionCompleteTpl: '{{ url_for("machines.idli_session_complete", session_id="__ID__") }}',
+            sessionDetailTpl: '{{ url_for("machines.idli_session_detail", session_id="__ID__") }}',
+            heatingCycles: '{{ url_for("machines.idli_heating_cycles") }}'
+        }
+    };
+</script>
+<script src="{{ url_for('static', filename='js/eidli/core.js') }}"></script>
+<script src="{{ url_for('static', filename='js/eidli/dashboard.js') }}"></script>
+{% endblock %}

@@ -1,14 +1,20 @@
 """
 Machines API Routes
-Handles data ingestion from Node-RED flows for Vada and Idly machines
+Handles data ingestion from Node-RED flows for Vada and Idly machines, plus
+the native Electric Idli Machine monitoring/control page (a separate FastAPI
++ PostgreSQL + MQTT + ESP32 service — see eidli_client.py for the backend
+contract this proxies against).
 """
+from functools import wraps
 from flask import Blueprint, request, jsonify, render_template
 from database import execute_query, execute_query_one
 from .auth import login_required
 from security import permission_required
 from datetime import datetime
+import os
 import uuid
 import json
+import eidli_client as eidli
 
 machines_bp = Blueprint('machines', __name__)
 
@@ -17,11 +23,297 @@ machines_bp = Blueprint('machines', __name__)
 @login_required
 @permission_required('machines.view')
 def dashboard():
-    """Machines dashboard — currently just an Idly card linking out to the
-    real external Idly monitoring dashboard. Vada has no card here (its data
-    collection via /api/push/vada stays intact and reversible, just not
-    surfaced in this UI)."""
-    return render_template('machines/dashboard.html', idly_dashboard_url='https://idly-machine.snfifteen.com/ui')
+    """Machines dashboard. Vada has no card here (its data collection via
+    /api/push/vada stays intact and reversible, just not surfaced in this
+    UI). The Idly card opens the native Electric Idli Machine page below —
+    it no longer links out to an external dashboard."""
+    return render_template('machines/dashboard.html')
+
+
+# ---------------------------------------------------------------------------
+# Electric Idli Machine — native monitoring/control page
+# ---------------------------------------------------------------------------
+# EIDLI_MACHINE_ID is a single fixed machine for now (per current scope).
+# The API layer (eidli_client.py) and every route below take machine_id as
+# a parameter rather than assuming it, so switching to a dynamic/multi-
+# machine picker (GET /api/v1/machines) later only touches this one spot.
+EIDLI_MACHINE_ID = os.getenv('EIDLI_MACHINE_ID', '').strip()
+
+
+def _require_machine_id():
+    if not EIDLI_MACHINE_ID:
+        raise eidli.EidliError('EIDLI_MACHINE_ID is not configured.', 503)
+    return EIDLI_MACHINE_ID
+
+
+def _eidli_json_route(f):
+    """Runs the wrapped view, JSON-wraps its return value as the success
+    payload, and turns any EidliError into the matching error response —
+    keeps each route below to a single call into eidli_client.py.
+
+    Every response also gets Cache-Control: no-store — this is live machine
+    telemetry, never something a browser (or an intermediate proxy) should
+    be allowed to serve a stale copy of on the next request."""
+    @wraps(f)
+    def wrapped(*args, **kwargs):
+        try:
+            data = f(*args, **kwargs)
+            resp = jsonify({'success': True, 'data': data})
+            status = 200
+        except eidli.EidliError as e:
+            resp = jsonify({'success': False, 'error': type(e).__name__, 'message': e.message})
+            status = e.status
+        resp.headers['Cache-Control'] = 'no-store'
+        return resp, status
+    return wrapped
+
+
+def _validate_range(value, lo, hi, field):
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        raise eidli.EidliError(f'{field} must be a number.', 400)
+    if not (lo <= num <= hi):
+        raise eidli.EidliError(f'{field} must be between {lo} and {hi}.', 400)
+    return num
+
+
+def _validate_threshold(value, label):
+    """Off/Restart threshold-specific validation — 0-100°C, with the exact
+    field-labeled message text this needs (distinct from _validate_range's
+    generic 'field must be between lo and hi', still used for offset)."""
+    try:
+        num = float(value)
+    except (TypeError, ValueError):
+        raise eidli.EidliError(f'{label} must be a number.', 400)
+    if num < 0:
+        raise eidli.EidliError(f'{label} must be greater than or equal to 0°C.', 400)
+    if num > 100:
+        raise eidli.EidliError(f'{label} must be less than or equal to 100°C.', 400)
+    return num
+
+
+@machines_bp.route('/idli')
+@login_required
+@permission_required('machines.view')
+def idli_detail():
+    """Electric Idli Machine — Dashboard (live operation view)."""
+    return render_template(
+        'machines/idli.html',
+        eidli_configured=eidli.configured() and bool(EIDLI_MACHINE_ID),
+        active_tab='dashboard',
+    )
+
+
+@machines_bp.route('/idli/history')
+@login_required
+@permission_required('machines.view')
+def idli_history_page():
+    """Electric Idli Machine — History (sessions/cycles/events/commands audit view)."""
+    return render_template(
+        'machines/idli_history.html',
+        eidli_configured=eidli.configured() and bool(EIDLI_MACHINE_ID),
+        active_tab='history',
+    )
+
+
+@machines_bp.route('/idli/settings')
+@login_required
+@permission_required('machines.view')
+def idli_settings_page():
+    """Electric Idli Machine — Settings (thresholds, mode, buzzer, enable)."""
+    return render_template(
+        'machines/idli_settings.html',
+        eidli_configured=eidli.configured() and bool(EIDLI_MACHINE_ID),
+        active_tab='settings',
+    )
+
+
+@machines_bp.route('/idli/api/machine')
+@login_required
+@permission_required('machines.view')
+@_eidli_json_route
+def idli_machine():
+    return eidli.get_machine(_require_machine_id())
+
+
+@machines_bp.route('/idli/api/status')
+@login_required
+@permission_required('machines.view')
+@_eidli_json_route
+def idli_status():
+    machine_id = _require_machine_id()
+    # Instant if the background poller (started in app.py) already has a
+    # result — falls back to a direct blocking call only in the brief
+    # window right after server startup before its first fetch lands, or if
+    # the poller was never started (e.g. EIDLI_MACHINE_ID unset at boot).
+    cached = eidli.get_cached_status()
+    if cached is not None:
+        return cached
+    return eidli.get_machine_status(machine_id)
+
+
+@machines_bp.route('/idli/api/settings', methods=['GET'])
+@login_required
+@permission_required('machines.view')
+@_eidli_json_route
+def idli_get_settings():
+    return eidli.get_settings(_require_machine_id())
+
+
+@machines_bp.route('/idli/api/settings', methods=['PATCH'])
+@login_required
+@permission_required('machines.view')
+@_eidli_json_route
+def idli_update_settings():
+    payload = request.get_json(silent=True) or {}
+    allowed = {'on_temperature', 'off_temperature', 'mode', 'machine_enabled', 'buzzer_enabled', 'temperature_offset'}
+    body = {k: v for k, v in payload.items() if k in allowed}
+    if not body:
+        raise eidli.EidliError('No valid settings fields provided.', 400)
+    if 'on_temperature' in body:
+        _validate_threshold(body['on_temperature'], 'Restart Threshold')
+    if 'off_temperature' in body:
+        _validate_threshold(body['off_temperature'], 'Off Threshold')
+    if 'temperature_offset' in body:
+        _validate_range(body['temperature_offset'], -10, 10, 'temperature_offset')
+    if 'mode' in body and body['mode'] not in ('auto', 'manual'):
+        raise eidli.EidliError('mode must be "auto" or "manual".', 400)
+    return eidli.update_settings(_require_machine_id(), body)
+
+
+@machines_bp.route('/idli/api/temperature-logs')
+@login_required
+@permission_required('machines.view')
+@_eidli_json_route
+def idli_temperature_logs():
+    limit = request.args.get('limit', default=200, type=int)
+    offset = request.args.get('offset', type=int)
+    return eidli.get_temperature_logs(
+        _require_machine_id(), limit=limit, offset=offset,
+        start_time=request.args.get('start_time'), end_time=request.args.get('end_time')
+    )
+
+
+@machines_bp.route('/idli/api/events')
+@login_required
+@permission_required('machines.view')
+@_eidli_json_route
+def idli_events():
+    limit = request.args.get('limit', default=50, type=int)
+    offset = request.args.get('offset', type=int)
+    start_time = request.args.get('start_time')
+    end_time = request.args.get('end_time')
+    return eidli.get_events(_require_machine_id(), limit=limit, offset=offset, start_time=start_time, end_time=end_time)
+
+
+@machines_bp.route('/idli/api/commands')
+@login_required
+@permission_required('machines.view')
+@_eidli_json_route
+def idli_commands():
+    limit = request.args.get('limit', default=50, type=int)
+    offset = request.args.get('offset', type=int)
+    start_time = request.args.get('start_time')
+    end_time = request.args.get('end_time')
+    return eidli.get_commands(_require_machine_id(), limit=limit, offset=offset, start_time=start_time, end_time=end_time)
+
+
+@machines_bp.route('/idli/api/heater/on', methods=['POST'])
+@login_required
+@permission_required('machines.view')
+@_eidli_json_route
+def idli_heater_on():
+    return eidli.heater_on(_require_machine_id())
+
+
+@machines_bp.route('/idli/api/heater/off', methods=['POST'])
+@login_required
+@permission_required('machines.view')
+@_eidli_json_route
+def idli_heater_off():
+    return eidli.heater_off(_require_machine_id())
+
+
+@machines_bp.route('/idli/api/restart', methods=['POST'])
+@login_required
+@permission_required('machines.view')
+@_eidli_json_route
+def idli_restart():
+    return eidli.restart_machine(_require_machine_id())
+
+
+@machines_bp.route('/idli/api/settings/sync', methods=['POST'])
+@login_required
+@permission_required('machines.view')
+@_eidli_json_route
+def idli_settings_sync():
+    return eidli.sync_settings(_require_machine_id())
+
+
+@machines_bp.route('/idli/api/sessions/start', methods=['POST'])
+@login_required
+@permission_required('machines.view')
+@_eidli_json_route
+def idli_session_start():
+    return eidli.start_session(_require_machine_id())
+
+
+@machines_bp.route('/idli/api/sessions/current')
+@login_required
+@permission_required('machines.view')
+@_eidli_json_route
+def idli_session_current():
+    return eidli.get_current_session(_require_machine_id())
+
+
+@machines_bp.route('/idli/api/sessions/today')
+@login_required
+@permission_required('machines.view')
+@_eidli_json_route
+def idli_session_today():
+    return eidli.get_daily_session_summary(_require_machine_id())
+
+
+@machines_bp.route('/idli/api/sessions/<session_id>')
+@login_required
+@permission_required('machines.view')
+@_eidli_json_route
+def idli_session_detail(session_id):
+    return eidli.get_session(_require_machine_id(), session_id)
+
+
+@machines_bp.route('/idli/api/sessions/<session_id>/complete', methods=['POST'])
+@login_required
+@permission_required('machines.view')
+@_eidli_json_route
+def idli_session_complete(session_id):
+    reason = (request.get_json(silent=True) or {}).get('reason')
+    return eidli.complete_session(_require_machine_id(), session_id, reason)
+
+
+@machines_bp.route('/idli/api/sessions')
+@login_required
+@permission_required('machines.view')
+@_eidli_json_route
+def idli_sessions():
+    limit = request.args.get('limit', default=25, type=int)
+    offset = request.args.get('offset', type=int)
+    start_time = request.args.get('start_time')
+    end_time = request.args.get('end_time')
+    return eidli.get_sessions(_require_machine_id(), limit=limit, offset=offset, start_time=start_time, end_time=end_time)
+
+
+@machines_bp.route('/idli/api/heating-cycles')
+@login_required
+@permission_required('machines.view')
+@_eidli_json_route
+def idli_heating_cycles():
+    limit = request.args.get('limit', default=25, type=int)
+    offset = request.args.get('offset', type=int)
+    start_time = request.args.get('start_time')
+    end_time = request.args.get('end_time')
+    return eidli.get_heating_cycles(_require_machine_id(), limit=limit, offset=offset, start_time=start_time, end_time=end_time)
 
 
 def init_machines_schema():

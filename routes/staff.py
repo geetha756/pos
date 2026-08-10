@@ -2,9 +2,65 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from database import execute_query, execute_query_one, get_db_connection
 from .auth import login_required
 from security import scoped_location_id
+import calendar
+import re
+from datetime import date
 import psycopg2
 
 staff_bp = Blueprint('staff', __name__)
+
+IFSC_RE = re.compile(r'^[A-Z]{4}0[A-Z0-9]{6}$')
+BANK_ACCOUNT_RE = re.compile(r'^[0-9]{5,20}$')
+
+
+def _generate_employee_id():
+    """Assign the next sequential Employee ID (EMP01, EMP02, ...), based on
+    the highest EMP-numbered ID currently in the table. Computed fresh on
+    every call (not a DB sequence) so a gap left by a deleted staff member -
+    e.g. the highest employee_id being removed - is reclaimed immediately on
+    the very next add, instead of only at the next app restart."""
+    row = execute_query_one("""
+        SELECT COALESCE(MAX(CAST(SUBSTRING(employee_id FROM '^EMP([0-9]+)$') AS INTEGER)), 0) AS max_n
+        FROM staff WHERE employee_id ~ '^EMP[0-9]+$'
+    """)
+    return f"EMP{(row['max_n'] + 1):02d}"
+
+
+def _days_in_current_month():
+    today = date.today()
+    return calendar.monthrange(today.year, today.month)[1]
+
+
+def _compute_per_hour_salary(monthly_salary):
+    """Derive Per Hour Salary from Monthly Salary: spread over this month's
+    actual day count x an 8-hour day, so it stays current as months change
+    length. Not stored - always computed fresh for display."""
+    if not monthly_salary:
+        return 0
+    return float(monthly_salary) / (_days_in_current_month() * 8)
+
+
+def _compute_per_day_salary(monthly_salary):
+    """Derive Per Day Salary from Monthly Salary: spread over this month's
+    actual day count. Not stored - always computed fresh for display."""
+    if not monthly_salary:
+        return 0
+    return float(monthly_salary) / _days_in_current_month()
+
+
+def _validate_bank_fields(bank_account_number, ifsc_code, monthly_salary):
+    """Validate the new bank/payroll fields. Returns an error message, or None."""
+    if bank_account_number and not BANK_ACCOUNT_RE.match(bank_account_number):
+        return 'Bank Account Number must be 5-20 digits.'
+    if ifsc_code and not IFSC_RE.match(ifsc_code):
+        return 'IFSC Code must be in a valid format (e.g. SBIN0005814).'
+    if monthly_salary:
+        try:
+            if float(monthly_salary) < 0:
+                return 'Monthly Salary cannot be negative.'
+        except ValueError:
+            return 'Monthly Salary must be a valid number.'
+    return None
 
 @staff_bp.route('/')
 @login_required
@@ -79,10 +135,12 @@ def index():
 def add():
     """Add new staff member"""
     if request.method == 'POST':
-        employee_id = request.form.get('employee_id')
+        # Email, Hire Date, Manager, legacy Salary, and Emergency Contact are
+        # not on the Add Staff form. Hire Date is NOT NULL in the database,
+        # so it's stamped with today's date; the rest stay NULL (all
+        # nullable) until set some other way.
         first_name = request.form.get('first_name')
         last_name = request.form.get('last_name')
-        email = request.form.get('email')
         phone = request.form.get('phone')
         position_id = request.form.get('position_id') or None
         department_id = request.form.get('department_id') or None
@@ -91,38 +149,41 @@ def add():
         store = scoped_location_id()
         if store:
             location_id = store
-        hire_date = request.form.get('hire_date')
-        salary = request.form.get('salary') or None
-        manager_id = request.form.get('manager_id') or None
+        hire_date = date.today()
         address = request.form.get('address')
         city = request.form.get('city')
         state = request.form.get('state')
         zip_code = request.form.get('zip_code')
-        emergency_contact_name = request.form.get('emergency_contact_name')
-        emergency_contact_phone = request.form.get('emergency_contact_phone')
         notes = request.form.get('notes')
+        bank_account_number = (request.form.get('bank_account_number') or '').strip() or None
+        ifsc_code = (request.form.get('ifsc_code') or '').strip().upper() or None
+        monthly_salary = request.form.get('monthly_salary') or None
 
-        if not employee_id or not first_name or not last_name or not position_id or not hire_date:
-            flash('Employee ID, first name, last name, position, and hire date are required', 'error')
+        if not first_name or not last_name or not position_id:
+            flash('First name, last name, and position are required', 'error')
+            return render_template('staff/add.html')
+
+        bank_error = _validate_bank_fields(bank_account_number, ifsc_code, monthly_salary)
+        if bank_error:
+            flash(bank_error, 'error')
             return render_template('staff/add.html')
 
         try:
+            employee_id = _generate_employee_id()
             execute_query("""
-                INSERT INTO staff (employee_id, first_name, last_name, email, phone, position_id,
-                                 department_id, location_id, hire_date, salary, manager_id, address,
-                                 city, state, zip_code, emergency_contact_name,
-                                 emergency_contact_phone, notes)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (employee_id, first_name, last_name, email, phone, position_id, department_id,
-                  location_id, hire_date, salary, manager_id, address, city, state, zip_code,
-                  emergency_contact_name, emergency_contact_phone, notes))
+                INSERT INTO staff (employee_id, first_name, last_name, phone, position_id,
+                                 department_id, location_id, hire_date, address,
+                                 city, state, zip_code, notes, bank_account_number, ifsc_code,
+                                 monthly_salary)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (employee_id, first_name, last_name, phone, position_id, department_id,
+                  location_id, hire_date, address, city, state, zip_code,
+                  notes, bank_account_number, ifsc_code, monthly_salary))
             flash('Staff member added successfully!', 'success')
             return redirect(url_for('staff.index'))
         except psycopg2.IntegrityError as e:
             if 'employee_id' in str(e).lower():
-                flash('Employee ID already exists. Please choose a different ID.', 'error')
-            elif 'email' in str(e).lower():
-                flash('Email address already exists. Please use a different email.', 'error')
+                flash('Employee ID generation collided. Please try again.', 'error')
             else:
                 flash(f'Error adding staff member: {str(e)}', 'error')
         except Exception as e:
@@ -166,10 +227,13 @@ def add():
 def edit(staff_id):
     """Edit staff member"""
     if request.method == 'POST':
-        employee_id = request.form.get('employee_id')
+        # Employee ID, email, manager, legacy salary, and emergency contact
+        # are not on the Edit Staff form and are intentionally left out of
+        # both the SELECT-for-redisplay and the UPDATE below, so this
+        # endpoint never touches them - whatever was set when the staff
+        # member was added stays untouched. Hire Date IS editable here.
         first_name = request.form.get('first_name')
         last_name = request.form.get('last_name')
-        email = request.form.get('email')
         phone = request.form.get('phone')
         position_id = request.form.get('position_id') or None
         department_id = request.form.get('department_id') or None
@@ -179,43 +243,48 @@ def edit(staff_id):
         if store:
             location_id = store
         hire_date = request.form.get('hire_date')
-        salary = request.form.get('salary') or None
-        manager_id = request.form.get('manager_id') or None
         is_active = request.form.get('is_active') == 'on'
         address = request.form.get('address')
         city = request.form.get('city')
         state = request.form.get('state')
         zip_code = request.form.get('zip_code')
-        emergency_contact_name = request.form.get('emergency_contact_name')
-        emergency_contact_phone = request.form.get('emergency_contact_phone')
         notes = request.form.get('notes')
+        bank_account_number = (request.form.get('bank_account_number') or '').strip() or None
+        ifsc_code = (request.form.get('ifsc_code') or '').strip().upper() or None
+        monthly_salary = request.form.get('monthly_salary') or None
 
-        if not employee_id or not first_name or not last_name or not position_id or not hire_date:
+        if not first_name or not last_name or not position_id or not hire_date:
             staff_member = execute_query_one("SELECT * FROM staff WHERE id = %s", (staff_id,))
-            flash('Employee ID, first name, last name, position, and hire date are required', 'error')
+            staff_member['per_hour_salary'] = _compute_per_hour_salary(staff_member.get('monthly_salary'))
+            staff_member['per_day_salary'] = _compute_per_day_salary(staff_member.get('monthly_salary'))
+            flash('First name, last name, position, and hire date are required', 'error')
+            return render_template('staff/edit.html', staff=staff_member)
+
+        bank_error = _validate_bank_fields(bank_account_number, ifsc_code, monthly_salary)
+        if bank_error:
+            staff_member = execute_query_one("SELECT * FROM staff WHERE id = %s", (staff_id,))
+            staff_member['per_hour_salary'] = _compute_per_hour_salary(staff_member.get('monthly_salary'))
+            staff_member['per_day_salary'] = _compute_per_day_salary(staff_member.get('monthly_salary'))
+            flash(bank_error, 'error')
             return render_template('staff/edit.html', staff=staff_member)
 
         try:
             execute_query("""
                 UPDATE staff
-                SET employee_id = %s, first_name = %s, last_name = %s, email = %s, phone = %s,
+                SET first_name = %s, last_name = %s, phone = %s,
                     position_id = %s, department_id = %s, location_id = %s, hire_date = %s,
-                    salary = %s, manager_id = %s, is_active = %s, address = %s, city = %s,
-                    state = %s, zip_code = %s, emergency_contact_name = %s,
-                    emergency_contact_phone = %s, notes = %s, updated_at = CURRENT_TIMESTAMP
+                    is_active = %s, address = %s, city = %s,
+                    state = %s, zip_code = %s, notes = %s, bank_account_number = %s,
+                    ifsc_code = %s, monthly_salary = %s, updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
-            """, (employee_id, first_name, last_name, email, phone, position_id, department_id,
-                  location_id, hire_date, salary, manager_id, is_active, address, city, state,
-                  zip_code, emergency_contact_name, emergency_contact_phone, notes, staff_id))
+            """, (first_name, last_name, phone, position_id, department_id,
+                  location_id, hire_date, is_active, address, city, state,
+                  zip_code, notes,
+                  bank_account_number, ifsc_code, monthly_salary, staff_id))
             flash('Staff member updated successfully!', 'success')
             return redirect(url_for('staff.index'))
         except psycopg2.IntegrityError as e:
-            if 'employee_id' in str(e).lower():
-                flash('Employee ID already exists. Please choose a different ID.', 'error')
-            elif 'email' in str(e).lower():
-                flash('Email address already exists. Please use a different email.', 'error')
-            else:
-                flash(f'Error updating staff member: {str(e)}', 'error')
+            flash(f'Error updating staff member: {str(e)}', 'error')
         except Exception as e:
             flash(f'Error updating staff member: {str(e)}', 'error')
 
@@ -256,6 +325,9 @@ def edit(staff_id):
             staff_member['department'] = department['name'] if department else None
         else:
             staff_member['department'] = None
+
+        staff_member['per_hour_salary'] = _compute_per_hour_salary(staff_member.get('monthly_salary'))
+        staff_member['per_day_salary'] = _compute_per_day_salary(staff_member.get('monthly_salary'))
 
         # Get locations, departments, positions and potential managers for dropdowns
         locations = execute_query("SELECT id, name FROM locations ORDER BY name", fetch=True)
@@ -395,6 +467,9 @@ def view(staff_id):
             staff_member['department'] = department['name'] if department else None
         else:
             staff_member['department'] = None
+
+        staff_member['per_hour_salary'] = _compute_per_hour_salary(staff_member.get('monthly_salary'))
+        staff_member['per_day_salary'] = _compute_per_day_salary(staff_member.get('monthly_salary'))
 
         # Get subordinates if this person is a manager
         subordinates = execute_query("""

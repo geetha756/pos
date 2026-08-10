@@ -36,9 +36,9 @@
                     <!-- Basic Information -->
                     <div class="row mb-3">
                         <div class="col-md-4">
-                            <label for="employee_id" class="form-label">Employee ID <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="employee_id" name="employee_id" value="{{ staff.employee_id }}" required>
-                            <div class="invalid-feedback">Employee ID is required and must be unique.</div>
+                            <label for="employee_id" class="form-label">Employee ID</label>
+                            <input type="text" class="form-control" id="employee_id" value="{{ staff.employee_id }}" readonly>
+                            <div class="form-text">Employee ID cannot be changed.</div>
                         </div>
                         <div class="col-md-4">
                             <label for="first_name" class="form-label">First Name <span class="text-danger">*</span></label>
@@ -52,12 +52,7 @@
 
                     <!-- Contact Information -->
                     <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="email" class="form-label">Email</label>
-                            <input type="email" class="form-control" id="email" name="email" value="{{ staff.email or '' }}">
-                            <div class="invalid-feedback">Please enter a valid email address.</div>
-                        </div>
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                             <label for="phone" class="form-label">Phone</label>
                             <input type="tel" class="form-control" id="phone" name="phone" value="{{ staff.phone or '' }}">
                         </div>
@@ -65,7 +60,7 @@
 
                     <!-- Job Information -->
                     <div class="row mb-3">
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label for="position_id" class="form-label">Position <span class="text-danger">*</span></label>
                             <select class="form-select" id="position_id" name="position_id" required>
                                 <option value="">Select Position</option>
@@ -74,7 +69,7 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <label for="department_id" class="form-label">Department</label>
                             <select class="form-select" id="department_id" name="department_id">
                                 <option value="">Select Department</option>
@@ -83,15 +78,11 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <label for="hire_date" class="form-label">Hire Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="hire_date" name="hire_date" value="{{ staff.hire_date.strftime('%Y-%m-%d') if staff.hire_date else '' }}" required>
-                        </div>
                     </div>
 
-                    <!-- Location and Manager -->
+                    <!-- Location, Hire Date, and Status -->
                     <div class="row mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label for="location_id" class="form-label">Location</label>
                             <select class="form-select" id="location_id" name="location_id">
                                 <option value="">Select Location</option>
@@ -100,27 +91,11 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-6">
-                            <label for="manager_id" class="form-label">Manager</label>
-                            <select class="form-select" id="manager_id" name="manager_id">
-                                <option value="">Select Manager</option>
-                                {% for manager in managers %}
-                                <option value="{{ manager.id }}" {% if manager.id == staff.manager_id %}selected{% endif %}>{{ manager.name }}</option>
-                                {% endfor %}
-                            </select>
+                        <div class="col-md-4">
+                            <label for="hire_date" class="form-label">Hire Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="hire_date" name="hire_date" value="{{ staff.hire_date.strftime('%Y-%m-%d') if staff.hire_date else '' }}" required>
                         </div>
-                    </div>
-
-                    <!-- Salary and Status -->
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="salary" class="form-label">Salary</label>
-                            <div class="input-group">
-                                <span class="input-group-text">₹</span>
-                                <input type="number" class="form-control" id="salary" name="salary" step="0.01" min="0" value="{{ staff.salary or '' }}">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label class="form-label">Status</label>
                             <div class="form-check form-switch">
                                 <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {% if staff.is_active %}checked{% endif %}>
@@ -128,6 +103,45 @@
                                     Active Employee
                                 </label>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Bank & Payroll Details -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="bank_account_number" class="form-label">Bank Account Number</label>
+                            <input type="text" class="form-control" id="bank_account_number" name="bank_account_number" pattern="[0-9]{5,20}" value="{{ staff.bank_account_number or '' }}">
+                            <div class="invalid-feedback">Bank Account Number must be 5-20 digits.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="ifsc_code" class="form-label">IFSC Code</label>
+                            <input type="text" class="form-control text-uppercase" id="ifsc_code" name="ifsc_code" pattern="[A-Za-z]{4}0[A-Za-z0-9]{6}" placeholder="e.g. SBIN0005814" value="{{ staff.ifsc_code or '' }}">
+                            <div class="invalid-feedback">Please enter a valid IFSC code.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="monthly_salary" class="form-label">Monthly Salary</label>
+                            <div class="input-group">
+                                <span class="input-group-text">₹</span>
+                                <input type="number" class="form-control" id="monthly_salary" name="monthly_salary" step="0.01" min="0" value="{{ staff.monthly_salary or '' }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="per_hour_salary" class="form-label">Per Hour Salary</label>
+                            <div class="input-group">
+                                <span class="input-group-text">₹</span>
+                                <input type="text" class="form-control" id="per_hour_salary" value="{{ '%.2f'|format(staff.per_hour_salary or 0) }}" readonly>
+                            </div>
+                            <div class="form-text">Auto-calculated from Monthly Salary.</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="per_day_salary" class="form-label">Per Day Salary</label>
+                            <div class="input-group">
+                                <span class="input-group-text">₹</span>
+                                <input type="text" class="form-control" id="per_day_salary" value="{{ '%.2f'|format(staff.per_day_salary or 0) }}" readonly>
+                            </div>
+                            <div class="form-text">Auto-calculated from Monthly Salary.</div>
                         </div>
                     </div>
                 </form>
@@ -164,23 +178,6 @@
             </div>
         </div>
 
-        <!-- Emergency Contact -->
-        <div class="card mb-3">
-            <div class="card-header">
-                <h6 class="card-title mb-0">Emergency Contact</h6>
-            </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label for="emergency_contact_name" class="form-label">Contact Name</label>
-                    <input type="text" class="form-control" id="emergency_contact_name" name="emergency_contact_name" form="staffForm" value="{{ staff.emergency_contact_name or '' }}">
-                </div>
-                <div class="mb-3">
-                    <label for="emergency_contact_phone" class="form-label">Contact Phone</label>
-                    <input type="tel" class="form-control" id="emergency_contact_phone" name="emergency_contact_phone" form="staffForm" value="{{ staff.emergency_contact_phone or '' }}">
-                </div>
-            </div>
-        </div>
-
         <!-- Notes -->
         <div class="card">
             <div class="card-header">
@@ -212,65 +209,6 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const employeeIdInput = document.getElementById('employee_id');
-    const emailInput = document.getElementById('email');
-
-    // Employee ID validation
-    employeeIdInput.addEventListener('blur', function() {
-        const employeeId = this.value.trim();
-        if (employeeId) {
-            fetch('{{ url_for("staff.check_employee_id") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    employee_id: employeeId,
-                    exclude_id: '{{ staff.id }}'
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.exists) {
-                    employeeIdInput.classList.add('is-invalid');
-                    employeeIdInput.nextElementSibling.textContent = 'This Employee ID is already in use.';
-                } else {
-                    employeeIdInput.classList.remove('is-invalid');
-                    employeeIdInput.classList.add('is-valid');
-                }
-            })
-            .catch(error => console.error('Error:', error));
-        }
-    });
-
-    // Email validation
-    emailInput.addEventListener('blur', function() {
-        const email = this.value.trim();
-        if (email) {
-            fetch('{{ url_for("staff.check_email") }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    email: email,
-                    exclude_id: '{{ staff.id }}'
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.exists) {
-                    emailInput.classList.add('is-invalid');
-                    emailInput.nextElementSibling.textContent = 'This email address is already in use.';
-                } else {
-                    emailInput.classList.remove('is-invalid');
-                    emailInput.classList.add('is-valid');
-                }
-            })
-            .catch(error => console.error('Error:', error));
-        }
-    });
-
     // Form validation
     document.getElementById('staffForm').addEventListener('submit', function(e) {
         if (!this.checkValidity()) {

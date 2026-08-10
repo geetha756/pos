@@ -74,9 +74,7 @@
                         <th>Position</th>
                         <th>Department</th>
                         <th>Location</th>
-                        <th>Manager</th>
                         <th>Status</th>
-                        <th>Hire Date</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -98,13 +96,11 @@
                         <td>{{ member.position }}</td>
                         <td>{{ member.department or '-' }}</td>
                         <td>{{ member.location_name or '-' }}</td>
-                        <td>{{ member.manager_name or '-' }}</td>
                         <td>
                             <span class="badge {% if member.is_active %}bg-success{% else %}bg-secondary{% endif %}">
                                 {% if member.is_active %}Active{% else %}Inactive{% endif %}
                             </span>
                         </td>
-                        <td>{{ member.hire_date.strftime('%Y-%m-%d') if member.hire_date else '-' }}</td>
                         <td>
                             <div class="d-flex gap-1">
                                 <a href="{{ url_for('staff.view', staff_id=member.id) }}" class="btn btn-sm btn-light text-info"

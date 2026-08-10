@@ -1,0 +1,312 @@
+/*
+ * Electric Idli Machine — industrial HMI theme.
+ *
+ * Scoped entirely under `.eidli-app` so it never leaks into the rest of the
+ * (light-themed) POS — the sidebar/topbar/other pages are untouched. This
+ * page group gets its own white-and-green control-room surface; everything
+ * else keeps the existing "premium" light theme defined in base.html.
+ */
+
+.eidli-app {
+    --eidli-bg: #ffffff;
+    --eidli-surface: #ffffff;
+    --eidli-surface-2: #f9fafb;
+    --eidli-border: #e5e7eb;
+    --eidli-ink: #111827;
+    --eidli-ink-soft: #6b7280;
+    --eidli-muted: #6b7280;
+    --eidli-good: #157a5e;
+    --eidli-warn: #b45309;
+    --eidli-bad: #dc2626;
+    --eidli-temp: #157a5e;
+    --eidli-primary: #157a5e;
+    --eidli-primary-dark: #0f5f49;
+    --eidli-focus: rgba(21, 122, 94, .25);
+
+    background: var(--eidli-bg);
+    color: var(--eidli-ink);
+    margin: 0 -1rem;
+    padding: .85rem 1rem 2rem;
+    border-radius: 12px;
+    font-variant-numeric: tabular-nums;
+}
+@media (min-width: 992px) {
+    .eidli-app { margin: 0 -1.5rem; padding: 1rem 1.5rem 2.5rem; }
+}
+.eidli-app * { box-sizing: border-box; }
+.eidli-app a { text-decoration: none; }
+.eidli-app .text-muted { color: var(--eidli-muted) !important; }
+.eidli-app small, .eidli-app .small { color: var(--eidli-ink-soft); }
+
+/* ---------------------------------------------------------------- header */
+
+.eidli-shell-header {
+    display: flex; align-items: center; flex-wrap: wrap; gap: .75rem 1.25rem;
+    padding-bottom: .75rem; margin-bottom: .35rem;
+    border-bottom: 1px solid var(--eidli-border);
+}
+.eidli-shell-title { display: flex; align-items: center; gap: .65rem; min-width: 0; }
+.eidli-shell-icon {
+    flex-shrink: 0; width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; font-size: 20px;
+    background: rgba(21, 122, 94, .12); color: var(--eidli-primary);
+}
+.eidli-shell-name { font-size: 1.15rem; font-weight: 700; color: var(--eidli-ink); line-height: 1.2; }
+.eidli-shell-sub { font-size: .78rem; color: var(--eidli-ink-soft); }
+.eidli-shell-tabs { display: flex; gap: .25rem; margin-left: .5rem; }
+.eidli-shell-tabs a {
+    padding: .45rem .9rem; border-radius: 9px; font-weight: 600; font-size: .88rem;
+    color: var(--eidli-ink-soft); border: 1px solid transparent;
+}
+.eidli-shell-tabs a:hover { color: var(--eidli-ink); background: var(--eidli-surface-2); }
+.eidli-shell-tabs a.active { color: #ffffff; background: var(--eidli-primary); }
+.eidli-shell-status { display: flex; align-items: center; gap: .85rem; margin-left: auto; }
+.eidli-shell-clock { font-size: .85rem; color: var(--eidli-ink-soft); white-space: nowrap; }
+.eidli-shell-subline {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .5rem;
+    margin-bottom: .9rem; font-size: .82rem;
+}
+.eidli-shell-back { color: var(--eidli-ink-soft); display: inline-flex; align-items: center; gap: .3rem; }
+.eidli-shell-back:hover { color: var(--eidli-ink); }
+.eidli-shell-lastseen { color: var(--eidli-muted); }
+
+/* connection badge — never relies on color alone, always carries a label */
+.eidli-conn-badge {
+    display: inline-flex; align-items: center; gap: .4rem;
+    font-size: .72rem; font-weight: 700; letter-spacing: .04em;
+    padding: .32rem .65rem; border-radius: 999px; white-space: nowrap;
+}
+.eidli-conn-badge i { font-size: .55rem; }
+.eidli-conn-online { background: rgba(21, 122, 94, .12); color: var(--eidli-good); }
+.eidli-conn-offline { background: rgba(220, 38, 38, .12); color: var(--eidli-bad); }
+.eidli-conn-connecting { background: rgba(107, 114, 128, .12); color: var(--eidli-ink-soft); }
+
+/* ------------------------------------------------------------- alert bar */
+
+.eidli-alert {
+    display: flex; align-items: flex-start; gap: .6rem;
+    border-radius: 10px; padding: .7rem .9rem; margin-bottom: .9rem;
+    font-size: .88rem; border: 1px solid transparent;
+}
+.eidli-alert i { font-size: 1.1rem; margin-top: .05rem; flex-shrink: 0; }
+.eidli-alert-bad { background: rgba(220, 38, 38, .08); color: #991b1b; border-color: rgba(220, 38, 38, .35); }
+.eidli-alert-warn { background: rgba(180, 83, 9, .08); color: #92400e; border-color: rgba(180, 83, 9, .35); }
+.eidli-alert code { background: rgba(17, 24, 39, .06); padding: .1rem .35rem; border-radius: 4px; }
+
+/* ------------------------------------------------------------- badges --- */
+
+.eidli-badge {
+    display: inline-flex; align-items: center; font-size: .72rem; font-weight: 700;
+    letter-spacing: .03em; padding: .3em .6em; border-radius: 6px;
+}
+.eidli-b-good { background: rgba(21, 122, 94, .12); color: var(--eidli-good); }
+.eidli-b-warn { background: rgba(180, 83, 9, .12); color: var(--eidli-warn); }
+.eidli-b-bad { background: rgba(220, 38, 38, .12); color: var(--eidli-bad); }
+.eidli-b-neutral { background: rgba(107, 114, 128, .12); color: var(--eidli-ink-soft); }
+
+/* ------------------------------------------------------- cards / panels */
+
+.eidli-app .card, .eidli-panel {
+    background: var(--eidli-surface); border: 1px solid var(--eidli-border);
+    border-radius: 14px; color: var(--eidli-ink);
+    box-shadow: 0 1px 2px rgba(17, 24, 39, .06);
+}
+.eidli-app .card:hover { box-shadow: 0 1px 2px rgba(17, 24, 39, .06); transform: none; }
+.eidli-app .card-header {
+    background: transparent; border-bottom: 1px solid var(--eidli-border);
+    padding: .75rem 1rem; display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+}
+.eidli-app .card-header .card-title, .eidli-panel-title { color: var(--eidli-ink); font-weight: 700; font-size: .95rem; margin: 0; }
+.eidli-app .card-body { padding: 1rem; }
+
+/* -------------------------------------------------------- status grid -- */
+
+.eidli-stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: .6rem; margin-bottom: .8rem; }
+@media (min-width: 576px) { .eidli-stat-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 992px) { .eidli-stat-grid { grid-template-columns: repeat(5, 1fr); } }
+.eidli-stat-card {
+    background: var(--eidli-surface); border: 1px solid var(--eidli-border); border-radius: 12px;
+    padding: .65rem .8rem;
+}
+.eidli-stat-label {
+    font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--eidli-muted); margin-bottom: .3rem; display: flex; align-items: center; gap: .3rem;
+}
+.eidli-stat-value { font-size: 1.05rem; font-weight: 700; color: var(--eidli-ink); line-height: 1.2; }
+.eidli-stat-value.eidli-emph { font-size: 1.4rem; color: var(--eidli-temp); }
+
+/* ------------------------------------------------------- temperature -- */
+
+.eidli-temp-hero { font-size: 2.6rem; font-weight: 800; color: var(--eidli-temp); line-height: 1; }
+.eidli-temp-sub { font-size: .82rem; color: var(--eidli-ink-soft); margin-top: .35rem; }
+.eidli-threshold-row { display: flex; gap: 1.25rem; margin-top: .6rem; flex-wrap: wrap; }
+.eidli-threshold {
+    font-size: .82rem; color: var(--eidli-ink-soft); display: flex; align-items: center; gap: .4rem;
+}
+.eidli-threshold strong { color: var(--eidli-ink); font-weight: 700; }
+.eidli-threshold .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+/* --------------------------------------------------------- controls --- */
+
+.eidli-controls-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; }
+.eidli-app .btn { border-radius: 10px; font-weight: 700; letter-spacing: .01em; }
+.eidli-app .btn:hover { transform: none; box-shadow: none; }
+.eidli-app .btn-success { background: var(--eidli-primary); border-color: var(--eidli-primary); color: #ffffff; }
+.eidli-app .btn-success:hover, .eidli-app .btn-success:focus { background: var(--eidli-primary-dark); border-color: var(--eidli-primary-dark); color: #ffffff; }
+.eidli-app .btn-danger { background: var(--eidli-bad); border-color: var(--eidli-bad); }
+.eidli-app .btn-outline-danger { color: var(--eidli-bad); border-color: var(--eidli-bad); }
+.eidli-app .btn-outline-danger:hover { background: var(--eidli-bad); color: #fff; }
+.eidli-app .btn-outline-secondary { color: var(--eidli-ink-soft); border-color: var(--eidli-border); }
+.eidli-app .btn-outline-secondary:hover { background: var(--eidli-surface-2); color: var(--eidli-ink); border-color: var(--eidli-border); }
+/* Bootstrap's own default (--bs-btn-hover-bg etc.) fills an outline button
+   solid grey with white text on :focus-visible — which every button gets
+   the instant it's clicked, and again the moment a confirm() dialog closes
+   afterward regardless of OK/Cancel. Left un-overridden, that made a
+   heater button that should read "not the active state" (still
+   btn-outline-secondary) look filled/selected right after being clicked,
+   independent of the real heater_status. Keep focus accessible via a ring
+   instead of a fill, so it never visually mimics the btn-success "selected"
+   look. */
+.eidli-app .btn-outline-secondary:focus, .eidli-app .btn-outline-secondary:focus-visible {
+    background: transparent; color: var(--eidli-ink-soft); border-color: var(--eidli-border);
+    box-shadow: 0 0 0 .2rem var(--eidli-focus);
+}
+.eidli-app .btn:disabled { opacity: .4; }
+.eidli-app .btn-lg.eidli-stop-btn { min-width: 190px; }
+
+/* Segmented Automatic/Manual mode control */
+.eidli-mode-toggle { display: inline-flex; border: 1px solid var(--eidli-border); border-radius: 10px; overflow: hidden; }
+.eidli-mode-toggle button {
+    border: none; background: var(--eidli-surface); color: var(--eidli-ink-soft);
+    font-weight: 700; font-size: .85rem; padding: .5rem 1.1rem; cursor: pointer;
+}
+.eidli-mode-toggle button + button { border-left: 1px solid var(--eidli-border); }
+.eidli-mode-toggle button.active { background: var(--eidli-primary); color: #ffffff; }
+.eidli-mode-toggle button:disabled { cursor: not-allowed; opacity: .5; }
+
+/* command state line under the control buttons */
+.eidli-cmd-status { font-size: .85rem; min-height: 1.3rem; margin-top: .5rem; }
+.eidli-cmd-status.state-pending { color: var(--eidli-warn); }
+.eidli-cmd-status.state-success { color: var(--eidli-good); }
+.eidli-cmd-status.state-failed { color: var(--eidli-bad); }
+
+/* ------------------------------------------------------------- tables -- */
+
+.eidli-app .table { color: var(--eidli-ink); margin-bottom: 0; }
+.eidli-app .table > :not(caption) > * > * { background: transparent; color: inherit; border-color: var(--eidli-border); box-shadow: none; }
+.eidli-app .table thead th {
+    color: var(--eidli-muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .05em;
+    border-bottom: 1px solid var(--eidli-border); font-weight: 700;
+    background: var(--eidli-surface-2);
+}
+.eidli-app .table-hover > tbody > tr:hover > * { background: var(--eidli-surface-2); }
+.eidli-app .table-sm td, .eidli-app .table-sm th { padding: .5rem .6rem; font-size: .85rem; }
+
+/* ------------------------------------------------------------- rows/lists */
+
+.eidli-row-compact { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .5rem 0; border-bottom: 1px solid var(--eidli-border); font-size: .85rem; }
+.eidli-row-compact:last-child { border-bottom: none; }
+.eidli-row-time { color: var(--eidli-muted); font-size: .78rem; white-space: nowrap; }
+.eidli-view-all { font-size: .82rem; font-weight: 700; color: var(--eidli-primary); }
+.eidli-view-all:hover { color: var(--eidli-primary-dark); }
+
+/* --------------------------------------------------------- empty/error -- */
+
+.eidli-section-loading, .eidli-section-empty { color: var(--eidli-muted); font-size: .85rem; padding: .5rem 0; }
+.eidli-section-error { color: var(--eidli-bad); font-size: .85rem; padding: .5rem 0; }
+
+/* ---------------------------------------------------------- forms ------ */
+
+.eidli-app .form-control, .eidli-app .form-select {
+    background: var(--eidli-surface); border: 1px solid var(--eidli-border); color: var(--eidli-ink);
+    border-radius: 9px;
+}
+.eidli-app .form-control:focus, .eidli-app .form-select:focus {
+    background: var(--eidli-surface); color: var(--eidli-ink); border-color: var(--eidli-primary);
+    box-shadow: 0 0 0 .2rem var(--eidli-focus);
+}
+.eidli-app .form-control::placeholder { color: var(--eidli-muted); }
+.eidli-app .form-label { color: var(--eidli-ink-soft); font-weight: 600; font-size: .82rem; }
+.eidli-app .form-check-input { background-color: var(--eidli-surface); border-color: var(--eidli-border); }
+.eidli-app .form-check-input:checked { background-color: var(--eidli-primary); border-color: var(--eidli-primary); }
+.eidli-app .form-check-label { color: var(--eidli-ink); }
+.eidli-app .form-text { color: var(--eidli-muted); }
+.eidli-switch-field {
+    min-height: 58px;
+    display: flex;
+    align-items: center;
+    padding: .375rem .75rem;
+    border: 1px solid var(--eidli-border);
+    border-radius: 9px;
+    background: var(--eidli-surface);
+}
+
+/* Heater power switch — the default Bootstrap .form-switch control is
+   quite small (~2.5em x 1.25em) for a primary physical-machine action.
+   Scaled up via transform (not manual width/height) so the switch's
+   built-in SVG knob stays crisp instead of being stretched. */
+.eidli-heater-switch {
+    transform: scale(1.7); transform-origin: left center; cursor: pointer;
+}
+.eidli-heater-switch:disabled { cursor: not-allowed; opacity: .5; }
+@media (max-width: 420px) {
+    .eidli-heater-switch { transform: scale(1.4); }
+}
+
+/* Cooking Session / Operating Mode / Heater Control — three visually
+   matching boxes (white surface, same border/radius as every other
+   .eidli-app .card) instead of floating label+control pairs. Grouped in
+   their own align-items:stretch sub-row so they share equal height
+   regardless of which has the tallest content, without affecting Restart
+   Machine (kept outside this group — it was never asked to be boxed, and
+   its own alignment trick against the outer row is unrelated to this). */
+.eidli-control-row { display: flex; flex-wrap: wrap; align-items: stretch; gap: .75rem; }
+.eidli-control-box {
+    background: var(--eidli-surface); border: 1px solid var(--eidli-border);
+    border-radius: 14px; padding: 1rem;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-width: 200px; flex: 1 1 200px;
+}
+@media (max-width: 767px) {
+    .eidli-control-box { flex-basis: 100%; min-width: 0; }
+}
+
+/* ------------------------------------------------------------- tabs ---- */
+
+.eidli-app .nav-tabs { border-bottom: 1px solid var(--eidli-border); }
+.eidli-app .nav-tabs .nav-link {
+    color: var(--eidli-ink-soft); border: none; border-bottom: 2px solid transparent;
+    font-weight: 700; font-size: .88rem; padding: .55rem .9rem; border-radius: 0;
+}
+.eidli-app .nav-tabs .nav-link:hover { color: var(--eidli-ink); }
+.eidli-app .nav-tabs .nav-link.active { color: var(--eidli-primary); background: transparent; border-bottom-color: var(--eidli-primary); }
+
+/* -------------------------------------------------------------- misc --- */
+
+.eidli-app .modal-content { background: var(--eidli-surface); color: var(--eidli-ink); border: 1px solid var(--eidli-border); }
+.eidli-app .modal-header, .eidli-app .modal-footer { border-color: var(--eidli-border); }
+
+.eidli-chart-wrap { position: relative; height: 240px; }
+@media (min-width: 992px) { .eidli-chart-wrap { height: 280px; } }
+
+/* Loading overlay sits ON TOP of the chart (not below it as a separate
+   line) so the previous chart stays visibly present, just dimmed, while a
+   new range loads — never a blank/empty moment between old and new data. */
+.eidli-chart-overlay {
+    position: absolute; inset: 0; z-index: 2;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255, 255, 255, .78); border-radius: 10px;
+    font-size: .88rem; font-weight: 600; color: var(--eidli-ink-soft);
+}
+
+.eidli-today-strip { display: flex; flex-wrap: wrap; gap: 1.5rem; }
+.eidli-today-item { min-width: 110px; }
+.eidli-today-item .eidli-stat-label { margin-bottom: .15rem; }
+.eidli-today-item .eidli-stat-value { font-size: 1.2rem; }
+.eidli-today-note { font-size: .78rem; color: var(--eidli-muted); font-style: italic; }
+
+.eidli-skeleton {
+    height: .9rem; border-radius: 5px; background: linear-gradient(90deg, var(--eidli-surface-2) 25%, var(--eidli-border) 50%, var(--eidli-surface-2) 75%);
+    background-size: 200% 100%; animation: eidli-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes eidli-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
