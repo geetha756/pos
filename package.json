@@ -3,12 +3,17 @@
   "version": "1.0.0",
   "description": "Restaurant Chain Management Portal",
   "scripts": {
-    "test:browser": "node browser-test.js"
+    "test:browser": "node browser-test.js",
+    "test:e2e": "playwright test",
+    "test:e2e:report": "python tests/e2e/build_excel_report.py"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "puppeteer": "^21.11.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
   }
 }

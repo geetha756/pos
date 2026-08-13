@@ -1,10 +1,9 @@
 /*
  * Electric Idli Machine — Settings page.
  *
- * Reads/writes the same PATCH /settings endpoint the Dashboard's mode
- * toggle uses — this page and the Dashboard are two independent views onto
- * one backend-owned settings record (each fetches fresh on load), never a
- * second local copy of truth.
+ * Reads/writes the PATCH /settings endpoint - the backend-owned settings
+ * record this page fetches fresh on every load, never a local copy of
+ * truth.
  */
 (function () {
     var E = window.Eidli;
@@ -12,7 +11,6 @@
     var URLS = E.URLS, CONFIGURED = E.CONFIGURED;
 
     var lastSettings = null;
-    var modeSwitchInFlight = false;
     var syncInFlight = false;
 
     function renderSettings(settings) {
@@ -20,17 +18,7 @@
         var body = el('eidli-settings-body');
         if (!settings) { body.innerHTML = '<div class="eidli-section-empty">Settings unavailable.</div>'; return; }
 
-        var mode = (settings.mode || '').toLowerCase();
-        var html = '<div class="mb-4">';
-        html += '<div class="eidli-stat-label mb-2">Operating Mode</div>';
-        html += '<div class="eidli-mode-toggle" id="eidli-set-mode-toggle" role="group" aria-label="Operating mode">' +
-            '<button type="button" data-mode="auto" aria-pressed="' + (mode === 'auto') + '" class="' + (mode === 'auto' ? 'active' : '') + '">Automatic</button>' +
-            '<button type="button" data-mode="manual" aria-pressed="' + (mode === 'manual') + '" class="' + (mode === 'manual' ? 'active' : '') + '">Manual</button>' +
-            '</div>';
-        html += '<div id="eidli-mode-switch-status" class="eidli-cmd-status"></div>';
-        html += '</div>';
-
-        html += '<form id="eidli-settings-form">';
+        var html = '<form id="eidli-settings-form">';
         html += '<div class="row g-3">';
         html += '<div class="col-sm-6 col-lg-3"><label class="form-label">Off Threshold (°C)</label>' +
             '<input type="number" step="0.01" min="0" max="100" class="form-control" id="eidli-set-off" value="' + esc(settings.off_temperature) + '">' +
@@ -57,51 +45,7 @@
         body.innerHTML = html;
 
         el('eidli-settings-form').addEventListener('submit', onSaveSettings);
-        document.querySelectorAll('#eidli-set-mode-toggle button').forEach(function (b) {
-            b.addEventListener('click', function () { switchMode(b.getAttribute('data-mode')); });
-        });
         updateSyncButton();
-        updateModeToggleDisabled();
-    }
-
-    // Mirrors updateSyncButton() below — same idea (disable a live-machine
-    // control while offline, re-checked on every status tick), applied to
-    // the mode toggle so it matches the Dashboard's mode toggle instead of
-    // being clickable regardless of connectivity.
-    function updateModeToggleDisabled() {
-        var status = E.getLastStatus();
-        var online = !!(status && status.is_online);
-        document.querySelectorAll('#eidli-set-mode-toggle button').forEach(function (b) {
-            b.disabled = !CONFIGURED || !online || modeSwitchInFlight;
-        });
-    }
-
-    function switchMode(newMode) {
-        if (modeSwitchInFlight || !lastSettings || lastSettings.mode === newMode) return;
-        var label = newMode === 'auto' ? 'Automatic' : 'Manual';
-        var fromLabel = lastSettings.mode === 'auto' ? 'Automatic' : 'Manual';
-        if (!confirm('Switch operating mode?\n\n' + fromLabel + ' → ' + label)) return;
-        modeSwitchInFlight = true;
-        updateModeToggleDisabled();
-        var statusEl = el('eidli-mode-switch-status');
-        statusEl.textContent = 'Switching to ' + label + '…'; statusEl.className = 'eidli-cmd-status state-pending';
-        apiFetch(URLS.settings, { method: 'PATCH', body: JSON.stringify({ mode: newMode }) }).then(function (res) {
-            modeSwitchInFlight = false;
-            if (res.ok && res.body.success) {
-                statusEl.textContent = 'Mode switched to ' + label + '.'; statusEl.className = 'eidli-cmd-status state-success';
-                window.showToast('success', 'Operating mode switched to ' + label + '.');
-                renderSettings(res.body.data);
-            } else {
-                var msg = errMsg(res, 'unknown error');
-                statusEl.textContent = 'Failed — ' + msg; statusEl.className = 'eidli-cmd-status state-failed';
-                window.showToast('danger', 'Failed to switch mode: ' + msg);
-                updateModeToggleDisabled();
-            }
-        }).catch(function () {
-            modeSwitchInFlight = false;
-            statusEl.textContent = 'Failed — network error.'; statusEl.className = 'eidli-cmd-status state-failed';
-            updateModeToggleDisabled();
-        });
     }
 
     function onSaveSettings(e) {
@@ -225,7 +169,6 @@
         if (!CONFIGURED) { el('eidli-settings-body').innerHTML = '<div class="eidli-section-empty">Not connected.</div>'; return; }
         el('eidli-settings-sync-btn').addEventListener('click', dispatchSync);
         E.onStatus(updateSyncButton);
-        E.onStatus(updateModeToggleDisabled);
         refreshSettings();
     });
 })();

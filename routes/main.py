@@ -297,11 +297,11 @@ def get_dashboard_stats(location_id=None):
         stats['today_revenue'] = float(result['total']) if result else 0.0
 
         # Total staff count
-        result = execute_query_one("SELECT COUNT(*) as count FROM staff WHERE (%s IS NULL OR location_id = %s)", (loc, loc))
+        result = execute_query_one("SELECT COUNT(*) as count FROM staff WHERE is_deleted = FALSE AND (%s IS NULL OR location_id = %s)", (loc, loc))
         stats['staff'] = result['count'] if result else 0
 
         # Active staff count
-        result = execute_query_one("SELECT COUNT(*) as count FROM staff WHERE is_active = TRUE AND (%s IS NULL OR location_id = %s)", (loc, loc))
+        result = execute_query_one("SELECT COUNT(*) as count FROM staff WHERE is_active = TRUE AND is_deleted = FALSE AND (%s IS NULL OR location_id = %s)", (loc, loc))
         stats['active_staff'] = result['count'] if result else 0
 
         # Department count
@@ -321,7 +321,7 @@ def get_dashboard_stats(location_id=None):
 
         # Payroll statistics
         # Total employees (from staff table)
-        result = execute_query_one("SELECT COUNT(*) as count FROM staff WHERE is_active = TRUE AND (%s IS NULL OR location_id = %s)", (loc, loc))
+        result = execute_query_one("SELECT COUNT(*) as count FROM staff WHERE is_active = TRUE AND is_deleted = FALSE AND (%s IS NULL OR location_id = %s)", (loc, loc))
         stats['total_employees'] = result['count'] if result else 0
 
         # Active timesheets (draft or submitted this week)

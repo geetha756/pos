@@ -27,7 +27,10 @@ def dashboard():
     /api/push/vada stays intact and reversible, just not surfaced in this
     UI). The Idly card opens the native Electric Idli Machine page below —
     it no longer links out to an external dashboard."""
-    return render_template('machines/dashboard.html')
+    return render_template(
+        'machines/dashboard.html',
+        eidli_configured=eidli.configured() and bool(EIDLI_MACHINE_ID),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -177,8 +180,8 @@ def idli_update_settings():
         _validate_threshold(body['off_temperature'], 'Off Threshold')
     if 'temperature_offset' in body:
         _validate_range(body['temperature_offset'], -10, 10, 'temperature_offset')
-    if 'mode' in body and body['mode'] not in ('auto', 'manual'):
-        raise eidli.EidliError('mode must be "auto" or "manual".', 400)
+    if 'mode' in body and body['mode'] != 'auto':
+        raise eidli.EidliError('mode must be "auto" - manual mode is no longer supported.', 400)
     return eidli.update_settings(_require_machine_id(), body)
 
 
@@ -204,7 +207,8 @@ def idli_events():
     offset = request.args.get('offset', type=int)
     start_time = request.args.get('start_time')
     end_time = request.args.get('end_time')
-    return eidli.get_events(_require_machine_id(), limit=limit, offset=offset, start_time=start_time, end_time=end_time)
+    event_type = request.args.get('event_type')
+    return eidli.get_events(_require_machine_id(), limit=limit, offset=offset, start_time=start_time, end_time=end_time, event_type=event_type)
 
 
 @machines_bp.route('/idli/api/commands')
@@ -217,22 +221,6 @@ def idli_commands():
     start_time = request.args.get('start_time')
     end_time = request.args.get('end_time')
     return eidli.get_commands(_require_machine_id(), limit=limit, offset=offset, start_time=start_time, end_time=end_time)
-
-
-@machines_bp.route('/idli/api/heater/on', methods=['POST'])
-@login_required
-@permission_required('machines.view')
-@_eidli_json_route
-def idli_heater_on():
-    return eidli.heater_on(_require_machine_id())
-
-
-@machines_bp.route('/idli/api/heater/off', methods=['POST'])
-@login_required
-@permission_required('machines.view')
-@_eidli_json_route
-def idli_heater_off():
-    return eidli.heater_off(_require_machine_id())
 
 
 @machines_bp.route('/idli/api/restart', methods=['POST'])
@@ -249,14 +237,6 @@ def idli_restart():
 @_eidli_json_route
 def idli_settings_sync():
     return eidli.sync_settings(_require_machine_id())
-
-
-@machines_bp.route('/idli/api/sessions/start', methods=['POST'])
-@login_required
-@permission_required('machines.view')
-@_eidli_json_route
-def idli_session_start():
-    return eidli.start_session(_require_machine_id())
 
 
 @machines_bp.route('/idli/api/sessions/current')
@@ -281,15 +261,6 @@ def idli_session_today():
 @_eidli_json_route
 def idli_session_detail(session_id):
     return eidli.get_session(_require_machine_id(), session_id)
-
-
-@machines_bp.route('/idli/api/sessions/<session_id>/complete', methods=['POST'])
-@login_required
-@permission_required('machines.view')
-@_eidli_json_route
-def idli_session_complete(session_id):
-    reason = (request.get_json(silent=True) or {}).get('reason')
-    return eidli.complete_session(_require_machine_id(), session_id, reason)
 
 
 @machines_bp.route('/idli/api/sessions')

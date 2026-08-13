@@ -179,6 +179,10 @@ def init_user_admin_schema():
     execute_query("ALTER TABLE staff ADD COLUMN IF NOT EXISTS bank_account_number VARCHAR(50)")
     execute_query("ALTER TABLE staff ADD COLUMN IF NOT EXISTS ifsc_code VARCHAR(20)")
     execute_query("ALTER TABLE staff ADD COLUMN IF NOT EXISTS monthly_salary DECIMAL(10,2)")
+    # Soft delete: deleted staff are never removed from the table (their id
+    # is still referenced by orders, payroll, timesheets, etc.) - they're
+    # just hidden from the normal Active/Inactive lists and dropdowns.
+    execute_query("ALTER TABLE staff ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE")
     # Some environments have an older, differently-named `bank_ifsc_code`
     # column already holding real data. Backfill it into `ifsc_code` (without
     # ever overwriting an ifsc_code that's already set) so that data isn't

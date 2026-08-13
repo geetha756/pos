@@ -53,7 +53,13 @@
 }
 .eidli-shell-name { font-size: 1.15rem; font-weight: 700; color: var(--eidli-ink); line-height: 1.2; }
 .eidli-shell-sub { font-size: .78rem; color: var(--eidli-ink-soft); }
-.eidli-shell-tabs { display: flex; gap: .25rem; margin-left: .5rem; }
+/* flex-wrap lets the 3 tab links themselves drop to a second line at very
+   narrow widths (a phone in the ~240-290px range) instead of forcing the
+   whole .eidli-shell-header row wider than the viewport — .eidli-shell-tabs
+   is one flex ITEM inside .eidli-shell-header's own flex-wrap row, but
+   without this the 3 links inside it stayed an unbreakable single line
+   whose intrinsic width could still exceed the available space. */
+.eidli-shell-tabs { display: flex; flex-wrap: wrap; gap: .25rem; margin-left: .5rem; }
 .eidli-shell-tabs a {
     padding: .45rem .9rem; border-radius: 9px; font-weight: 600; font-size: .88rem;
     color: var(--eidli-ink-soft); border: 1px solid transparent;
@@ -121,30 +127,35 @@
 
 /* -------------------------------------------------------- status grid -- */
 
-.eidli-stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: .6rem; margin-bottom: .8rem; }
-@media (min-width: 576px) { .eidli-stat-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (min-width: 992px) { .eidli-stat-grid { grid-template-columns: repeat(5, 1fr); } }
+/* minmax(0, 1fr) — NOT plain 1fr — on every breakpoint: a bare `1fr` track
+   is really `minmax(auto, 1fr)`, so its floor is its content's min-content
+   width (here, the widest stat label/value, e.g. "TEMPERATURE"), which can
+   exceed the column's fair share on very narrow phones and push the whole
+   grid wider than its container. minmax(0, 1fr) removes that content-based
+   floor so columns actually shrink to fit; the card's own text still wraps
+   normally, it just no longer sets a hard minimum on the grid track. */
+.eidli-stat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .6rem; margin-bottom: .8rem; }
+@media (min-width: 576px) { .eidli-stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 992px) { .eidli-stat-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 .eidli-stat-card {
     background: var(--eidli-surface); border: 1px solid var(--eidli-border); border-radius: 12px;
-    padding: .65rem .8rem;
+    padding: .65rem .8rem; min-width: 0;
 }
 .eidli-stat-label {
     font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
     color: var(--eidli-muted); margin-bottom: .3rem; display: flex; align-items: center; gap: .3rem;
+    /* At the narrowest phone widths a stat card's own column can end up
+       narrower than a label's full text ("TEMPERATURE", "THRESHOLDS") even
+       after the grid itself stops overflowing — flex-wrap lets the label
+       text drop onto a second line inside its own card instead of being
+       visually clipped/cut off at the card's edge. */
+    flex-wrap: wrap;
 }
-.eidli-stat-value { font-size: 1.05rem; font-weight: 700; color: var(--eidli-ink); line-height: 1.2; }
+.eidli-stat-value { font-size: 1.05rem; font-weight: 700; color: var(--eidli-ink); line-height: 1.2; word-break: break-word; }
 .eidli-stat-value.eidli-emph { font-size: 1.4rem; color: var(--eidli-temp); }
+.eidli-stat-value.eidli-thresholds-value { font-size: .78rem; font-weight: 400; color: var(--eidli-ink-soft); line-height: 1.5; }
+.eidli-stat-value.eidli-thresholds-value strong { color: var(--eidli-ink); font-weight: 700; }
 
-/* ------------------------------------------------------- temperature -- */
-
-.eidli-temp-hero { font-size: 2.6rem; font-weight: 800; color: var(--eidli-temp); line-height: 1; }
-.eidli-temp-sub { font-size: .82rem; color: var(--eidli-ink-soft); margin-top: .35rem; }
-.eidli-threshold-row { display: flex; gap: 1.25rem; margin-top: .6rem; flex-wrap: wrap; }
-.eidli-threshold {
-    font-size: .82rem; color: var(--eidli-ink-soft); display: flex; align-items: center; gap: .4rem;
-}
-.eidli-threshold strong { color: var(--eidli-ink); font-weight: 700; }
-.eidli-threshold .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 
 /* --------------------------------------------------------- controls --- */
 
@@ -202,14 +213,6 @@
 .eidli-app .table-hover > tbody > tr:hover > * { background: var(--eidli-surface-2); }
 .eidli-app .table-sm td, .eidli-app .table-sm th { padding: .5rem .6rem; font-size: .85rem; }
 
-/* ------------------------------------------------------------- rows/lists */
-
-.eidli-row-compact { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .5rem 0; border-bottom: 1px solid var(--eidli-border); font-size: .85rem; }
-.eidli-row-compact:last-child { border-bottom: none; }
-.eidli-row-time { color: var(--eidli-muted); font-size: .78rem; white-space: nowrap; }
-.eidli-view-all { font-size: .82rem; font-weight: 700; color: var(--eidli-primary); }
-.eidli-view-all:hover { color: var(--eidli-primary-dark); }
-
 /* --------------------------------------------------------- empty/error -- */
 
 .eidli-section-loading, .eidli-section-empty { color: var(--eidli-muted); font-size: .85rem; padding: .5rem 0; }
@@ -218,8 +221,21 @@
 /* ---------------------------------------------------------- forms ------ */
 
 .eidli-app .form-control, .eidli-app .form-select {
-    background: var(--eidli-surface); border: 1px solid var(--eidli-border); color: var(--eidli-ink);
+    background-color: var(--eidli-surface); border: 1px solid var(--eidli-border); color: var(--eidli-ink);
     border-radius: 9px;
+}
+/* background-color (not the shorthand background) above so this never wipes
+   out Bootstrap's own chevron background-image on .form-select — without
+   it, the dropdown arrow silently disappears, leaving no visual cue that
+   there are more options to open. Also re-reserves the right-hand padding
+   the arrow renders into: base.html's global `.form-control, .form-select
+   { padding: .6rem .85rem }` (site-wide, out of scope to change here)
+   collapses padding-right to .85rem, which is narrower than the arrow
+   itself and pushes it out of the visible box — restored to Bootstrap's
+   own 2.25rem here, scoped to .eidli-app only. */
+.eidli-app .form-select {
+    --bs-form-select-bg-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+    padding-right: 2.25rem;
 }
 .eidli-app .form-control:focus, .eidli-app .form-select:focus {
     background: var(--eidli-surface); color: var(--eidli-ink); border-color: var(--eidli-primary);
@@ -241,23 +257,9 @@
     background: var(--eidli-surface);
 }
 
-/* Heater power switch — the default Bootstrap .form-switch control is
-   quite small (~2.5em x 1.25em) for a primary physical-machine action.
-   Scaled up via transform (not manual width/height) so the switch's
-   built-in SVG knob stays crisp instead of being stretched. */
-.eidli-heater-switch {
-    transform: scale(1.7); transform-origin: left center; cursor: pointer;
-}
-.eidli-heater-switch:disabled { cursor: not-allowed; opacity: .5; }
-@media (max-width: 420px) {
-    .eidli-heater-switch { transform: scale(1.4); }
-}
-
-/* Cooking Session / Operating Mode / Heater Control — three visually
-   matching boxes (white surface, same border/radius as every other
-   .eidli-app .card) instead of floating label+control pairs. Grouped in
-   their own align-items:stretch sub-row so they share equal height
-   regardless of which has the tallest content, without affecting Restart
+/* Operating Mode — boxed to match every other .eidli-app .card (white
+   surface, same border/radius) instead of a floating label+control pair.
+   Kept in its own align-items:stretch sub-row, without affecting Restart
    Machine (kept outside this group — it was never asked to be boxed, and
    its own alignment trick against the outer row is unrelated to this). */
 .eidli-control-row { display: flex; flex-wrap: wrap; align-items: stretch; gap: .75rem; }
@@ -310,3 +312,43 @@
     background-size: 200% 100%; animation: eidli-shimmer 1.4s ease-in-out infinite;
 }
 @keyframes eidli-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* ------------------------------------------------------ custom combobox -- */
+/* Own-rendered dropdown (Graph Type) — see idli_history.html's comment for
+   why this replaces a native <select>. Trigger button reuses .form-select's
+   look (border/radius/arrow) so it's visually identical to every other
+   dropdown-like control on this page; only the popup listbox and its
+   open/close/keyboard behavior are custom. */
+.eidli-combobox { position: relative; display: inline-block; }
+.eidli-combobox-trigger {
+    display: inline-flex; align-items: center; text-align: left; cursor: pointer;
+    min-width: 190px; white-space: nowrap;
+}
+.eidli-combobox-trigger:focus, .eidli-combobox-trigger:focus-visible {
+    outline: none; background: var(--eidli-surface); color: var(--eidli-ink); border-color: var(--eidli-primary);
+    box-shadow: 0 0 0 .2rem var(--eidli-focus);
+}
+/* aria-expanded flips the trigger's own chevron to point up while the
+   listbox is open — the same visual cue a native select gives. */
+.eidli-combobox-trigger[aria-expanded="true"] {
+    --bs-form-select-bg-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 11 6-6 6 6'/%3e%3c/svg%3e");
+}
+.eidli-combobox-listbox {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 20;
+    margin: 0; padding: .3rem; list-style: none;
+    background: var(--eidli-surface); border: 1px solid var(--eidli-border); border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(17, 24, 39, .12);
+    min-width: 100%; width: max-content;
+}
+.eidli-combobox-listbox[hidden] { display: none; }
+.eidli-combobox-option {
+    padding: .45rem .7rem; border-radius: 7px; font-size: .875rem; color: var(--eidli-ink);
+    cursor: pointer; white-space: nowrap;
+}
+/* Keyboard-highlighted (Arrow Up/Down) OR mouse-hovered — same treatment,
+   so the visual "currently focused option" cue is identical regardless of
+   input method. Distinct from aria-selected (the actually-applied graph
+   type), which gets its own checkmark instead of a background fill. */
+.eidli-combobox-option.eidli-combobox-active { background: var(--eidli-surface-2); }
+.eidli-combobox-option[aria-selected="true"] { font-weight: 700; color: var(--eidli-primary); }
+.eidli-combobox-option[aria-selected="true"]::after { content: '✓'; float: right; margin-left: 1.5rem; }

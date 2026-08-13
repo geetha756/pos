@@ -25,7 +25,7 @@
     </div>
 </div>
 
-<div class="row mb-4">
+<div class="row mb-3">
     <div class="col-12">
         <div class="card">
             <div class="card-header">
@@ -47,14 +47,16 @@
                         <div class="col-md-4">
                             <label for="last_name" class="form-label">Last Name <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="last_name" name="last_name" value="{{ staff.last_name }}" required>
+                            <div class="invalid-feedback">Last name is required.</div>
                         </div>
                     </div>
 
                     <!-- Contact Information -->
                     <div class="row mb-3">
                         <div class="col-md-12">
-                            <label for="phone" class="form-label">Phone</label>
-                            <input type="tel" class="form-control" id="phone" name="phone" value="{{ staff.phone or '' }}">
+                            <label for="phone" class="form-label">Phone <span class="text-danger">*</span></label>
+                            <input type="tel" class="form-control" id="phone" name="phone" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" value="{{ staff.phone or '' }}" required>
+                            <div class="invalid-feedback">Phone number is required and must be exactly 10 digits.</div>
                         </div>
                     </div>
 
@@ -109,20 +111,21 @@
                     <!-- Bank & Payroll Details -->
                     <div class="row mb-3">
                         <div class="col-md-4">
-                            <label for="bank_account_number" class="form-label">Bank Account Number</label>
-                            <input type="text" class="form-control" id="bank_account_number" name="bank_account_number" pattern="[0-9]{5,20}" value="{{ staff.bank_account_number or '' }}">
-                            <div class="invalid-feedback">Bank Account Number must be 5-20 digits.</div>
+                            <label for="bank_account_number" class="form-label">Bank Account Number <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="bank_account_number" name="bank_account_number" pattern="[0-9]{5,20}" value="{{ staff.bank_account_number or '' }}" required>
+                            <div class="invalid-feedback">Bank Account Number is required and must be 5-20 digits.</div>
                         </div>
                         <div class="col-md-4">
-                            <label for="ifsc_code" class="form-label">IFSC Code</label>
-                            <input type="text" class="form-control text-uppercase" id="ifsc_code" name="ifsc_code" pattern="[A-Za-z]{4}0[A-Za-z0-9]{6}" placeholder="e.g. SBIN0005814" value="{{ staff.ifsc_code or '' }}">
-                            <div class="invalid-feedback">Please enter a valid IFSC code.</div>
+                            <label for="ifsc_code" class="form-label">IFSC Code <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control text-uppercase" id="ifsc_code" name="ifsc_code" pattern="[A-Za-z]{4}0[A-Za-z0-9]{6}" placeholder="e.g. SBIN0005814" value="{{ staff.ifsc_code or '' }}" required>
+                            <div class="invalid-feedback">IFSC Code is required and must be in a valid format (e.g. SBIN0005814).</div>
                         </div>
                         <div class="col-md-4">
-                            <label for="monthly_salary" class="form-label">Monthly Salary</label>
-                            <div class="input-group">
+                            <label for="monthly_salary" class="form-label">Monthly Salary <span class="text-danger">*</span></label>
+                            <div class="input-group has-validation">
                                 <span class="input-group-text">₹</span>
-                                <input type="number" class="form-control" id="monthly_salary" name="monthly_salary" step="0.01" min="0" value="{{ staff.monthly_salary or '' }}">
+                                <input type="number" class="form-control" id="monthly_salary" name="monthly_salary" step="0.01" min="0" value="{{ staff.monthly_salary or '' }}" required>
+                                <div class="invalid-feedback">Monthly Salary is required.</div>
                             </div>
                         </div>
                     </div>
@@ -148,6 +151,7 @@
             </div>
         </div>
     </div>
+</div>
 
 <!-- Address Information -->
 <div class="row mb-4">
@@ -209,6 +213,19 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Phone: digits only, max 10 - reject anything else with a validation popup
+    document.getElementById('phone').addEventListener('input', function(e) {
+        var original = this.value;
+        var cleaned = original.replace(/\D/g, '').slice(0, 10);
+        if (cleaned !== original) {
+            this.setCustomValidity('Phone number must contain numbers only, up to 10 digits.');
+            this.reportValidity();
+        } else {
+            this.setCustomValidity('');
+        }
+        this.value = cleaned;
+    });
+
     // Form validation
     document.getElementById('staffForm').addEventListener('submit', function(e) {
         if (!this.checkValidity()) {

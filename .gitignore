@@ -3,6 +3,12 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Playwright E2E
+playwright-report/
+test-results/
+test-report/
+tests/e2e/.auth/
+
 # C extensions
 *.so
 

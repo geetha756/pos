@@ -21,7 +21,7 @@
     </div>
 </div>
 
-<div class="row mb-4">
+<div class="row mb-3">
     <div class="col-12">
         <div class="card">
             <div class="card-header">
@@ -43,14 +43,16 @@
                         <div class="col-md-4">
                             <label for="last_name" class="form-label">Last Name <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="last_name" name="last_name" required>
+                            <div class="invalid-feedback">Last name is required.</div>
                         </div>
                     </div>
 
                     <!-- Contact Information -->
                     <div class="row mb-3">
                         <div class="col-md-12">
-                            <label for="phone" class="form-label">Phone</label>
-                            <input type="tel" class="form-control" id="phone" name="phone">
+                            <label for="phone" class="form-label">Phone <span class="text-danger">*</span></label>
+                            <input type="tel" class="form-control" id="phone" name="phone" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" required>
+                            <div class="invalid-feedback">Phone number is required and must be exactly 10 digits.</div>
                         </div>
                     </div>
 
@@ -135,6 +137,7 @@
             </div>
         </div>
     </div>
+</div>
 
 <!-- Address Information -->
 <div class="row mb-4">
@@ -211,6 +214,19 @@ document.addEventListener('DOMContentLoaded', function() {
         perDayInput.value = perDay.toFixed(2);
     }
     monthlySalaryInput.addEventListener('input', updatePerHourSalary);
+
+    // Phone: digits only, max 10 - reject anything else with a validation popup
+    document.getElementById('phone').addEventListener('input', function(e) {
+        var original = this.value;
+        var cleaned = original.replace(/\D/g, '').slice(0, 10);
+        if (cleaned !== original) {
+            this.setCustomValidity('Phone number must contain numbers only, up to 10 digits.');
+            this.reportValidity();
+        } else {
+            this.setCustomValidity('');
+        }
+        this.value = cleaned;
+    });
 
     // Form validation
     document.getElementById('staffForm').addEventListener('submit', function(e) {

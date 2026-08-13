@@ -219,8 +219,8 @@ def get_temperature_logs(machine_id, limit=None, offset=None, start_time=None, e
 # Events
 # ---------------------------------------------------------------------------
 
-def get_events(machine_id, limit=None, offset=None, start_time=None, end_time=None):
-    params = _paged_params(limit, offset, {'start_time': start_time, 'end_time': end_time})
+def get_events(machine_id, limit=None, offset=None, start_time=None, end_time=None, event_type=None):
+    params = _paged_params(limit, offset, {'start_time': start_time, 'end_time': end_time, 'event_type': event_type})
     return _request('GET', f'/api/v1/machines/{machine_id}/events', params=params)
 
 

@@ -21,7 +21,7 @@ def index():
                        COUNT(s2.id) as staff_count
                 FROM departments d
                 LEFT JOIN staff s ON d.manager_id = s.id
-                LEFT JOIN staff s2 ON d.id = s2.department_id AND s2.is_active = TRUE
+                LEFT JOIN staff s2 ON d.id = s2.department_id AND s2.is_active = TRUE AND s2.is_deleted = FALSE
                 GROUP BY d.id, d.name, d.description, d.manager_id, d.budget, d.is_active,
                          d.created_at, d.updated_at, s.first_name, s.last_name
                 ORDER BY d.name
@@ -81,8 +81,8 @@ def add():
                 SELECT s.id, COALESCE(s.first_name, '') || ' ' || COALESCE(s.last_name, '') as name, p.title
                 FROM staff s
                 JOIN positions p ON s.position_id = p.id
-                WHERE p.title LIKE '%Manager%' OR p.title LIKE '%Director%' OR p.title LIKE '%Supervisor%'
-                AND s.is_active = TRUE
+                WHERE (p.title LIKE '%Manager%' OR p.title LIKE '%Director%' OR p.title LIKE '%Supervisor%')
+                AND s.is_active = TRUE AND s.is_deleted = FALSE
                 ORDER BY COALESCE(s.last_name, ''), COALESCE(s.first_name, '')
             """)
             managers_raw = managers_cursor.fetchall()
@@ -153,8 +153,8 @@ def edit(department_id):
                 SELECT s.id, COALESCE(s.first_name, '') || ' ' || COALESCE(s.last_name, '') as name, p.title
                 FROM staff s
                 JOIN positions p ON s.position_id = p.id
-                WHERE p.title LIKE '%Manager%' OR p.title LIKE '%Director%' OR p.title LIKE '%Supervisor%'
-                AND s.is_active = TRUE
+                WHERE (p.title LIKE '%Manager%' OR p.title LIKE '%Director%' OR p.title LIKE '%Supervisor%')
+                AND s.is_active = TRUE AND s.is_deleted = FALSE
                 ORDER BY COALESCE(s.last_name, ''), COALESCE(s.first_name, '')
             """)
             managers_raw = managers_cursor.fetchall()
@@ -255,7 +255,7 @@ def view(department_id):
                        COALESCE(p.title, 'No Position') as position, s.is_active
                 FROM staff s
                 LEFT JOIN positions p ON s.position_id = p.id
-                WHERE s.department_id = %s
+                WHERE s.department_id = %s AND s.is_deleted = FALSE
                 ORDER BY COALESCE(s.last_name, ''), COALESCE(s.first_name, '')
             """, (department_id,))
             staff_raw = staff_cursor.fetchall()
@@ -274,7 +274,7 @@ def view(department_id):
             positions_cursor.execute("""
                 SELECT p.id, p.title, p.description, COUNT(s.id) as staff_count
                 FROM positions p
-                LEFT JOIN staff s ON p.id = s.position_id AND s.is_active = TRUE
+                LEFT JOIN staff s ON p.id = s.position_id AND s.is_active = TRUE AND s.is_deleted = FALSE
                 WHERE p.department_id = %s
                 GROUP BY p.id, p.title, p.description
                 ORDER BY p.title
