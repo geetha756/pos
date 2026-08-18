@@ -7,7 +7,7 @@
     <h3 class="mb-0"><i class="ri-bill-line icon me-2"></i>Purchases</h3>
 </div>
 
-<p class="text-muted small mb-3">Record what you bought — item, quantity and price paid. This is a purchase log only; it does not change stock levels.</p>
+<p class="text-muted small mb-3">Record what you bought — item, quantity and price paid. This also adds the quantity to this store's stock, finding or creating the matching inventory item automatically.</p>
 
 {% if is_owner %}
 <!-- Location picker -->
@@ -199,7 +199,7 @@
                         <p class="text-muted mt-2 mb-0">Reading the bill…</p>
                     </div>
                     <div id="scan-review-body" class="d-none">
-                        <p class="text-muted small">Check every row before saving — nothing is saved automatically.</p>
+                        <p class="text-muted small">Check every row before saving — nothing is saved automatically. Every row adds to stock; it's matched to an existing inventory item by name automatically, or created if it's new. Only pick a link below to correct a mismatch (e.g. OCR text that doesn't match an existing item's exact name).</p>
                         <div class="table-responsive">
                             <table class="table table-sm align-middle">
                                 <thead>
@@ -208,7 +208,7 @@
                                         <th style="width:90px;">Qty</th>
                                         <th style="width:110px;">Unit</th>
                                         <th style="width:110px;">Price (₹)</th>
-                                        <th style="width:200px;">Link to inventory (optional)</th>
+                                        <th style="width:200px;">Correct the match (optional)</th>
                                         <th></th>
                                     </tr>
                                 </thead>
@@ -392,7 +392,7 @@ window.ScanBill = (function () {
 
     // --- Review table ---
     function catalogOptionsHtml(selectedId) {
-        var html = '<option value="">— not linked —</option>';
+        var html = '<option value="">— auto-match by name —</option>';
         CATALOG.forEach(function (it) {
             html += '<option value="' + it.id + '"' + (selectedId === it.id ? ' selected' : '') + '>' + it.name + '</option>';
         });

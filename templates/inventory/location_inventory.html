@@ -85,8 +85,6 @@
                         {% if is_owner %}
                         <th class="text-end">Current</th>
                         <th class="text-end">Min</th>
-                        <th class="text-end">Max</th>
-                        <th class="text-end">Reorder</th>
                         <th>Status</th>
                         <th>Actions</th>
                         {% endif %}
@@ -103,8 +101,6 @@
                         {% if is_owner %}
                         <td class="text-end">{{ row.current_stock }}</td>
                         <td class="text-end">{{ row.minimum_stock_level }}</td>
-                        <td class="text-end">{{ row.maximum_stock_level }}</td>
-                        <td class="text-end">{{ row.reorder_point }}</td>
                         <td>
                             {% if row.stock_status == 'out_of_stock' %}
                                 <span class="badge bg-danger">Out of Stock</span>
@@ -150,7 +146,7 @@
                         <div>
                             <span class="fw-bold fs-5">{{ row.current_stock }}</span>
                             <span class="text-muted">{{ row.unit|unit_label }}</span>
-                            <span class="text-muted small ms-1">min {{ row.minimum_stock_level }} · reorder {{ row.reorder_point }}</span>
+                            <span class="text-muted small ms-1">min {{ row.minimum_stock_level }}</span>
                         </div>
                         <a class="btn btn-sm btn-touch btn-outline-primary flex-shrink-0"
                            href="{{ url_for('inventory.adjust_inventory', location_id=row.location_id, item_id=row.master_inventory_id) }}">

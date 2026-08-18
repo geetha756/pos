@@ -215,11 +215,56 @@ def dashboard():
         return redirect(url_for('orders.new_order'))
     try:
         # Scope the tiles to the manager's store when applicable
-        stats = get_dashboard_stats(scoped_location_id())
-        return render_template('dashboard.html', stats=stats)
+        loc = scoped_location_id()
+        stats = get_dashboard_stats(loc)
+        stock_alerts = get_stock_alerts(loc)
+        return render_template('dashboard.html', stats=stats, stock_alerts=stock_alerts)
     except Exception as e:
         flash(f'Database error: {str(e)}', 'error')
-        return render_template('dashboard.html', stats={'locations': 0, 'menu_items': 0, 'orders': 0, 'total_revenue': 0.0})
+        return render_template('dashboard.html', stats={'locations': 0, 'menu_items': 0, 'orders': 0, 'total_revenue': 0.0}, stock_alerts=[])
+
+
+def get_stock_alerts(location_id=None):
+    """Ingredients projected to run out soonest — current stock ÷ average
+    daily usage over the last 7 days, same math as the Stock Runway analytics
+    page, trimmed to what's actually urgent (< 5 days left). This is what
+    drives the dashboard banner: a push signal on login instead of a number
+    buried in a stat tile that only surfaces if someone goes looking for it."""
+    where = "WHERE mi.is_active = TRUE"
+    params = []
+    if location_id:
+        where += " AND li.location_id = %s"
+        params.append(location_id)
+
+    rows = execute_query(f"""
+        SELECT l.name AS location_name, mi.name, mi.unit, li.current_stock, u.avg_daily_used
+        FROM location_inventory li
+        JOIN master_inventory mi ON mi.id = li.master_inventory_id
+        JOIN locations l ON l.id = li.location_id
+        JOIN (
+            SELECT location_id, master_inventory_id, AVG(used_quantity) AS avg_daily_used
+            FROM daily_inventory_usage
+            WHERE date >= CURRENT_DATE - INTERVAL '7 days'
+            GROUP BY location_id, master_inventory_id
+            HAVING AVG(used_quantity) > 0
+        ) u ON u.location_id = li.location_id AND u.master_inventory_id = li.master_inventory_id
+        {where}
+    """, params, fetch=True) or []
+
+    alerts = []
+    for r in rows:
+        avg_used = float(r['avg_daily_used'])
+        if avg_used <= 0:
+            continue
+        days_left = float(r['current_stock'] or 0) / avg_used
+        if days_left >= 5:
+            continue
+        alerts.append({
+            'location_name': r['location_name'], 'name': r['name'], 'unit': r['unit'],
+            'days_left': days_left, 'status': 'critical' if days_left < 2 else 'warning',
+        })
+    alerts.sort(key=lambda a: a['days_left'])
+    return alerts
 
 
 def get_dashboard_stats(location_id=None):
@@ -349,7 +394,7 @@ def get_dashboard_stats(location_id=None):
 
         result = execute_query_one("""
             SELECT COUNT(*) as count FROM location_inventory
-            WHERE current_stock <= reorder_point AND (%s IS NULL OR location_id = %s)
+            WHERE current_stock <= minimum_stock_level AND (%s IS NULL OR location_id = %s)
         """, (loc, loc))
         stats['low_stock_items'] = result['count'] if result else 0
 

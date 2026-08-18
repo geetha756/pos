@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Stock Runway{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="ri-hourglass-line icon me-2"></i>Stock Runway</h1>
+    <a href="{{ url_for('inventory.analytics', date_from=date_from, date_to=date_to, location=location_filter) }}" class="btn btn-outline-secondary">
+        <i class="ri-arrow-left-line icon me-1"></i>Back to Analytics
+    </a>
+</div>
+
+<p class="text-muted small mb-3">
+    How long the remaining stock will last, measured from when each grocery was last <strong>purchased/added</strong> and how much has been consumed since &mdash; not a flat average over the whole date range.
+    <strong>Days left = current stock &divide; average daily consumption.</strong>
+</p>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-6 col-md-3">
+                <label for="date_from" class="form-label">From</label>
+                <input type="date" id="date_from" name="date_from" class="form-control" onchange="this.form.submit()" value="{{ date_from }}">
+            </div>
+            <div class="col-6 col-md-3">
+                <label for="date_to" class="form-label">To</label>
+                <input type="date" id="date_to" name="date_to" class="form-control" onchange="this.form.submit()" value="{{ date_to }}">
+            </div>
+            <div class="col-12 col-md-3">
+                <label for="location" class="form-label">Location</label>
+                <select id="location" name="location" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Locations</option>
+                    {% for loc in locations %}
+                    <option value="{{ loc.id }}" {% if location_filter == loc.id|string %}selected{% endif %}>{{ loc.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label for="basis" class="form-label">Consumption basis</label>
+                <select id="basis" name="basis" class="form-select" onchange="this.form.submit()">
+                    <option value="purchase" {% if basis == 'purchase' %}selected{% endif %}>Since last purchase</option>
+                    <option value="14day" {% if basis == '14day' %}selected{% endif %}>Last 14 days (2-week)</option>
+                </select>
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary"><i class="ri-search-line icon me-1"></i>Apply</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="alert alert-light border py-2 small mb-3">
+    <i class="ri-information-line icon me-1"></i>
+    {% if basis == '14day' %}
+    <strong>2-week basis:</strong> average daily consumption = total consumed in the 14 days ending {{ window_end }}, divided by 14. Use this when purchases are irregular and you want a steady recent-demand rate.
+    {% else %}
+    <strong>Since-last-purchase basis:</strong> average daily consumption = everything consumed since each grocery was last restocked, divided by the days elapsed since then. Switch to the 2-week basis above to normalize to a fixed 14-day window.
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-header"><h5 class="card-title mb-0"><i class="ri-list-check-2 icon me-2"></i>Ingredients Ranked by Urgency</h5></div>
+    <div class="card-body p-0">
+        {% if runway %}
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Ingredient</th>
+                        {% if not location_filter %}<th>Location</th>{% endif %}
+                        <th class="text-end">Purchased</th>
+                        <th>Purchase date</th>
+                        <th class="text-end">Current stock</th>
+                        <th class="text-end">Consumed since</th>
+                        <th class="text-end">Avg/day</th>
+                        <th style="width:130px;">Runway</th>
+                        <th>Days left</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in runway %}
+                    <tr>
+                        <td class="fw-semibold">{{ r.name }}</td>
+                        {% if not location_filter %}<td class="text-muted">{{ r.location_name }}</td>{% endif %}
+                        <td class="text-end text-muted">
+                            {% if r.purchased_qty is not none %}{{ '%g'|format(r.purchased_qty) }} {{ r.unit|unit_label }}{% else %}&mdash;{% endif %}
+                        </td>
+                        <td class="small">
+                            {% if r.restock_date %}
+                                {{ r.restock_date }}
+                            {% else %}
+                                <span class="text-muted">no purchase logged</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end fw-semibold">{{ '%g'|format(r.current_stock) }} {{ r.unit|unit_label }}</td>
+                        <td class="text-end">
+                            {{ '%g'|format(r.consumed) }} {{ r.unit|unit_label }}
+                            <div class="text-muted small">over {{ r.days_elapsed }} day{{ 's' if r.days_elapsed != 1 else '' }}</div>
+                        </td>
+                        <td class="text-end text-muted">{{ '%0.3g'|format(r.avg_daily) }} {{ r.unit|unit_label }}</td>
+                        <td>
+                            <div class="progress" style="height:8px;">
+                                {% set pct = ([[r.days_left / 14 * 100, 0]|max, 100]|min) if r.days_left is not none else 0 %}
+                                <div class="progress-bar {% if r.status == 'critical' %}bg-danger{% elif r.status == 'warning' %}bg-warning{% elif r.status == 'good' %}bg-success{% else %}bg-secondary{% endif %}"
+                                     style="width:{{ pct }}%;"></div>
+                            </div>
+                        </td>
+                        <td>
+                            {% if r.days_left is none %}
+                                <span class="badge bg-light text-dark border">no consumption yet</span>
+                            {% elif r.status == 'critical' %}
+                                <span class="badge bg-danger">{{ '%.1f'|format(r.days_left) }} days left</span>
+                            {% elif r.status == 'warning' %}
+                                <span class="badge bg-warning text-dark">{{ '%.1f'|format(r.days_left) }} days left</span>
+                            {% else %}
+                                <span class="badge bg-success">{{ '%.0f'|format(r.days_left) }} days left</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="p-3 border-top text-muted small">
+            "Consumed since" is summed from <a href="{{ url_for('inventory.daily_usage') }}">Record Usage</a> entries dated on/after each grocery's window start.
+            An ingredient with stock but no consumption logged yet shows <span class="badge bg-light text-dark border">no consumption yet</span> &mdash; there's no rate to project from, so no days-left figure is invented.
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+            <i class="ri-hourglass-line icon" style="font-size:3rem;"></i>
+            <h6 class="mt-2 mb-0">No stocked ingredients found for this location.</h6>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

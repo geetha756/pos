@@ -8,6 +8,7 @@ from typing import Optional, List, Dict, Any, Tuple
 import hashlib
 import secrets
 import json
+from decimal import Decimal
 
 # ---------------------------------------------------------------------------
 # Connection pool — reuse connections instead of opening a new one per query.
@@ -300,6 +301,134 @@ def init_store_purchases_schema():
     # Same edit-tracking on daily usage records.
     execute_query("ALTER TABLE daily_inventory_usage ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP")
     execute_query("ALTER TABLE daily_inventory_usage ADD COLUMN IF NOT EXISTS edited_by UUID")
+
+
+def init_app_settings_schema():
+    """A tiny key/value store for business rules that were previously
+    hard-coded in more than one place. First user: the morning/evening meal
+    boundary, which existed as a literal '13:00' in the PDF sales report and
+    a separate '16:00' in the order screen's default tab — two numbers that
+    could silently disagree. Now there's one setting both read."""
+    execute_query("""
+        CREATE TABLE IF NOT EXISTS app_settings (
+            key VARCHAR(100) PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    execute_query("""
+        INSERT INTO app_settings (key, value) VALUES ('meal_period_morning_end', '13:00')
+        ON CONFLICT (key) DO NOTHING
+    """)
+
+
+def get_setting(key: str, default: Optional[str] = None) -> Optional[str]:
+    """Read one app setting, falling back to `default` when unset."""
+    try:
+        row = execute_query_one("SELECT value FROM app_settings WHERE key = %s", (key,))
+        return row['value'] if row else default
+    except Exception:
+        return default
+
+
+def set_setting(key: str, value: str) -> None:
+    execute_query("""
+        INSERT INTO app_settings (key, value) VALUES (%s, %s)
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP
+    """, (key, value))
+
+
+def morning_end_time() -> str:
+    """The configured boundary between the morning and evening service, as
+    'HH:MM'. A sale at or before this time counts as morning; after it,
+    evening. Used by the Analytics morning/evening split and the PDF sales
+    report so both always agree."""
+    raw = (get_setting('meal_period_morning_end', '13:00') or '13:00').strip()
+    # Guard against a malformed value making it into SQL — this string is
+    # interpolated into a TIME literal, so it must be a real HH:MM.
+    try:
+        hh, mm = raw.split(':')[:2]
+        hh, mm = int(hh), int(mm)
+        if 0 <= hh <= 23 and 0 <= mm <= 59:
+            return f"{hh:02d}:{mm:02d}"
+    except (ValueError, AttributeError):
+        pass
+    return '13:00'
+
+
+def init_recipe_schema():
+    """Bill-of-materials for menu items: how much of each raw ingredient one
+    unit of a menu item consumes. Opt-in per item — an item with no rows here
+    simply isn't recipe-tracked yet, and order placement/edit/cancel silently
+    skips stock deduction for it (see recipe_consumption_ops())."""
+    execute_query("""
+        CREATE TABLE IF NOT EXISTS recipe_items (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            master_menu_id UUID REFERENCES master_menu(id) ON DELETE CASCADE NOT NULL,
+            master_inventory_id UUID REFERENCES master_inventory(id) NOT NULL,
+            quantity_per_unit DECIMAL(10,4) NOT NULL CHECK (quantity_per_unit > 0),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(master_menu_id, master_inventory_id)
+        );
+    """)
+    execute_query("CREATE INDEX IF NOT EXISTS idx_recipe_items_menu ON recipe_items(master_menu_id);")
+
+
+def recipe_consumption_ops(location_id, master_menu_id, quantity, staff_id, reference_id, note_prefix='Order'):
+    """(query, params) ops that deduct one menu item's recipe ingredients from
+    a location's stock for `quantity` units sold — or add them back when
+    `quantity` is negative (an order edit/cancellation reversing an earlier
+    deduction). Returns [] if the item has no recipe configured, so
+    recipe-tracking is opt-in per item, not all-or-nothing.
+
+    Stock is allowed to go negative: a sale is never blocked by an inventory
+    shortfall, it just shows up as Out of Stock afterward (recorded product
+    decision — see routes/orders.py callers)."""
+    recipe = execute_query(
+        "SELECT master_inventory_id, quantity_per_unit FROM recipe_items WHERE master_menu_id = %s",
+        (master_menu_id,), fetch=True) or []
+    ops = []
+    for r in recipe:
+        mi_id = str(r['master_inventory_id'])
+        delta = Decimal(str(r['quantity_per_unit'])) * Decimal(str(quantity))  # >0 consumes, <0 restores
+
+        inv = execute_query_one(
+            "SELECT current_stock FROM location_inventory WHERE location_id = %s AND master_inventory_id = %s",
+            (location_id, mi_id))
+        previous_stock = Decimal(str(inv['current_stock'])) if inv else Decimal('0')
+        new_stock = previous_stock - delta
+
+        ops.append((
+            """INSERT INTO location_inventory (location_id, master_inventory_id, current_stock)
+               VALUES (%s, %s, %s)
+               ON CONFLICT (location_id, master_inventory_id)
+               DO UPDATE SET current_stock = location_inventory.current_stock - %s,
+                             last_updated = CURRENT_TIMESTAMP""",
+            (location_id, mi_id, -delta, delta)
+        ))
+        ops.append((
+            """INSERT INTO inventory_transactions
+                   (location_id, master_inventory_id, transaction_type, quantity,
+                    previous_stock, new_stock, recorded_by, reference_id, reference_type, notes)
+               VALUES (%s, %s, 'usage', %s, %s, %s, %s, %s, 'order', %s)""",
+            (location_id, mi_id, -delta, previous_stock, new_stock, staff_id, reference_id,
+             f'{note_prefix}: recipe deduction')
+        ))
+    return ops
+
+
+def init_analytics_helpers():
+    """A single SQL-level place for the UTC->IST conversion, instead of the
+    literal `+ INTERVAL '5 hours 30 minutes'` being copy-pasted into every
+    analytics query. All `created_at`/timestamp columns are stored in UTC
+    (the DB server runs in UTC); IST has no DST, so a fixed offset is exact
+    and never needs to change."""
+    execute_query("""
+        CREATE OR REPLACE FUNCTION to_ist(ts TIMESTAMP) RETURNS TIMESTAMP AS $$
+            SELECT ts + INTERVAL '5 hours 30 minutes'
+        $$ LANGUAGE SQL IMMUTABLE;
+    """)
 
 
 def seed_permissions_if_needed():

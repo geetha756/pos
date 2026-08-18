@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Recipe - {{ item.name }} - Sip & Snack Portal{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <p class="text-muted mb-1">Master Menu</p>
+        <h1 class="h2 mb-0">Recipe: {{ item.name }}</h1>
+    </div>
+    <a href="{{ url_for('master_menu.index') }}" class="btn btn-outline-secondary">
+        <i class="ri-arrow-left-line icon me-1"></i>Back to Menu
+    </a>
+</div>
+
+<p class="text-muted small mb-3">Set how much of each raw ingredient one <strong>{{ item.name }}</strong> uses. Once
+set, placing an order for this item automatically deducts stock at that location — no manual daily counting needed
+for it. Items with no recipe here are unaffected; orders for them still work exactly as before.</p>
+
+{% if not ingredients %}
+<div class="alert alert-info py-2 small mb-3"><i class="ri-information-line icon me-1"></i>No recipe set yet — orders for {{ item.name }} won't touch inventory until you add at least one ingredient below.</div>
+{% endif %}
+
+<div class="row">
+    <div class="col-lg-5">
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="mb-0"><i class="ri-add-line icon me-2"></i>Add Ingredient</h5></div>
+            <div class="card-body">
+                {% if not available_items %}
+                <div class="alert alert-info mb-0">
+                    <i class="ri-information-line icon me-1"></i>
+                    Every active inventory item is already in this recipe.
+                </div>
+                {% else %}
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="master_inventory_id" class="form-label">Ingredient</label>
+                        <select class="form-select" id="master_inventory_id" name="master_inventory_id" required>
+                            <option value="" selected disabled>Select an ingredient</option>
+                            {% for it in available_items %}
+                            <option value="{{ it.id }}">{{ it.name }} ({{ it.unit|unit_label }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="quantity_per_unit" class="form-label">Quantity per unit sold</label>
+                        <input type="number" step="0.0001" min="0" class="form-control" id="quantity_per_unit" name="quantity_per_unit" placeholder="e.g. 0.02" required>
+                        <div class="form-text">In the ingredient's own unit — e.g. 0.02 kg of tea powder per cup.</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100"><i class="ri-save-line icon me-1"></i>Add to Recipe</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="ri-list-unordered icon me-2"></i>Ingredients</h5>
+                <span class="badge bg-primary">{{ ingredients|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                {% if ingredients %}
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead><tr><th>Ingredient</th><th class="text-end">Qty per unit sold</th><th></th></tr></thead>
+                        <tbody>
+                            {% for ing in ingredients %}
+                            <tr>
+                                <td class="fw-semibold">{{ ing.name }}</td>
+                                <td class="text-end">{{ '%g'|format(ing.quantity_per_unit) }} {{ ing.unit|unit_label }}</td>
+                                <td class="text-end">
+                                    <form method="POST" action="{{ url_for('master_menu.remove_recipe_item', item_id=item.id, ingredient_id=ing.id) }}" onsubmit="return confirm('Remove {{ ing.name }} from this recipe?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="ri-delete-bin-line"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="ri-restaurant-2-line icon" style="font-size:3rem;"></i>
+                    <h6 class="mt-2 mb-0">No ingredients in this recipe yet.</h6>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

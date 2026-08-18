@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from database import execute_query, execute_query_one, execute_transaction
+from database import (execute_query, execute_query_one, execute_transaction,
+                      morning_end_time, set_setting)
 from .auth import login_required
 from .helpers import get_current_staff_id
 from security import scoped_location_id, owner_required, is_store_manager
@@ -24,6 +25,64 @@ def _worker_can_edit(entry_location_id, entry_ist_date):
     if not store or str(entry_location_id) != str(store):
         return False
     return entry_ist_date == _ist_today()
+
+
+def _allocate_stock_ops(location_id, item_name, quantity, unit, staff_id, purchase_id,
+                         master_inventory_id=None, minimum_stock_level=None, note_prefix='Purchase'):
+    """Find-or-create the catalog item (case-insensitive name match, unless an
+    explicit master_inventory_id override is given) and return the
+    location_inventory + inventory_transactions statements that add this
+    purchase's quantity onto that location's stock. The caller runs these
+    immediately (a single purchase) or batches them into one
+    execute_transaction() call (the scanned-bill save), alongside its own
+    store_purchases insert.
+
+    This is the one code path shared by Add Groceries, the manual Purchases
+    form, and the scanned-bill save — so their stock math can't drift apart.
+    minimum_stock_level follows a "blank (None) means don't change" rule via
+    SQL COALESCE, so recording a purchase never wipes out a threshold that
+    was set earlier.
+    """
+    if master_inventory_id:
+        mi_id = str(master_inventory_id)
+        execute_query("UPDATE master_inventory SET is_active = TRUE WHERE id = %s", (mi_id,))
+    else:
+        mi = execute_query_one("SELECT id FROM master_inventory WHERE lower(name) = lower(%s)", (item_name,))
+        if mi:
+            mi_id = str(mi['id'])
+            execute_query("UPDATE master_inventory SET unit = %s, is_active = TRUE WHERE id = %s", (unit, mi_id))
+        else:
+            row = execute_query_one(
+                "INSERT INTO master_inventory (name, category, unit, is_active) "
+                "VALUES (%s, 'groceries', %s, TRUE) RETURNING id",
+                (item_name, unit))
+            mi_id = str(row['id'])
+
+    inv = execute_query_one(
+        "SELECT current_stock FROM location_inventory WHERE location_id = %s AND master_inventory_id = %s",
+        (location_id, mi_id))
+    previous_stock = Decimal(str(inv['current_stock'])) if inv else Decimal('0')
+    new_stock = previous_stock + quantity
+
+    ops = [
+        ("""INSERT INTO location_inventory (location_id, master_inventory_id, current_stock,
+                                             minimum_stock_level, last_restock_date, last_restock_quantity)
+            VALUES (%s, %s, %s, COALESCE(%s, 0), CURRENT_DATE, %s)
+            ON CONFLICT (location_id, master_inventory_id)
+            DO UPDATE SET current_stock = location_inventory.current_stock + EXCLUDED.current_stock,
+                          minimum_stock_level = COALESCE(%s, location_inventory.minimum_stock_level),
+                          last_restock_date = CURRENT_DATE,
+                          last_restock_quantity = EXCLUDED.last_restock_quantity,
+                          last_updated = CURRENT_TIMESTAMP""",
+         (location_id, mi_id, quantity, minimum_stock_level, quantity, minimum_stock_level)),
+        ("""INSERT INTO inventory_transactions
+                (location_id, master_inventory_id, transaction_type, quantity,
+                 previous_stock, new_stock, recorded_by, reference_id, reference_type, notes)
+            VALUES (%s, %s, 'restock', %s, %s, %s, %s, %s, 'store_purchase', %s)""",
+         (location_id, mi_id, quantity, previous_stock, new_stock, staff_id, purchase_id,
+          f'{note_prefix}: {item_name}')),
+    ]
+    return mi_id, ops
 
 # ===============================
 # MASTER INVENTORY MANAGEMENT
@@ -613,8 +672,10 @@ def remove_purchase_item(list_id, item_id):
 @login_required
 def purchases():
     """Workers log what they bought (item, quantity, price) with an IST
-    timestamp. This is a purchase/spend log only — it does not change
-    location_inventory stock levels."""
+    timestamp. Every purchase also allocates: it finds-or-creates the
+    matching catalog item (case-insensitive name match) and adds the
+    purchased quantity onto this location's stock, exactly like Add
+    Groceries — see _allocate_stock_ops()."""
     locations = execute_query("SELECT id, name FROM locations ORDER BY name", fetch=True) or []
     store = scoped_location_id()
     location_id = store or request.values.get('location_id') or (str(locations[0]['id']) if locations else '')
@@ -643,11 +704,17 @@ def purchases():
         elif not staff_id:
             flash('Your account is not linked to a staff record. Please contact an administrator.', 'error')
         else:
-            execute_query("""
-                INSERT INTO store_purchases (location_id, item_name, quantity, unit, price, recorded_by)
-                VALUES (%s, %s, %s, %s, %s, %s)
-            """, (location_id, item_name, quantity, unit, price, staff_id))
-            flash(f'Recorded purchase: {quantity} {unit} of {item_name}.', 'success')
+            purchase_id = str(uuid.uuid4())
+            mi_id, alloc_ops = _allocate_stock_ops(location_id, item_name, quantity, unit,
+                                                    staff_id, purchase_id, note_prefix='Purchase')
+            ops = [(
+                """INSERT INTO store_purchases
+                   (id, location_id, item_name, quantity, unit, price, recorded_by, master_inventory_id)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+                (purchase_id, location_id, item_name, quantity, unit, price, staff_id, mi_id)
+            )] + alloc_ops
+            execute_transaction(ops)
+            flash(f'Recorded purchase: {quantity} {unit} of {item_name} — added to stock.', 'success')
         return redirect(url_for('inventory.purchases', location_id=location_id))
 
     query = """
@@ -704,11 +771,14 @@ def scan_purchase_bill():
 @owner_required
 def confirm_scanned_purchases():
     """Save a reviewed/edited batch of purchase rows (from the scan-bill
-    flow). Each row optionally links to an existing inventory catalog item —
-    never auto-matched or auto-created from OCR text. A linked row also
-    increases that item's real stock, using the same update-then-log pattern
-    as adjust_inventory() (routes/inventory.py), wrapped in one transaction
-    so the whole batch commits together or not at all."""
+    flow). Every row allocates stock: it finds-or-creates the matching
+    catalog item (case-insensitive name match) and adds the purchased
+    quantity onto this location's stock — same as Add Groceries and the
+    manual Purchases form (_allocate_stock_ops()). A reviewer can still pick
+    an explicit catalog item per row (useful when OCR text doesn't exactly
+    match an existing name); it's an override, not a requirement — unmatched
+    rows auto-create instead of silently going nowhere. Everything commits
+    together in one transaction, or none of it does."""
     data = request.get_json(silent=True) or {}
     location_id = data.get('location_id') or scoped_location_id()
     rows = data.get('rows') or []
@@ -737,36 +807,16 @@ def confirm_scanned_purchases():
             return jsonify({'success': False, 'error': f'"{item_name or "(unnamed row)"}" needs a name, quantity, and price greater than zero.'}), 400
 
         purchase_id = str(uuid.uuid4())
+        mi_id, alloc_ops = _allocate_stock_ops(location_id, item_name, quantity, unit, staff_id,
+                                                purchase_id, master_inventory_id=master_inventory_id,
+                                                note_prefix='Scanned purchase')
         ops.append((
             """INSERT INTO store_purchases
                (id, location_id, item_name, quantity, unit, price, recorded_by, master_inventory_id)
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
-            (purchase_id, location_id, item_name, quantity, unit, price, staff_id, master_inventory_id)
+            (purchase_id, location_id, item_name, quantity, unit, price, staff_id, mi_id)
         ))
-
-        if master_inventory_id:
-            inv = execute_query_one("""
-                SELECT current_stock FROM location_inventory
-                WHERE location_id = %s AND master_inventory_id = %s
-            """, (location_id, master_inventory_id))
-            if inv is None:
-                return jsonify({'success': False, 'error': f'"{item_name}" is linked to an item not stocked at this location yet. Unlink it or add it to this store\'s inventory first.'}), 400
-            current_stock = Decimal(str(inv['current_stock']))
-            new_stock = current_stock + quantity
-            ops.append((
-                """UPDATE location_inventory
-                   SET current_stock = %s, last_updated = CURRENT_TIMESTAMP
-                   WHERE location_id = %s AND master_inventory_id = %s""",
-                (new_stock, location_id, master_inventory_id)
-            ))
-            ops.append((
-                """INSERT INTO inventory_transactions
-                   (location_id, master_inventory_id, transaction_type, quantity,
-                    previous_stock, new_stock, recorded_by, reference_id, reference_type, notes)
-                   VALUES (%s, %s, 'restock', %s, %s, %s, %s, %s, 'store_purchase', %s)""",
-                (location_id, master_inventory_id, quantity, current_stock, new_stock,
-                 staff_id, purchase_id, f'Scanned purchase: {item_name}')
-            ))
+        ops.extend(alloc_ops)
 
     try:
         execute_transaction(ops)
@@ -832,6 +882,51 @@ def delete_purchase(purchase_id):
     flash('Purchase record removed.', 'success')
     return redirect(url_for('inventory.purchases'))
 
+def _valid_date(raw, fallback):
+    """Accept only a real YYYY-MM-DD date; anything else falls back. Dates
+    arrive from the query string, so a bookmarked/edited/crawled URL can
+    carry junk — without this it reaches SQL (or strptime) and 500s the
+    page instead of just showing the default window."""
+    if not raw:
+        return fallback
+    try:
+        return datetime.strptime(raw, '%Y-%m-%d').date().isoformat()
+    except (ValueError, TypeError):
+        return fallback
+
+
+def _analytics_window():
+    """Default date window (1st of the current month -> today, IST) plus
+    whatever the request overrides, and the location filter. Every analytics
+    page reads its from/to/location the same way, so switching between them
+    (via the launcher tiles) carries the same window forward. Values are
+    validated here so no downstream page has to re-check them."""
+    ist_today = _ist_today()
+    date_from = _valid_date(request.args.get('date_from'), ist_today.replace(day=1).isoformat())
+    date_to = _valid_date(request.args.get('date_to'), ist_today.isoformat())
+    # A reversed range (from > to) returns nothing and looks like a bug to the
+    # user; swap it so the page shows the range they clearly meant.
+    if date_from > date_to:
+        date_from, date_to = date_to, date_from
+    location_filter = request.args.get('location', '')
+    return date_from, date_to, location_filter
+
+
+def _analytics_where(date_from, date_to, location_filter, alias='o'):
+    """The one WHERE clause every sales-analytics query is built on: not
+    cancelled, within the IST calendar date range, optionally one location.
+    Sharing this (instead of copy-pasting the filter into each query) is what
+    guarantees every number on the Analytics pages agrees with every other."""
+    where = (f"WHERE {alias}.status != 'cancelled'"
+             f" AND DATE(to_ist({alias}.created_at)) >= %s"
+             f" AND DATE(to_ist({alias}.created_at)) <= %s")
+    params = [date_from, date_to]
+    if location_filter:
+        where += f" AND {alias}.location_id = %s"
+        params.append(location_filter)
+    return where, params
+
+
 @inventory_bp.route('/analytics')
 @login_required
 @owner_required
@@ -840,20 +935,8 @@ def analytics():
     existing orders table (no writes, no schema changes). Revenue is defined
     exactly as on the Orders page: SUM(total_amount) for orders that are not
     cancelled, on the IST calendar date."""
-    # Default window: 1st of the current month -> today, on the IST calendar.
-    ist_today = (datetime.utcnow() + timedelta(hours=5, minutes=30)).date()
-    date_from = request.args.get('date_from') or ist_today.replace(day=1).isoformat()
-    date_to = request.args.get('date_to') or ist_today.isoformat()
-    location_filter = request.args.get('location', '')
-
-    # Shared IST-date + not-cancelled filter for every query below.
-    where = ("WHERE o.status != 'cancelled'"
-             " AND DATE(o.created_at + INTERVAL '5 hours 30 minutes') >= %s"
-             " AND DATE(o.created_at + INTERVAL '5 hours 30 minutes') <= %s")
-    params = [date_from, date_to]
-    if location_filter:
-        where += " AND o.location_id = %s"
-        params.append(location_filter)
+    date_from, date_to, location_filter = _analytics_window()
+    where, params = _analytics_where(date_from, date_to, location_filter)
 
     stats = {'total_orders': 0, 'total_revenue': 0.0, 'avg_order_value': 0.0,
              'cash_orders': 0, 'cash_revenue': 0.0,
@@ -884,7 +967,7 @@ def analytics():
             " GROUP BY l.name ORDER BY revenue DESC", tuple(params), fetch=True) or []
 
         by_day = execute_query(
-            "SELECT DATE(o.created_at + INTERVAL '5 hours 30 minutes') AS day, "
+            "SELECT DATE(to_ist(o.created_at)) AS day, "
             "COUNT(*) AS orders, COALESCE(SUM(o.total_amount), 0) AS revenue "
             "FROM orders o " + where +
             " GROUP BY day ORDER BY day DESC", tuple(params), fetch=True) or []
@@ -896,6 +979,693 @@ def analytics():
                          stats=stats, by_location=by_location, by_day=by_day,
                          locations=locations, date_from=date_from, date_to=date_to,
                          location_filter=location_filter)
+
+
+@inventory_bp.route('/analytics/sale-trend')
+@login_required
+@owner_required
+def analytics_sale_trend():
+    """Sales over time, two ways:
+      1. Per calendar date (revenue store-wide, or units sold for one chosen
+         menu item — "idli sales per day" is the ?item= filter below), each
+         point labeled with its weekday.
+      2. Per day-of-week, averaged across the whole window — "which day
+         actually performs best," independent of how many Mondays vs
+         Fridays happened to fall in the selected range.
+    Both share the same date-range/location filter as the rest of Analytics."""
+    date_from, date_to, location_filter = _analytics_window()
+    where, params = _analytics_where(date_from, date_to, location_filter)
+    item_filter = request.args.get('item', '')
+
+    trend = []
+    metric = 'units' if item_filter else 'revenue'
+    selected_item_name = None
+    try:
+        if item_filter:
+            row = execute_query_one("SELECT name FROM master_menu WHERE id = %s", (item_filter,))
+            selected_item_name = row['name'] if row else None
+            rows = execute_query(
+                "SELECT DATE(to_ist(o.created_at)) AS day, COUNT(DISTINCT o.id) AS orders, "
+                "COALESCE(SUM(oi.quantity), 0) AS units "
+                "FROM order_items oi JOIN orders o ON oi.order_id = o.id " + where +
+                " AND oi.master_menu_id = %s"
+                " GROUP BY day ORDER BY day", tuple(params + [item_filter]), fetch=True) or []
+            for r in rows:
+                trend.append({'day': r['day'].isoformat(), 'label': r['day'].strftime('%a, %-d %b'),
+                               'orders': r['orders'], 'value': int(r['units'])})
+        else:
+            rows = execute_query(
+                "SELECT DATE(to_ist(o.created_at)) AS day, COUNT(*) AS orders, "
+                "COALESCE(SUM(o.total_amount), 0) AS revenue "
+                "FROM orders o " + where +
+                " GROUP BY day ORDER BY day", tuple(params), fetch=True) or []
+            for r in rows:
+                trend.append({'day': r['day'].isoformat(), 'label': r['day'].strftime('%a, %-d %b'),
+                               'orders': r['orders'], 'value': float(r['revenue'])})
+    except Exception as e:
+        flash(f'Error loading sale trend: {str(e)}', 'error')
+
+    # Day-of-week performance — average revenue per weekday across the whole
+    # window, normalized by how many times that weekday actually occurred in
+    # the range (so 3 Fridays vs 2 Mondays doesn't just favor whichever day
+    # happened to occur more often in the chosen dates).
+    weekday_avg = []
+    try:
+        dow_rows = execute_query(
+            "SELECT EXTRACT(DOW FROM to_ist(o.created_at))::int AS pg_dow, "
+            "COALESCE(SUM(o.total_amount), 0) AS revenue, COUNT(*) AS orders "
+            "FROM orders o " + where + " GROUP BY pg_dow", tuple(params), fetch=True) or []
+        revenue_by_dow = {(r['pg_dow'] + 6) % 7: float(r['revenue']) for r in dow_rows}  # -> Mon=0..Sun=6
+        orders_by_dow = {(r['pg_dow'] + 6) % 7: r['orders'] for r in dow_rows}
+
+        occurrences = [0] * 7
+        d_from = datetime.strptime(date_from, '%Y-%m-%d').date()
+        d_to = datetime.strptime(date_to, '%Y-%m-%d').date()
+        d = d_from
+        while d <= d_to:
+            occurrences[d.weekday()] += 1
+            d += timedelta(days=1)
+
+        day_names = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        for i, name in enumerate(day_names):
+            occ = occurrences[i] or 1
+            weekday_avg.append({
+                'day': name, 'short': name[:3],
+                'avg_revenue': revenue_by_dow.get(i, 0.0) / occ,
+                'avg_orders': orders_by_dow.get(i, 0) / occ,
+                'occurrences': occurrences[i],
+            })
+    except Exception as e:
+        flash(f'Error loading day-of-week trend: {str(e)}', 'error')
+
+    items = execute_query("SELECT id, name FROM master_menu WHERE is_active = TRUE ORDER BY name", fetch=True) or []
+    locations = execute_query("SELECT id, name FROM locations ORDER BY name", fetch=True) or []
+    return render_template('inventory/analytics_sale_trend.html',
+                            trend=trend, metric=metric, selected_item_name=selected_item_name,
+                            weekday_avg=weekday_avg, items=items, item_filter=item_filter,
+                            locations=locations,
+                            date_from=date_from, date_to=date_to, location_filter=location_filter)
+
+
+def _ingredient_usage_for_menu_item(menu_id, qty):
+    """Ingredients that item's recipe implies for `qty` units sold, ranked by
+    quantity consumed — the direct answer to "what did selling this many of
+    this item actually cost us in stock." Empty if the item has no recipe."""
+    rows = execute_query(
+        "SELECT mi.name, mi.unit, ri.quantity_per_unit "
+        "FROM recipe_items ri JOIN master_inventory mi ON mi.id = ri.master_inventory_id "
+        "WHERE ri.master_menu_id = %s", (str(menu_id),), fetch=True) or []
+    usage = [{'name': r['name'], 'unit': r['unit'],
+              'per_unit': float(r['quantity_per_unit']),
+              'total_used': float(r['quantity_per_unit']) * qty} for r in rows]
+    usage.sort(key=lambda u: u['total_used'], reverse=True)
+    return usage
+
+
+@inventory_bp.route('/analytics/item-trend')
+@login_required
+@owner_required
+def analytics_item_trend():
+    """Menu items ranked by quantity sold, not revenue — a kitchen judges
+    'popular' by units going out the door, not money taken in. The top
+    seller's ingredient usage is shown right here (no click needed) since
+    "what's selling + what it's costing us in stock" is one question, not
+    two — every other item is one click away from the same breakdown."""
+    date_from, date_to, location_filter = _analytics_window()
+    where, params = _analytics_where(date_from, date_to, location_filter)
+    rows = []
+    try:
+        rows = execute_query(
+            "SELECT oi.master_menu_id, oi.item_name, SUM(oi.quantity) AS qty, "
+            "COALESCE(SUM(oi.total_price), 0) AS revenue "
+            "FROM order_items oi JOIN orders o ON oi.order_id = o.id " + where +
+            " GROUP BY oi.master_menu_id, oi.item_name ORDER BY qty DESC", tuple(params), fetch=True) or []
+    except Exception as e:
+        flash(f'Error loading item trend: {str(e)}', 'error')
+
+    items = [{'item_name': r['item_name'], 'qty': int(r['qty']), 'revenue': float(r['revenue']),
+              'master_menu_id': str(r['master_menu_id']) if r['master_menu_id'] else None} for r in rows]
+    top_item = items[0] if items else None
+    top_item_usage = []
+    if top_item and top_item['master_menu_id']:
+        top_item_usage = _ingredient_usage_for_menu_item(top_item['master_menu_id'], top_item['qty'])
+
+    locations = execute_query("SELECT id, name FROM locations ORDER BY name", fetch=True) or []
+    return render_template('inventory/analytics_item_trend.html',
+                            items=items, top_item=top_item, top_item_usage=top_item_usage,
+                            locations=locations,
+                            date_from=date_from, date_to=date_to, location_filter=location_filter)
+
+
+@inventory_bp.route('/analytics/item-trend/<uuid:menu_id>/usage')
+@login_required
+@owner_required
+def analytics_item_usage(menu_id):
+    """JSON: this item's quantity sold + ingredient usage, for the same
+    date-range/location window — powers the click-to-drill-down on any bar
+    in Item Trend, not just the top seller."""
+    date_from, date_to, location_filter = _analytics_window()
+    where, params = _analytics_where(date_from, date_to, location_filter)
+    row = execute_query_one(
+        "SELECT oi.item_name, SUM(oi.quantity) AS qty "
+        "FROM order_items oi JOIN orders o ON oi.order_id = o.id " + where +
+        " AND oi.master_menu_id = %s GROUP BY oi.item_name",
+        tuple(params + [str(menu_id)]))
+    if not row:
+        return jsonify({'success': True, 'item_name': None, 'qty': 0, 'ingredients': []})
+    qty = int(row['qty'])
+    ingredients = _ingredient_usage_for_menu_item(menu_id, qty)
+    return jsonify({'success': True, 'item_name': row['item_name'], 'qty': qty, 'ingredients': ingredients})
+
+
+@inventory_bp.route('/analytics/peak-hours')
+@login_required
+@owner_required
+def analytics_peak_hours():
+    """Revenue through a single chosen day, hour by hour, plus what sold in
+    the busiest hour. Defaults to the end of the current window (usually
+    'today') so a bare click into the page shows something."""
+    date_from, date_to, location_filter = _analytics_window()
+    selected_date = _valid_date(request.args.get('date'), date_to)
+
+    where = "WHERE o.status != 'cancelled' AND DATE(to_ist(o.created_at)) = %s"
+    params = [selected_date]
+    if location_filter:
+        where += " AND o.location_id = %s"
+        params.append(location_filter)
+
+    by_hour_rows = []
+    try:
+        by_hour_rows = execute_query(
+            "SELECT EXTRACT(HOUR FROM to_ist(o.created_at))::int AS hour, "
+            "COUNT(*) AS orders, COALESCE(SUM(o.total_amount), 0) AS revenue "
+            "FROM orders o " + where +
+            " GROUP BY hour ORDER BY hour", tuple(params), fetch=True) or []
+    except Exception as e:
+        flash(f'Error loading peak hours: {str(e)}', 'error')
+
+    # Every item sold in every hour, in one query — powers the hover tooltip
+    # (each hour's own item breakdown, not just the peak hour's) and the
+    # single-item label drawn above the peak point on the line.
+    items_by_hour = {}
+    try:
+        item_hour_rows = execute_query(
+            "SELECT EXTRACT(HOUR FROM to_ist(o.created_at))::int AS hour, "
+            "oi.item_name, SUM(oi.quantity) AS qty "
+            "FROM order_items oi JOIN orders o ON oi.order_id = o.id "
+            "WHERE o.status != 'cancelled' AND DATE(to_ist(o.created_at)) = %s"
+            + (" AND o.location_id = %s" if location_filter else "") +
+            " GROUP BY hour, oi.item_name",
+            tuple([selected_date] + ([location_filter] if location_filter else [])),
+            fetch=True) or []
+        for r in item_hour_rows:
+            items_by_hour.setdefault(r['hour'], []).append({'name': r['item_name'], 'qty': r['qty']})
+        for h in items_by_hour:
+            items_by_hour[h].sort(key=lambda i: i['qty'], reverse=True)
+    except Exception as e:
+        flash(f'Error loading hourly items: {str(e)}', 'error')
+
+    by_hour = {r['hour']: r for r in by_hour_rows}
+    hours = []
+    peak_hour, peak_revenue = None, -1.0
+    for h in range(24):
+        r = by_hour.get(h)
+        revenue = float(r['revenue']) if r else 0.0
+        orders = r['orders'] if r else 0
+        top = items_by_hour.get(h, [None])[0]
+        hours.append({'hour': h, 'orders': orders, 'revenue': revenue,
+                       'items': items_by_hour.get(h, []),
+                       'top_item': top['name'] if top else None,
+                       'top_item_qty': top['qty'] if top else None})
+        if revenue > peak_revenue:
+            peak_revenue = revenue
+            peak_hour = h
+
+    # What sold in the peak hour, for the "Peak Hour" card — same data
+    # already computed above, just picked out for that one hour.
+    peak_items = items_by_hour.get(peak_hour, []) if peak_hour is not None else []
+
+    locations = execute_query("SELECT id, name FROM locations ORDER BY name", fetch=True) or []
+    return render_template('inventory/analytics_peak_hours.html',
+                            hours=hours, peak_hour=peak_hour, peak_revenue=peak_revenue,
+                            peak_items=peak_items, selected_date=selected_date,
+                            locations=locations, date_from=date_from, date_to=date_to,
+                            location_filter=location_filter)
+
+
+def _daily_sales_consumption(date_from, date_to, location_filter):
+    """The core chain this page exists for: SALES -> RECIPE -> GROCERY
+    CONSUMPTION, computed fresh from real orders and real recipes — never a
+    manual calculation, never hardcoded. Returns:
+      period_items: [{item_name, qty, master_menu_id, has_recipe, ingredients:
+          [{name, unit, per_unit, consumed}]}] — every item sold in the whole
+          window, aggregated, each with its own recipe breakdown.
+      period_grocery: [{master_inventory_id, name, unit, qty}] — every
+          grocery's TOTAL consumption across all sold items, combined (this
+          is "Total Rava consumed = 1.10 kg" from multiple items).
+      days: same shape as period_items/period_grocery but split per calendar
+          date (IST), most recent first — "for each date, what sold and what
+          it consumed."
+      no_recipe_items: [{item_name, qty}] — sold but no recipe configured,
+          shown explicitly rather than silently dropped.
+    Only sales in the given date range/location contribute, matching every
+    other Analytics page's filter."""
+    where, params = _analytics_where(date_from, date_to, location_filter)
+    sold_rows = execute_query(
+        "SELECT DATE(to_ist(o.created_at)) AS day, oi.master_menu_id, oi.item_name, "
+        "SUM(oi.quantity) AS qty "
+        "FROM order_items oi JOIN orders o ON oi.order_id = o.id " + where +
+        " GROUP BY day, oi.master_menu_id, oi.item_name ORDER BY day, qty DESC",
+        tuple(params), fetch=True) or []
+
+    menu_ids = list({r['master_menu_id'] for r in sold_rows if r['master_menu_id']})
+    recipe_by_menu = {}
+    if menu_ids:
+        recipe_rows = execute_query(
+            "SELECT ri.master_menu_id, mi.id AS master_inventory_id, mi.name, mi.unit, "
+            "ri.quantity_per_unit FROM recipe_items ri "
+            "JOIN master_inventory mi ON mi.id = ri.master_inventory_id "
+            "WHERE ri.master_menu_id = ANY(%s::uuid[]) ORDER BY mi.name",
+            ([str(m) for m in menu_ids],), fetch=True) or []
+        for r in recipe_rows:
+            recipe_by_menu.setdefault(r['master_menu_id'], []).append({
+                'master_inventory_id': str(r['master_inventory_id']),
+                'name': r['name'], 'unit': r['unit'], 'per_unit': float(r['quantity_per_unit']),
+            })
+
+    def _ingredients_for(recipe, qty):
+        return [{'name': ri['name'], 'unit': ri['unit'], 'per_unit': ri['per_unit'],
+                  'consumed': ri['per_unit'] * qty} for ri in recipe]
+
+    # --- Per-day breakdown ---
+    days_map = {}
+    for r in sold_rows:
+        day_iso = r['day'].isoformat()
+        qty = int(r['qty'])
+        recipe = recipe_by_menu.get(r['master_menu_id']) if r['master_menu_id'] else None
+        day = days_map.setdefault(day_iso, {
+            'date': day_iso, 'label': r['day'].strftime('%a, %-d %b'),
+            'sold_items': [], 'grocery_totals': {},
+        })
+        if recipe:
+            ingredients = _ingredients_for(recipe, qty)
+            day['sold_items'].append({'item_name': r['item_name'], 'qty': qty,
+                                   'has_recipe': True, 'ingredients': ingredients})
+            for ing in ingredients:
+                slot = day['grocery_totals'].setdefault(ing['name'], dict(ing, qty=0.0))
+                slot['qty'] += ing['consumed']
+        else:
+            day['sold_items'].append({'item_name': r['item_name'], 'qty': qty,
+                                   'has_recipe': False, 'ingredients': []})
+
+    days = []
+    for d in days_map.values():
+        d['grocery_totals'] = sorted(d['grocery_totals'].values(), key=lambda g: g['qty'], reverse=True)
+        days.append(d)
+    days.sort(key=lambda d: d['date'], reverse=True)
+
+    # --- Period aggregate (sum of the days above, same numbers either way) ---
+    item_totals = {}
+    for r in sold_rows:
+        key = r['master_menu_id'] or r['item_name']
+        slot = item_totals.setdefault(key, {'item_name': r['item_name'], 'qty': 0,
+                                              'master_menu_id': r['master_menu_id']})
+        slot['qty'] += int(r['qty'])
+
+    period_items, period_grocery_map, no_recipe_items = [], {}, []
+    for slot in item_totals.values():
+        recipe = recipe_by_menu.get(slot['master_menu_id']) if slot['master_menu_id'] else None
+        if recipe:
+            ingredients = _ingredients_for(recipe, slot['qty'])
+            period_items.append({**slot, 'has_recipe': True, 'ingredients': ingredients})
+            for ing in ingredients:
+                pslot = period_grocery_map.setdefault(ing['name'], dict(ing, qty=0.0))
+                pslot['qty'] += ing['consumed']
+        else:
+            period_items.append({**slot, 'has_recipe': False, 'ingredients': []})
+            no_recipe_items.append({'item_name': slot['item_name'], 'qty': slot['qty']})
+
+    period_items.sort(key=lambda x: x['qty'], reverse=True)
+    period_grocery = sorted(period_grocery_map.values(), key=lambda g: g['qty'], reverse=True)
+    no_recipe_items.sort(key=lambda x: x['qty'], reverse=True)
+
+    return period_items, period_grocery, days, no_recipe_items
+
+
+@inventory_bp.route('/analytics/inventory-trend')
+@login_required
+@owner_required
+def analytics_inventory_trend():
+    """DAILY SALES -> INGREDIENT CONSUMPTION -> INVENTORY USAGE. Answers:
+    "we sold these many food items — which groceries did that consume, and
+    how much of each?" Consumption is computed automatically from real sales
+    x each item's recipe (Master Menu -> Recipe) so nobody has to do that
+    arithmetic by hand. For context only (not the headline), each grocery
+    also shows what's already logged in Record Usage for the same window, so
+    a manager can see the calculated number before typing it in there —
+    Record Usage itself is untouched; this page only reads it."""
+    date_from, date_to, location_filter = _analytics_window()
+    period_items, period_grocery, days, no_recipe_items = _daily_sales_consumption(
+        date_from, date_to, location_filter)
+
+    # Small secondary reference: what's already recorded in Record Usage for
+    # each grocery in this window (by name, since period_grocery is keyed by
+    # name — two ingredients never share a name).
+    recorded = {}
+    try:
+        usage_where = "WHERE du.date >= %s AND du.date <= %s"
+        usage_params = [date_from, date_to]
+        if location_filter:
+            usage_where += " AND du.location_id = %s"
+            usage_params.append(location_filter)
+        usage_rows = execute_query(
+            "SELECT mi.name, COALESCE(SUM(du.used_quantity), 0) AS used "
+            "FROM daily_inventory_usage du "
+            "JOIN master_inventory mi ON du.master_inventory_id = mi.id " + usage_where +
+            " GROUP BY mi.name", tuple(usage_params), fetch=True) or []
+        recorded = {r['name']: float(r['used']) for r in usage_rows}
+    except Exception as e:
+        flash(f'Error loading Record Usage reference: {str(e)}', 'error')
+
+    for g in period_grocery:
+        g['recorded'] = recorded.get(g['name'])
+
+    locations = execute_query("SELECT id, name FROM locations ORDER BY name", fetch=True) or []
+    return render_template('inventory/analytics_inventory_trend.html',
+                            period_items=period_items, period_grocery=period_grocery,
+                            days=days, no_recipe_items=no_recipe_items, locations=locations,
+                            date_from=date_from, date_to=date_to, location_filter=location_filter)
+
+
+@inventory_bp.route('/analytics/stock-runway')
+@login_required
+@owner_required
+def analytics_stock_runway():
+    """How many days the remaining stock will last, measured against real
+    restock-and-consume history rather than a flat average over whatever
+    date range happens to be selected.
+
+    Basis (?basis=):
+      'purchase' (default) — the consumption window starts on the day this
+          grocery was last restocked. That's the honest baseline: 20kg rice
+          bought on Aug 1, 14kg consumed by Aug 14, is 1kg/day — averaging
+          over days before the purchase would understate the burn rate.
+      '14day' — normalize to the most recent 14 days instead, for a stable
+          recent-demand rate when purchases are irregular.
+
+    A "restock" is any stock addition, from either screen: the Purchases
+    form (store_purchases) or Add Groceries (inventory_transactions, type
+    'restock'). Both are unioned so neither path is invisible here.
+    """
+    date_from, date_to, location_filter = _analytics_window()
+    basis = request.args.get('basis') or 'purchase'
+    if basis not in ('purchase', '14day'):
+        basis = 'purchase'
+
+    where = "WHERE mi.is_active = TRUE"
+    params = []
+    if location_filter:
+        where += " AND li.location_id = %s"
+        params.append(location_filter)
+
+    rows = []
+    try:
+        # window_start per ingredient: last restock date ('purchase' basis) or
+        # a fixed 14-day lookback. Consumption is then summed from that start
+        # through date_to, and averaged over the days actually elapsed.
+        rows = execute_query(f"""
+            WITH restocks AS (
+                SELECT location_id, master_inventory_id,
+                       purchased_at::date AS restock_date, quantity
+                FROM store_purchases
+                WHERE master_inventory_id IS NOT NULL AND purchased_at::date <= %s
+                UNION ALL
+                SELECT location_id, master_inventory_id,
+                       transaction_date AS restock_date, quantity
+                FROM inventory_transactions
+                WHERE transaction_type = 'restock' AND transaction_date <= %s
+            ),
+            latest_restock AS (
+                SELECT DISTINCT ON (location_id, master_inventory_id)
+                       location_id, master_inventory_id, restock_date, quantity
+                FROM restocks
+                ORDER BY location_id, master_inventory_id, restock_date DESC
+            )
+            SELECT l.name AS location_name, mi.name, mi.unit,
+                   li.current_stock,
+                   lr.restock_date, lr.quantity AS purchased_qty,
+                   COALESCE(u.consumed, 0) AS consumed,
+                   u.window_start, u.window_end
+            FROM location_inventory li
+            JOIN master_inventory mi ON mi.id = li.master_inventory_id
+            JOIN locations l ON l.id = li.location_id
+            LEFT JOIN latest_restock lr
+                   ON lr.location_id = li.location_id
+                  AND lr.master_inventory_id = li.master_inventory_id
+            LEFT JOIN LATERAL (
+                SELECT SUM(du.used_quantity) AS consumed,
+                       MIN(du.date) AS window_start, MAX(du.date) AS window_end
+                FROM daily_inventory_usage du
+                WHERE du.location_id = li.location_id
+                  AND du.master_inventory_id = li.master_inventory_id
+                  AND du.date <= %s
+                  AND du.date >= CASE WHEN %s = '14day'
+                                      THEN (%s::date - INTERVAL '13 days')::date
+                                      ELSE COALESCE(lr.restock_date, %s::date) END
+            ) u ON TRUE
+            {where}
+        """, tuple([date_to, date_to, date_to, basis, date_to, date_from] + params),
+            fetch=True) or []
+    except Exception as e:
+        flash(f'Error loading stock runway: {str(e)}', 'error')
+
+    ist_today = _ist_today()
+    window_end_date = min(datetime.strptime(date_to, '%Y-%m-%d').date(), ist_today)
+
+    runway = []
+    for r in rows:
+        current_stock = float(r['current_stock'] or 0)
+        consumed = float(r['consumed'] or 0)
+        restock_date = r['restock_date']
+
+        # Days the consumption is spread over. On the purchase basis that's
+        # (today - purchase date); on the 14-day basis it's a flat 14.
+        if basis == '14day':
+            days_elapsed = 14
+            window_start = window_end_date - timedelta(days=13)
+        else:
+            window_start = restock_date or datetime.strptime(date_from, '%Y-%m-%d').date()
+            days_elapsed = max((window_end_date - window_start).days + 1, 1)
+
+        avg_daily = consumed / days_elapsed if days_elapsed else 0.0
+        days_left = (current_stock / avg_daily) if avg_daily > 0 else None
+
+        if days_left is None:
+            status = 'unknown'
+        elif days_left < 2:
+            status = 'critical'
+        elif days_left < 5:
+            status = 'warning'
+        else:
+            status = 'good'
+
+        runway.append({
+            'location_name': r['location_name'], 'name': r['name'], 'unit': r['unit'],
+            'current_stock': current_stock,
+            'purchased_qty': float(r['purchased_qty']) if r['purchased_qty'] is not None else None,
+            'restock_date': restock_date.isoformat() if restock_date else None,
+            'consumed': consumed, 'days_elapsed': days_elapsed,
+            'window_start': window_start.isoformat(),
+            'avg_daily': avg_daily, 'days_left': days_left, 'status': status,
+        })
+    # Most urgent first; ingredients with no consumption rate sink to the bottom.
+    runway.sort(key=lambda x: x['days_left'] if x['days_left'] is not None else float('inf'))
+
+    locations = execute_query("SELECT id, name FROM locations ORDER BY name", fetch=True) or []
+    return render_template('inventory/analytics_stock_runway.html',
+                            runway=runway, locations=locations, basis=basis,
+                            window_end=window_end_date.isoformat(),
+                            date_from=date_from, date_to=date_to, location_filter=location_filter)
+
+
+@inventory_bp.route('/analytics/category-mix', methods=['GET', 'POST'])
+@login_required
+@owner_required
+def analytics_category_mix():
+    """Revenue and quantity sold, grouped by menu category — which parts of
+    the menu actually drive revenue, ranked as bars rather than a pie (easier
+    to compare 4-5 categories as bar lengths than wedge angles).
+
+    Each category is additionally split into the MORNING and EVENING service,
+    side by side, so "are Tiffins earning more at breakfast or at snack time?"
+    is answerable at a glance. The boundary between the two is the shared
+    `meal_period_morning_end` setting (database.morning_end_time) — the same
+    one the PDF sales report uses, editable from this page, so the two can
+    never drift apart the way the old hard-coded literals did."""
+    # Saving the meal boundary posts back to this same page.
+    if request.method == 'POST':
+        raw = (request.form.get('morning_end') or '').strip()
+        try:
+            hh, mm = raw.split(':')[:2]
+            hh, mm = int(hh), int(mm)
+            if not (0 <= hh <= 23 and 0 <= mm <= 59):
+                raise ValueError
+            set_setting('meal_period_morning_end', f'{hh:02d}:{mm:02d}')
+            flash(f'Morning service now ends at {hh:02d}:{mm:02d}. All reports use this boundary.', 'success')
+        except (ValueError, AttributeError):
+            flash('Enter a valid time in HH:MM format.', 'error')
+        return redirect(url_for('inventory.analytics_category_mix',
+                                 date_from=request.form.get('date_from'),
+                                 date_to=request.form.get('date_to'),
+                                 location=request.form.get('location')))
+
+    date_from, date_to, location_filter = _analytics_window()
+    where, params = _analytics_where(date_from, date_to, location_filter)
+    morning_end = morning_end_time()
+
+    rows = []
+    try:
+        # One pass, split by the configured boundary. The CASE mirrors the
+        # sales report exactly: at/before the boundary = morning.
+        rows = execute_query(
+            "SELECT COALESCE(mm.category, 'Uncategorized') AS category, "
+            "CASE WHEN to_ist(o.created_at)::time <= TIME %s THEN 'morning' ELSE 'evening' END AS period, "
+            "COALESCE(SUM(oi.total_price), 0) AS revenue, COALESCE(SUM(oi.quantity), 0) AS qty "
+            "FROM order_items oi JOIN orders o ON oi.order_id = o.id "
+            "LEFT JOIN master_menu mm ON oi.master_menu_id = mm.id " + where +
+            " GROUP BY category, period", tuple([morning_end] + params), fetch=True) or []
+    except Exception as e:
+        flash(f'Error loading category mix: {str(e)}', 'error')
+
+    by_category = {}
+    for r in rows:
+        slot = by_category.setdefault(r['category'], {
+            'category': r['category'], 'revenue': 0.0, 'qty': 0,
+            'morning_revenue': 0.0, 'morning_qty': 0,
+            'evening_revenue': 0.0, 'evening_qty': 0,
+        })
+        revenue, qty = float(r['revenue']), int(r['qty'])
+        slot['revenue'] += revenue
+        slot['qty'] += qty
+        slot[f"{r['period']}_revenue"] += revenue
+        slot[f"{r['period']}_qty"] += qty
+
+    mix = sorted(by_category.values(), key=lambda c: c['revenue'], reverse=True)
+    total_revenue = sum(c['revenue'] for c in mix) or 1.0
+    for c in mix:
+        c['pct'] = c['revenue'] / total_revenue * 100
+        # Share of THIS category split between the two services (bars are
+        # relative to the category, not the whole menu, so a small category
+        # still shows a readable morning/evening ratio).
+        cat_total = c['revenue'] or 1.0
+        c['morning_pct'] = c['morning_revenue'] / cat_total * 100
+        c['evening_pct'] = c['evening_revenue'] / cat_total * 100
+
+    totals = {
+        'morning_revenue': sum(c['morning_revenue'] for c in mix),
+        'evening_revenue': sum(c['evening_revenue'] for c in mix),
+        'morning_qty': sum(c['morning_qty'] for c in mix),
+        'evening_qty': sum(c['evening_qty'] for c in mix),
+    }
+
+    locations = execute_query("SELECT id, name FROM locations ORDER BY name", fetch=True) or []
+    return render_template('inventory/analytics_category_mix.html',
+                            mix=mix, totals=totals, morning_end=morning_end, locations=locations,
+                            date_from=date_from, date_to=date_to, location_filter=location_filter)
+
+
+@inventory_bp.route('/analytics/profitability')
+@login_required
+@owner_required
+def analytics_profitability():
+    """What every other page here is missing: MARGIN, not just revenue.
+    Cost-to-make is derived from recipe_items x each ingredient's average
+    purchase price over the last 90 days (recent, not stale) — so it stays
+    current automatically as your actual buying prices change, no manual
+    cost entry to maintain. Items ranked by TOTAL PROFIT CONTRIBUTED
+    (margin/unit x units sold in the window), not revenue or margin % alone —
+    the number that actually answers "what's worth pushing." An item with no
+    recipe, or a recipe ingredient with no recent purchase logged, shows as
+    cost-unknown rather than a silently wrong number."""
+    date_from, date_to, location_filter = _analytics_window()
+    where, params = _analytics_where(date_from, date_to, location_filter)
+
+    ingredient_costs, sales_rows = {}, []
+    try:
+        cost_rows = execute_query("""
+            SELECT master_inventory_id, AVG(price / quantity) AS avg_unit_cost
+            FROM store_purchases
+            WHERE master_inventory_id IS NOT NULL AND quantity > 0
+              AND purchased_at >= NOW() - INTERVAL '90 days'
+            GROUP BY master_inventory_id
+        """, fetch=True) or []
+        ingredient_costs = {str(r['master_inventory_id']): Decimal(str(r['avg_unit_cost'])) for r in cost_rows}
+
+        sales_rows = execute_query(
+            "SELECT oi.master_menu_id, oi.item_name, SUM(oi.quantity) AS qty, "
+            "COALESCE(SUM(oi.total_price), 0) AS revenue "
+            "FROM order_items oi JOIN orders o ON oi.order_id = o.id " + where +
+            " AND oi.master_menu_id IS NOT NULL "
+            " GROUP BY oi.master_menu_id, oi.item_name ORDER BY revenue DESC",
+            tuple(params), fetch=True) or []
+    except Exception as e:
+        flash(f'Error loading profitability: {str(e)}', 'error')
+
+    # Recipe for every menu item that sold in this window, in one query.
+    menu_ids = [r['master_menu_id'] for r in sales_rows]
+    recipes_by_menu = {}
+    if menu_ids:
+        recipe_rows = execute_query(
+            "SELECT master_menu_id, master_inventory_id, quantity_per_unit "
+            "FROM recipe_items WHERE master_menu_id = ANY(%s::uuid[])",
+            ([str(m) for m in menu_ids],), fetch=True) or []
+        for r in recipe_rows:
+            recipes_by_menu.setdefault(str(r['master_menu_id']), []).append(r)
+
+    items = []
+    for r in sales_rows:
+        mm_id = str(r['master_menu_id'])
+        qty = int(r['qty'])
+        revenue = float(r['revenue'])
+        avg_price = revenue / qty if qty else 0.0
+        recipe = recipes_by_menu.get(mm_id)
+
+        cost_per_unit = None
+        if recipe:
+            total_cost = Decimal('0')
+            all_known = True
+            for ri in recipe:
+                unit_cost = ingredient_costs.get(str(ri['master_inventory_id']))
+                if unit_cost is None:
+                    all_known = False
+                    break
+                total_cost += unit_cost * Decimal(str(ri['quantity_per_unit']))
+            if all_known:
+                cost_per_unit = float(total_cost)
+
+        entry = {'item_name': r['item_name'], 'qty': qty, 'revenue': revenue, 'avg_price': avg_price,
+                  'has_recipe': bool(recipe), 'cost_per_unit': cost_per_unit}
+        if cost_per_unit is not None:
+            profit_per_unit = avg_price - cost_per_unit
+            entry['profit_per_unit'] = profit_per_unit
+            entry['margin_pct'] = (profit_per_unit / avg_price * 100) if avg_price else 0.0
+            entry['total_profit'] = profit_per_unit * qty
+        else:
+            entry['profit_per_unit'] = entry['margin_pct'] = entry['total_profit'] = None
+        items.append(entry)
+
+    # Known-cost items ranked by total profit contributed (the headline view);
+    # unknown-cost items listed separately so they don't get silently buried
+    # at the bottom by a None sort key.
+    known = sorted([i for i in items if i['cost_per_unit'] is not None],
+                    key=lambda i: i['total_profit'], reverse=True)
+    unknown = [i for i in items if i['cost_per_unit'] is None]
+
+    locations = execute_query("SELECT id, name FROM locations ORDER BY name", fetch=True) or []
+    return render_template('inventory/analytics_profitability.html',
+                            known=known, unknown=unknown, locations=locations,
+                            date_from=date_from, date_to=date_to, location_filter=location_filter)
+
 
 # ===============================
 # LOCATION INVENTORY MANAGEMENT
@@ -919,8 +1689,8 @@ def location_inventory():
             SELECT li.*, mi.name as item_name, mi.category, mi.unit,
                    l.name as location_name,
                    CASE
-                       WHEN li.current_stock <= li.reorder_point THEN 'low_stock'
-                       WHEN li.current_stock = 0 THEN 'out_of_stock'
+                       WHEN li.current_stock <= 0 THEN 'out_of_stock'
+                       WHEN li.current_stock <= li.minimum_stock_level THEN 'low_stock'
                        ELSE 'normal'
                    END as stock_status
             FROM location_inventory li
@@ -939,7 +1709,7 @@ def location_inventory():
             params.append(category)
 
         if alert_only:
-            query += " AND li.current_stock <= li.reorder_point"
+            query += " AND li.current_stock <= li.minimum_stock_level"
 
         query += " ORDER BY l.name, mi.category, mi.name"
 
@@ -977,53 +1747,58 @@ def groceries():
         location_id = request.form.get('location_id') or ''
         name = (request.form.get('name') or '').strip()
         unit = (request.form.get('unit') or 'unit').strip() or 'unit'
+        staff_id = get_current_staff_id()
         try:
             qty = Decimal(str(request.form.get('quantity', '0')))
         except InvalidOperation:
             qty = Decimal('-1')
+        min_stock_raw = (request.form.get('minimum_stock_level') or '').strip()
+        try:
+            min_stock = Decimal(min_stock_raw) if min_stock_raw else None
+        except InvalidOperation:
+            min_stock = None
 
         if not location_id or not name:
             flash('Choose a location and enter a grocery name.', 'error')
         elif qty <= 0:
             flash('Quantity must be greater than zero.', 'error')
         else:
-            # Find-or-create the grocery in the master catalog (case-insensitive).
-            mi = execute_query_one("SELECT id FROM master_inventory WHERE lower(name) = lower(%s)", (name,))
-            if mi:
-                mi_id = str(mi['id'])
-                execute_query("UPDATE master_inventory SET unit = %s, is_active = TRUE WHERE id = %s", (unit, mi_id))
-            else:
-                execute_query(
-                    "INSERT INTO master_inventory (name, category, unit, is_active) VALUES (%s, 'groceries', %s, TRUE)",
-                    (name, unit))
-                mi_id = str(execute_query_one("SELECT id FROM master_inventory WHERE lower(name) = lower(%s)", (name,))['id'])
-
-            # Allocate: add the purchased quantity onto the location's stock.
-            execute_query("""
-                INSERT INTO location_inventory (location_id, master_inventory_id, current_stock,
-                                                last_restock_date, last_restock_quantity)
-                VALUES (%s, %s, %s, CURRENT_DATE, %s)
-                ON CONFLICT (location_id, master_inventory_id)
-                DO UPDATE SET current_stock = location_inventory.current_stock + EXCLUDED.current_stock,
-                              last_restock_date = CURRENT_DATE,
-                              last_restock_quantity = EXCLUDED.current_stock,
-                              last_updated = CURRENT_TIMESTAMP
-            """, (location_id, mi_id, qty, qty))
+            purchase_id = str(uuid.uuid4())
+            mi_id, ops = _allocate_stock_ops(location_id, name, qty, unit, staff_id, purchase_id,
+                                              minimum_stock_level=min_stock, note_prefix='Groceries')
+            execute_transaction(ops)
             flash(f'Allocated {qty} {unit} of {name}.', 'success')
         return redirect(url_for('inventory.groceries', location_id=location_id))
 
     allocated = []
+    low_count = 0
     if location_id:
         allocated = execute_query("""
             SELECT mi.name, mi.unit, li.current_stock, li.master_inventory_id,
-                   li.last_restock_date, li.last_restock_quantity
+                   li.minimum_stock_level, li.last_restock_date, li.last_restock_quantity,
+                   CASE
+                       WHEN li.current_stock <= 0 THEN 'out_of_stock'
+                       WHEN li.current_stock <= li.minimum_stock_level THEN 'low_stock'
+                       ELSE 'normal'
+                   END AS stock_status
             FROM location_inventory li
             JOIN master_inventory mi ON mi.id = li.master_inventory_id
             WHERE li.location_id = %s AND mi.is_active = TRUE
             ORDER BY mi.name
         """, (location_id,), fetch=True) or []
+        low_count = sum(1 for r in allocated if r['stock_status'] in ('low_stock', 'out_of_stock'))
+
+    # Existing catalog items (name + unit) for the "type a name, get an
+    # existing item's unit prefilled" autocomplete — steers a scanned-bill
+    # name like "Panchadara (Sugar)" back onto the same catalog row as "Sugar"
+    # instead of creating a near-duplicate.
+    catalog_items = execute_query(
+        "SELECT name, unit FROM master_inventory WHERE is_active = TRUE ORDER BY name",
+        fetch=True) or []
+
     return render_template('inventory/groceries.html',
-                           locations=locations, location_id=location_id, allocated=allocated)
+                           locations=locations, location_id=location_id, allocated=allocated,
+                           low_count=low_count, catalog_items=catalog_items)
 
 @inventory_bp.route('/groceries/<uuid:location_id>/<uuid:item_id>/remove', methods=['POST'])
 @login_required
@@ -1061,31 +1836,25 @@ def assign_location_inventory(location_id):
             try:
                 current_stock = Decimal(str(data.get('current_stock', 0)))
                 minimum_stock = Decimal(str(data.get('minimum_stock_level', 0)))
-                maximum_stock = Decimal(str(data.get('maximum_stock_level', 0)))
-                reorder_point = Decimal(str(data.get('reorder_point', 0)))
             except InvalidOperation:
                 flash('Invalid numeric value provided.', 'error')
                 return redirect(request.url)
 
-            if minimum_stock < 0 or maximum_stock < 0 or reorder_point < 0 or current_stock < 0:
+            if minimum_stock < 0 or current_stock < 0:
                 flash('Stock levels cannot be negative.', 'error')
                 return redirect(request.url)
 
             execute_query("""
                 INSERT INTO location_inventory (
-                    location_id, master_inventory_id, current_stock,
-                    minimum_stock_level, maximum_stock_level, reorder_point
-                ) VALUES (%s, %s, %s, %s, %s, %s)
+                    location_id, master_inventory_id, current_stock, minimum_stock_level
+                ) VALUES (%s, %s, %s, %s)
                 ON CONFLICT (location_id, master_inventory_id)
                 DO UPDATE SET
                     current_stock = EXCLUDED.current_stock,
                     minimum_stock_level = EXCLUDED.minimum_stock_level,
-                    maximum_stock_level = EXCLUDED.maximum_stock_level,
-                    reorder_point = EXCLUDED.reorder_point,
                     last_updated = CURRENT_TIMESTAMP
             """, (
-                str(location_id), master_inventory_id, current_stock,
-                minimum_stock, maximum_stock, reorder_point
+                str(location_id), master_inventory_id, current_stock, minimum_stock
             ))
 
             flash('Ingredient assigned to location inventory.', 'success')
@@ -1682,7 +2451,7 @@ def get_inventory_stats():
         # Low stock items
         result = execute_query_one("""
             SELECT COUNT(*) as count FROM location_inventory li
-            WHERE li.current_stock <= li.reorder_point
+            WHERE li.current_stock <= li.minimum_stock_level
         """)
         stats['low_stock_items'] = result['count'] if result else 0
 

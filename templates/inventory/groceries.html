@@ -12,6 +12,12 @@
 <p class="text-muted small mb-3">Add a grocery purchase and allocate it to a store. The stock shown below is what
 remains after store managers record their daily usage.</p>
 
+{% if low_count %}
+<div class="alert alert-warning py-2 small d-flex align-items-center gap-2">
+    <i class="ri-alert-line icon"></i>{{ low_count }} item{{ 's' if low_count != 1 else '' }} low or out of stock at this store — see below.
+</div>
+{% endif %}
+
 <!-- Location picker -->
 <form method="get" class="card mb-3">
     <div class="card-body py-3">
@@ -31,13 +37,18 @@ remains after store managers record their daily usage.</p>
         <form method="post" action="{{ url_for('inventory.groceries') }}">
             <input type="hidden" name="location_id" value="{{ location_id }}">
             <div class="row g-2">
-                <div class="col-12 col-md-5">
+                <div class="col-12 col-md-4">
                     <label class="form-label">Grocery item</label>
-                    <input type="text" name="name" class="form-control" placeholder="e.g. Rice, Oil, Onions" required>
+                    <input type="text" name="name" id="grocery-name" class="form-control" list="catalog-items" placeholder="e.g. Rice, Oil, Onions" autocomplete="off" required>
+                    <datalist id="catalog-items">
+                        {% for c in catalog_items %}
+                        <option value="{{ c.name }}">
+                        {% endfor %}
+                    </datalist>
                 </div>
-                <div class="col-6 col-md-3">
+                <div class="col-6 col-md-2">
                     <label class="form-label">Unit</label>
-                    <select class="form-select" name="unit">
+                    <select class="form-select" name="unit" id="grocery-unit">
                         <option value="kg" selected>Kilograms (kg)</option>
                         <option value="g">Grams (g)</option>
                         <option value="liter">Liters</option>
@@ -51,6 +62,10 @@ remains after store managers record their daily usage.</p>
                 <div class="col-6 col-md-2">
                     <label class="form-label">Quantity</label>
                     <input type="number" name="quantity" class="form-control" min="0" step="0.01" placeholder="0" required>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label">Min. Stock <span class="text-muted fw-normal">(optional)</span></label>
+                    <input type="number" name="minimum_stock_level" class="form-control" min="0" step="0.01" placeholder="leave as-is">
                 </div>
                 <div class="col-12 col-md-2 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100"><i class="ri-add-line icon me-1"></i>Allocate</button>
@@ -67,13 +82,23 @@ remains after store managers record their daily usage.</p>
         {% if allocated %}
         <div class="table-responsive d-none d-md-block">
             <table class="table mb-0 align-middle">
-                <thead><tr><th>Item</th><th>Unit</th><th class="text-end">In stock</th><th>Last added</th><th></th></tr></thead>
+                <thead><tr><th>Item</th><th>Unit</th><th class="text-end">In stock</th><th class="text-end">Min. stock</th><th>Status</th><th>Last added</th><th></th></tr></thead>
                 <tbody>
                     {% for r in allocated %}
-                    <tr>
+                    <tr class="{% if r.stock_status == 'out_of_stock' %}table-danger{% elif r.stock_status == 'low_stock' %}table-warning{% endif %}">
                         <td class="fw-bold">{{ r.name }}</td>
                         <td>{{ r.unit|unit_label }}</td>
                         <td class="text-end fw-bold">{{ '%g'|format(r.current_stock or 0) }}</td>
+                        <td class="text-end text-muted">{{ '%g'|format(r.minimum_stock_level or 0) }}</td>
+                        <td>
+                            {% if r.stock_status == 'out_of_stock' %}
+                                <span class="badge bg-danger">Out of Stock</span>
+                            {% elif r.stock_status == 'low_stock' %}
+                                <span class="badge bg-warning text-dark">Low</span>
+                            {% else %}
+                                <span class="badge bg-success">OK</span>
+                            {% endif %}
+                        </td>
                         <td class="text-muted small">{{ r.last_restock_date or '—' }}{% if r.last_restock_quantity %} (+{{ '%g'|format(r.last_restock_quantity) }}){% endif %}</td>
                         <td class="text-end">
                             <form method="post" action="{{ url_for('inventory.remove_grocery', location_id=location_id, item_id=r.master_inventory_id) }}" onsubmit="return confirm('Remove {{ r.name }} from this store?');">
@@ -88,10 +113,13 @@ remains after store managers record their daily usage.</p>
         <!-- Mobile cards -->
         <div class="d-md-none">
             {% for r in allocated %}
-            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+            <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom {% if r.stock_status == 'out_of_stock' %}bg-danger bg-opacity-10{% elif r.stock_status == 'low_stock' %}bg-warning bg-opacity-10{% endif %}">
                 <div style="min-width:0;">
-                    <div class="fw-bold text-truncate">{{ r.name }}</div>
-                    <div class="small text-muted">{{ '%g'|format(r.current_stock or 0) }} {{ r.unit|unit_label }} in stock</div>
+                    <div class="fw-bold text-truncate">{{ r.name }}
+                        {% if r.stock_status == 'out_of_stock' %}<span class="badge bg-danger ms-1">Out</span>
+                        {% elif r.stock_status == 'low_stock' %}<span class="badge bg-warning text-dark ms-1">Low</span>{% endif %}
+                    </div>
+                    <div class="small text-muted">{{ '%g'|format(r.current_stock or 0) }} {{ r.unit|unit_label }} in stock · min {{ '%g'|format(r.minimum_stock_level or 0) }}</div>
                 </div>
                 <form method="post" action="{{ url_for('inventory.remove_grocery', location_id=location_id, item_id=r.master_inventory_id) }}" onsubmit="return confirm('Remove {{ r.name }}?');">
                     <button class="btn btn-sm btn-touch btn-outline-danger flex-shrink-0"><i class="ri-delete-bin-line"></i></button>
@@ -107,4 +135,27 @@ remains after store managers record their daily usage.</p>
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Typing a name that matches an existing catalog item prefills its known
+// unit — closes off the main source of near-duplicate catalog entries
+// (e.g. "Sugar" vs "Panchadara (Sugar)" from a scanned bill).
+(function () {
+    var catalog = {{ catalog_items|tojson }};
+    var byName = {};
+    catalog.forEach(function (c) { byName[c.name.trim().toLowerCase()] = c.unit; });
+
+    var nameInput = document.getElementById('grocery-name');
+    var unitSelect = document.getElementById('grocery-unit');
+    if (!nameInput || !unitSelect) return;
+    nameInput.addEventListener('input', function () {
+        var match = byName[nameInput.value.trim().toLowerCase()];
+        if (match && unitSelect.querySelector('option[value="' + match + '"]')) {
+            unitSelect.value = match;
+        }
+    });
+})();
+</script>
 {% endblock %}

@@ -17,15 +17,15 @@
         <form method="GET" class="row g-2 align-items-end">
             <div class="col-6 col-md-3">
                 <label for="date_from" class="form-label">From</label>
-                <input type="date" id="date_from" name="date_from" class="form-control" value="{{ date_from }}">
+                <input type="date" id="date_from" name="date_from" class="form-control" onchange="this.form.submit()" value="{{ date_from }}">
             </div>
             <div class="col-6 col-md-3">
                 <label for="date_to" class="form-label">To</label>
-                <input type="date" id="date_to" name="date_to" class="form-control" value="{{ date_to }}">
+                <input type="date" id="date_to" name="date_to" class="form-control" onchange="this.form.submit()" value="{{ date_to }}">
             </div>
             <div class="col-12 col-md-3">
                 <label for="location" class="form-label">Location</label>
-                <select id="location" name="location" class="form-select">
+                <select id="location" name="location" class="form-select" onchange="this.form.submit()">
                     <option value="">All Locations</option>
                     {% for loc in locations %}
                     <option value="{{ loc.id }}" {% if location_filter == loc.id|string %}selected{% endif %}>{{ loc.name }}</option>
@@ -73,6 +73,7 @@
     <div class="card-body">
         {% if by_day %}
         <div style="position:relative; height:280px;"><canvas id="dailyChart"></canvas></div>
+        <p class="text-muted small mt-2 mb-0"><i class="ri-cursor-line icon me-1"></i>Tip: click a bar to see that day's sales by hour.</p>
         <details class="mt-3">
             <summary class="small text-muted" style="cursor:pointer;">Show as table</summary>
             <div class="table-responsive mt-2">
@@ -91,6 +92,92 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Trend detail launchers -->
+<div class="mb-2">
+    <h5 class="mb-0"><i class="ri-compass-3-line icon me-2"></i>Trends</h5>
+    <p class="text-muted small mb-0">Deeper cuts of the same period above — pick one to open its full chart.</p>
+</div>
+<div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-3">
+        <a href="{{ url_for('inventory.analytics_sale_trend', date_from=date_from, date_to=date_to, location=location_filter) }}" class="card h-100 text-decoration-none text-reset analytics-tile">
+            <div class="card-body d-flex flex-column align-items-center text-center">
+                <span class="analytics-tile-icon" style="background:#2a78d6;"><i class="ri-line-chart-line"></i></span>
+                <h6 class="fw-bold mt-3 mb-1">Sale Trend</h6>
+                <p class="text-muted small mb-3">Which day of the week sells best</p>
+                <span class="btn btn-sm w-100 mt-auto text-white" style="background:#2a78d6;"><i class="ri-bar-chart-2-line icon me-1"></i>View Chart</span>
+            </div>
+        </a>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <a href="{{ url_for('inventory.analytics_item_trend', date_from=date_from, date_to=date_to, location=location_filter) }}" class="card h-100 text-decoration-none text-reset analytics-tile">
+            <div class="card-body d-flex flex-column align-items-center text-center">
+                <span class="analytics-tile-icon" style="background:#eb6834;"><i class="ri-restaurant-2-line"></i></span>
+                <h6 class="fw-bold mt-3 mb-1">Item Trend</h6>
+                <p class="text-muted small mb-3">Menu items ranked by units sold</p>
+                <span class="btn btn-sm w-100 mt-auto text-white" style="background:#eb6834;"><i class="ri-bar-chart-2-line icon me-1"></i>View Chart</span>
+            </div>
+        </a>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <a href="{{ url_for('inventory.analytics_peak_hours', date_from=date_from, date_to=date_to, location=location_filter) }}" class="card h-100 text-decoration-none text-reset analytics-tile">
+            <div class="card-body d-flex flex-column align-items-center text-center">
+                <span class="analytics-tile-icon" style="background:#14a38b;"><i class="ri-time-line"></i></span>
+                <h6 class="fw-bold mt-3 mb-1">Peak Hours / Day</h6>
+                <p class="text-muted small mb-3">Hourly breakdown for any single date</p>
+                <span class="btn btn-sm w-100 mt-auto text-white" style="background:#14a38b;"><i class="ri-bar-chart-2-line icon me-1"></i>View Chart</span>
+            </div>
+        </a>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <a href="{{ url_for('inventory.analytics_inventory_trend', date_from=date_from, date_to=date_to, location=location_filter) }}" class="card h-100 text-decoration-none text-reset analytics-tile">
+            <div class="card-body d-flex flex-column align-items-center text-center">
+                <span class="analytics-tile-icon" style="background:#7c5cbf;"><i class="ri-archive-2-line"></i></span>
+                <h6 class="fw-bold mt-3 mb-1">Inventory Trend</h6>
+                <p class="text-muted small mb-3">Ingredients used up the fastest</p>
+                <span class="btn btn-sm w-100 mt-auto text-white" style="background:#7c5cbf;"><i class="ri-bar-chart-2-line icon me-1"></i>View Chart</span>
+            </div>
+        </a>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <a href="{{ url_for('inventory.analytics_stock_runway', date_from=date_from, date_to=date_to, location=location_filter) }}" class="card h-100 text-decoration-none text-reset analytics-tile">
+            <div class="card-body d-flex flex-column align-items-center text-center">
+                <span class="analytics-tile-icon" style="background:#c98500;"><i class="ri-hourglass-line"></i></span>
+                <h6 class="fw-bold mt-3 mb-1">Stock Runway</h6>
+                <p class="text-muted small mb-3">Days of stock left per ingredient</p>
+                <span class="btn btn-sm w-100 mt-auto text-white" style="background:#c98500;"><i class="ri-bar-chart-2-line icon me-1"></i>View Chart</span>
+            </div>
+        </a>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <a href="{{ url_for('inventory.analytics_category_mix', date_from=date_from, date_to=date_to, location=location_filter) }}" class="card h-100 text-decoration-none text-reset analytics-tile">
+            <div class="card-body d-flex flex-column align-items-center text-center">
+                <span class="analytics-tile-icon" style="background:#4a3aa7;"><i class="ri-pie-chart-2-line"></i></span>
+                <h6 class="fw-bold mt-3 mb-1">Revenue by Category</h6>
+                <p class="text-muted small mb-3">Which parts of the menu earn</p>
+                <span class="btn btn-sm w-100 mt-auto text-white" style="background:#4a3aa7;"><i class="ri-bar-chart-2-line icon me-1"></i>View Chart</span>
+            </div>
+        </a>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <a href="{{ url_for('inventory.analytics_profitability', date_from=date_from, date_to=date_to, location=location_filter) }}" class="card h-100 text-decoration-none text-reset analytics-tile">
+            <div class="card-body d-flex flex-column align-items-center text-center">
+                <span class="analytics-tile-icon" style="background:#1f9d55;"><i class="ri-funds-line"></i></span>
+                <h6 class="fw-bold mt-3 mb-1">Menu Profitability</h6>
+                <p class="text-muted small mb-3">Real margin, not just revenue</p>
+                <span class="btn btn-sm w-100 mt-auto text-white" style="background:#1f9d55;"><i class="ri-bar-chart-2-line icon me-1"></i>View Chart</span>
+            </div>
+        </a>
+    </div>
+</div>
+<style>
+.analytics-tile:hover { box-shadow: 0 .25rem .75rem rgba(0,0,0,.08); transform: translateY(-1px); transition: all .15s ease; }
+.analytics-tile-icon {
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 1.5rem; flex-shrink: 0;
+}
+</style>
 
 <div class="row g-3">
     <!-- Payment method split -->
@@ -167,6 +254,7 @@
     var inr = function (v) { return '₹' + Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
 
     // Daily revenue — single blue series, oldest → newest.
+    var dailyDays = [{% for r in by_day|reverse %}'{{ r.day }}',{% endfor %}];
     var dailyLabels = [{% for r in by_day|reverse %}'{{ r.day }}',{% endfor %}];
     var dailyRevenue = [{% for r in by_day|reverse %}{{ r.revenue|float }},{% endfor %}];
     var dailyOrders = [{% for r in by_day|reverse %}{{ r.orders }},{% endfor %}];
@@ -180,6 +268,15 @@
             }] },
             options: {
                 responsive: true, maintainAspectRatio: false,
+                onClick: function (evt, elements) {
+                    if (!elements.length) return;
+                    var day = dailyDays[elements[0].index];
+                    window.location.href = '{{ url_for("inventory.analytics_peak_hours") }}?date=' + day +
+                        '&date_from={{ date_from }}&date_to={{ date_to }}&location={{ location_filter }}';
+                },
+                onHover: function (evt, elements) {
+                    evt.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: { callbacks: { label: function (c) {

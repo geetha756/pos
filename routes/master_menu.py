@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from database import execute_query, execute_query_one
 from .auth import login_required
+from decimal import Decimal, InvalidOperation
 import psycopg2
 
 master_menu_bp = Blueprint('master_menu', __name__)
@@ -155,6 +156,69 @@ def delete(item_id):
     except Exception as e:
         flash(f'Error deleting menu item: {str(e)}', 'error')
     return redirect(url_for('master_menu.index'))
+
+@master_menu_bp.route('/<item_id>/recipe', methods=['GET', 'POST'])
+@login_required
+def recipe(item_id):
+    """The bill-of-materials for one menu item: which raw ingredients (and how
+    much of each) one unit of it consumes. This is what lets placing an order
+    auto-deduct stock instead of relying on end-of-day manual usage counts —
+    see database.recipe_consumption_ops(), called from routes/orders.py.
+    An item with no rows here just isn't recipe-tracked yet; orders for it
+    don't touch stock, same as before this feature existed."""
+    item = execute_query_one("SELECT * FROM master_menu WHERE id = %s", (item_id,))
+    if not item:
+        flash('Menu item not found', 'error')
+        return redirect(url_for('master_menu.index'))
+
+    if request.method == 'POST':
+        master_inventory_id = request.form.get('master_inventory_id')
+        try:
+            qty = Decimal(str(request.form.get('quantity_per_unit', '0')))
+        except InvalidOperation:
+            qty = Decimal('-1')
+
+        if not master_inventory_id:
+            flash('Choose an ingredient.', 'error')
+        elif qty <= 0:
+            flash('Quantity per unit must be greater than zero.', 'error')
+        else:
+            execute_query("""
+                INSERT INTO recipe_items (master_menu_id, master_inventory_id, quantity_per_unit)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (master_menu_id, master_inventory_id)
+                DO UPDATE SET quantity_per_unit = EXCLUDED.quantity_per_unit, updated_at = CURRENT_TIMESTAMP
+            """, (item_id, master_inventory_id, qty))
+            flash('Recipe updated.', 'success')
+        return redirect(url_for('master_menu.recipe', item_id=item_id))
+
+    ingredients = execute_query("""
+        SELECT ri.id, ri.quantity_per_unit, mi.id AS master_inventory_id, mi.name, mi.unit
+        FROM recipe_items ri
+        JOIN master_inventory mi ON mi.id = ri.master_inventory_id
+        WHERE ri.master_menu_id = %s
+        ORDER BY mi.name
+    """, (item_id,), fetch=True) or []
+
+    available_items = execute_query("""
+        SELECT id, name, unit FROM master_inventory
+        WHERE is_active = TRUE
+          AND id NOT IN (SELECT master_inventory_id FROM recipe_items WHERE master_menu_id = %s)
+        ORDER BY name
+    """, (item_id,), fetch=True) or []
+
+    return render_template('master_menu/recipe.html',
+                            item=item, ingredients=ingredients, available_items=available_items)
+
+
+@master_menu_bp.route('/<item_id>/recipe/<ingredient_id>/remove', methods=['POST'])
+@login_required
+def remove_recipe_item(item_id, ingredient_id):
+    """Drop one ingredient from a menu item's recipe."""
+    execute_query("DELETE FROM recipe_items WHERE id = %s AND master_menu_id = %s", (ingredient_id, item_id))
+    flash('Ingredient removed from recipe.', 'success')
+    return redirect(url_for('master_menu.recipe', item_id=item_id))
+
 
 @master_menu_bp.route('/check-name', methods=['POST'])
 @login_required

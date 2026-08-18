@@ -4,6 +4,34 @@
 
 {% block content %}
 
+{% if stock_alerts and has_perm('inventory.view') %}
+<div class="alert alert-warning d-flex align-items-start gap-3 mb-4" role="alert">
+    <i class="ri-alarm-warning-line flex-shrink-0" style="font-size:1.6rem;"></i>
+    <div class="flex-grow-1" style="min-width:0;">
+        <div class="fw-bold mb-2">
+            {{ stock_alerts|length }} ingredient{{ 's' if stock_alerts|length != 1 else '' }} running low
+            {% if stock_alerts|selectattr('status', 'equalto', 'critical')|list|length %}
+            — {{ stock_alerts|selectattr('status', 'equalto', 'critical')|list|length }} critical (under 2 days)
+            {% endif %}
+        </div>
+        <div class="d-flex flex-wrap gap-2 mb-2">
+            {% for a in stock_alerts[:8] %}
+            <span class="badge {{ 'bg-danger' if a.status == 'critical' else 'bg-warning text-dark' }}">
+                {{ a.name }}{% if not session.get('active_location_id') %} · {{ a.location_name }}{% endif %}
+                — {{ '%.1f'|format(a.days_left) }}d left
+            </span>
+            {% endfor %}
+            {% if stock_alerts|length > 8 %}
+            <span class="badge bg-light text-muted border">+{{ stock_alerts|length - 8 }} more</span>
+            {% endif %}
+        </div>
+        <a href="{{ url_for('inventory.analytics_stock_runway') }}" class="alert-link small">
+            <i class="ri-hourglass-line icon me-1"></i>View full Stock Runway
+        </a>
+    </div>
+</div>
+{% endif %}
+
 <!-- Module Statistics -->
 <div class="row mb-4">
     {% if has_perm('orders.view') %}

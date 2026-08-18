@@ -44,10 +44,14 @@ def create_app():
 
     # Initialize security schema and permissions within app context
     from security import init_security_schema_and_seed, register_audit_hooks
-    from database import init_store_purchases_schema
+    from database import (init_store_purchases_schema, init_analytics_helpers,
+                          init_recipe_schema, init_app_settings_schema)
     with app.app_context():
         init_security_schema_and_seed()
         init_store_purchases_schema()
+        init_analytics_helpers()
+        init_recipe_schema()
+        init_app_settings_schema()
 
     # Register blueprints
     from routes.auth import auth_bp

@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from database import execute_query, execute_query_one, execute_transaction
+from database import (execute_query, execute_query_one, execute_transaction,
+                      recipe_consumption_ops, morning_end_time)
 from .auth import login_required
+from .helpers import get_current_staff_id
 from security import scoped_location_id, get_or_create_current_user
 from datetime import datetime, timezone, timedelta
 import psycopg2
@@ -90,27 +92,49 @@ def edit_order(order_id):
             order_type = data.get('order_type') or order.get('order_type') or 'dine-in'
             user = get_or_create_current_user()
             editor = user['id'] if user else None
+            staff_id = get_current_staff_id()
 
-            # Replace the order's items with the edited set
-            execute_query("DELETE FROM order_items WHERE order_id = %s", (order_id,))
+            # If this order was cancelled, its recipe stock was already given
+            # back (see update_status()) — editing a cancelled order's items
+            # must not touch stock a second time.
+            recipe_active = order['status'] != 'cancelled'
+
+            ops = []
+            if staff_id and recipe_active:
+                old_items = execute_query(
+                    "SELECT master_menu_id, quantity FROM order_items WHERE order_id = %s",
+                    (order_id,), fetch=True) or []
+                for old_item in old_items:
+                    if old_item.get('master_menu_id'):
+                        # Negative quantity = give the old deduction back.
+                        ops.extend(recipe_consumption_ops(
+                            order['location_id'], old_item['master_menu_id'], -old_item['quantity'],
+                            staff_id, order_id, note_prefix='Order edit (reversal)'))
+
+            # Replace the order's items with the edited set.
+            ops.append(("DELETE FROM order_items WHERE order_id = %s", (order_id,)))
             for item in items:
-                execute_query("""
-                    INSERT INTO order_items (id, order_id, location_menu_id, master_menu_id,
+                ops.append((
+                    """INSERT INTO order_items (id, order_id, location_menu_id, master_menu_id,
                                            item_name, quantity, unit_price, total_price)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                """, (
-                    str(uuid.uuid4()), order_id, item['location_menu_id'], item['master_menu_id'],
-                    item['item_name'], item['quantity'], item['unit_price'], item['total_price']
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+                    (str(uuid.uuid4()), order_id, item['location_menu_id'], item['master_menu_id'],
+                     item['item_name'], item['quantity'], item['unit_price'], item['total_price'])
                 ))
+                if staff_id and recipe_active and item.get('master_menu_id'):
+                    ops.extend(recipe_consumption_ops(
+                        order['location_id'], item['master_menu_id'], item['quantity'],
+                        staff_id, order_id, note_prefix='Order edit'))
 
-            execute_query("""
+            ops.append(("""
                 UPDATE orders
                 SET customer_name = %s, customer_phone = %s, order_type = %s,
                     total_amount = %s, edited_at = CURRENT_TIMESTAMP, edited_by = %s,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = %s
-            """, (customer_name, customer_phone, order_type, total_amount, editor, order_id))
+            """, (customer_name, customer_phone, order_type, total_amount, editor, order_id)))
 
+            execute_transaction(ops)
             return jsonify({'success': True, 'order_id': order_id})
         except Exception as e:
             print(f"Error editing order: {e}")
@@ -249,9 +273,13 @@ def sales_report_pdf():
     # Every figure comes from order_items of COMPLETED orders only (cancelled
     # orders are never counted), so the per-item breakdown and the Cash/PhonePe
     # payment totals always reconcile to the exact same grand total.
+    # The morning/evening boundary is a shared setting (Analytics -> Revenue by
+    # Category edits it), not a literal, so this report and the Analytics split
+    # always agree.
+    boundary = morning_end_time()
     rows = execute_query("""
         SELECT DATE(o.created_at + INTERVAL '5 hours 30 minutes') AS day,
-               CASE WHEN (o.created_at + INTERVAL '5 hours 30 minutes')::time <= TIME '13:00:00'
+               CASE WHEN (o.created_at + INTERVAL '5 hours 30 minutes')::time <= TIME %s
                     THEN 'morning' ELSE 'evening' END AS section,
                oi.item_name, SUM(oi.quantity) AS plates, SUM(oi.total_price) AS revenue
         FROM order_items oi
@@ -261,10 +289,10 @@ def sales_report_pdf():
           AND DATE(o.created_at + INTERVAL '5 hours 30 minutes') >= %s
           AND DATE(o.created_at + INTERVAL '5 hours 30 minutes') <= %s
         GROUP BY DATE(o.created_at + INTERVAL '5 hours 30 minutes'),
-                 CASE WHEN (o.created_at + INTERVAL '5 hours 30 minutes')::time <= TIME '13:00:00'
+                 CASE WHEN (o.created_at + INTERVAL '5 hours 30 minutes')::time <= TIME %s
                       THEN 'morning' ELSE 'evening' END, oi.item_name
         ORDER BY day, section, oi.item_name
-    """, (location_id, date_from, date_to), fetch=True) or []
+    """, (boundary, location_id, date_from, date_to, boundary), fetch=True) or []
 
     pay = execute_query("""
         SELECT COALESCE(o.payment_method, 'cash') AS pm,
@@ -442,11 +470,28 @@ def update_status(order_id):
             flash("You can only manage your own store's orders", 'error')
             return redirect(url_for('orders.index'))
 
-        execute_query("""
+        ops = [("""
             UPDATE orders
             SET status = %s, updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
-        """, (new_status, order_id))
+        """, (new_status, order_id))]
+
+        # Cancelling a not-already-cancelled order gives back any stock its
+        # recipe-linked items deducted at placement (or last edit). Only the
+        # cancel transition is reversed here — un-cancelling back to an
+        # active status is not a real workflow in this app.
+        staff_id = get_current_staff_id()
+        if new_status == 'cancelled' and existing_order['status'] != 'cancelled' and staff_id:
+            order_items = execute_query(
+                "SELECT master_menu_id, quantity FROM order_items WHERE order_id = %s",
+                (order_id,), fetch=True) or []
+            for item in order_items:
+                if item.get('master_menu_id'):
+                    ops.extend(recipe_consumption_ops(
+                        existing_order['location_id'], item['master_menu_id'], -item['quantity'],
+                        staff_id, order_id, note_prefix='Order cancelled'))
+
+        execute_transaction(ops)
 
         if wants_json:
             return jsonify({'success': True, 'status': new_status})
@@ -626,6 +671,12 @@ def api_create_order():
             f"INSERT INTO orders ({', '.join(columns)}) VALUES ({', '.join(['%s'] * len(values))})",
             tuple(values)
         )]
+        # Recipe-linked stock deduction rides in the SAME transaction as the
+        # order + its items — see database.recipe_consumption_ops(). Items
+        # with no recipe configured contribute no ops (opt-in per item), and
+        # a missing staff link (rare) just skips deduction rather than
+        # blocking the sale.
+        staff_id = get_current_staff_id()
         for item in data['items']:
             ops.append((
                 """INSERT INTO order_items (id, order_id, location_menu_id, master_menu_id,
@@ -635,8 +686,13 @@ def api_create_order():
                  item['item_name'], item['quantity'], item['unit_price'], item['total_price'],
                  'Parcel' if item.get('is_parcel') else None)
             ))
-        # All-or-nothing: the order and ALL its items commit together, so a
-        # failed item insert can never leave a total-without-items "ghost" order.
+            if staff_id and item.get('master_menu_id'):
+                ops.extend(recipe_consumption_ops(
+                    data['location_id'], item['master_menu_id'], item['quantity'],
+                    staff_id, order_id, note_prefix='Order'))
+        # All-or-nothing: the order, ALL its items, and any recipe stock
+        # deduction commit together, so a failed insert can never leave a
+        # total-without-items "ghost" order or a half-deducted stock count.
         try:
             execute_transaction(ops)
         except Exception:

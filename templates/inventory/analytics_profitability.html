@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Menu Profitability{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="ri-funds-line icon me-2"></i>Menu Profitability</h1>
+    <a href="{{ url_for('inventory.analytics', date_from=date_from, date_to=date_to, location=location_filter) }}" class="btn btn-outline-secondary">
+        <i class="ri-arrow-left-line icon me-1"></i>Back to Analytics
+    </a>
+</div>
+
+<p class="text-muted small mb-3">Every other page here shows revenue. This one shows <strong>margin</strong> — cost to make each item, derived from its recipe × the average price you've actually paid for those ingredients in the last 90 days. Ranked by <strong>total profit contributed</strong> (margin per unit × units sold), not revenue alone — a high-volume item with thin margin can contribute less real profit than a lower-volume item priced right.</p>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-6 col-md-3">
+                <label for="date_from" class="form-label">From</label>
+                <input type="date" id="date_from" name="date_from" class="form-control" onchange="this.form.submit()" value="{{ date_from }}">
+            </div>
+            <div class="col-6 col-md-3">
+                <label for="date_to" class="form-label">To</label>
+                <input type="date" id="date_to" name="date_to" class="form-control" onchange="this.form.submit()" value="{{ date_to }}">
+            </div>
+            <div class="col-12 col-md-3">
+                <label for="location" class="form-label">Location</label>
+                <select id="location" name="location" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Locations</option>
+                    {% for loc in locations %}
+                    <option value="{{ loc.id }}" {% if location_filter == loc.id|string %}selected{% endif %}>{{ loc.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <button type="submit" class="btn btn-primary w-100"><i class="ri-search-line icon me-1"></i>Apply</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if known %}
+{% set top = known[0] %}
+<div class="card mb-3 border-start border-4 border-success">
+    <div class="card-body py-3 d-flex align-items-center gap-3 flex-wrap">
+        <i class="ri-trophy-line" style="font-size:2rem;color:#198754;"></i>
+        <div>
+            <div class="text-muted small">Highest Profit Contributor</div>
+            <div class="fs-4 fw-bold">{{ top.item_name }}</div>
+            <div class="small text-muted">₹{{ '{:,.0f}'.format(top.total_profit) }} total profit · {{ '%.0f'|format(top.margin_pct) }}% margin · {{ top.qty }} sold</div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card mb-3">
+    <div class="card-header"><h5 class="card-title mb-0"><i class="ri-bar-chart-horizontal-line icon me-2"></i>Total Profit Contributed, Ranked</h5></div>
+    <div class="card-body">
+        {% if known %}
+        <div style="position:relative; height:{{ (known|length * 34) + 60 }}px; min-height:220px;"><canvas id="profitChart"></canvas></div>
+
+        <div class="table-responsive mt-4">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th class="text-end">Sold</th>
+                        <th class="text-end">Avg. Price</th>
+                        <th class="text-end">Cost to Make</th>
+                        <th class="text-end">Margin</th>
+                        <th class="text-end">Total Profit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for i in known %}
+                    <tr class="{% if i.margin_pct < 0 %}table-danger{% elif i.margin_pct < 20 %}table-warning{% endif %}">
+                        <td class="fw-semibold">{{ i.item_name }}</td>
+                        <td class="text-end">{{ i.qty }}</td>
+                        <td class="text-end">₹{{ '%.2f'|format(i.avg_price) }}</td>
+                        <td class="text-end text-muted">₹{{ '%.2f'|format(i.cost_per_unit) }}</td>
+                        <td class="text-end">
+                            {% if i.margin_pct < 0 %}
+                                <span class="badge bg-danger">{{ '%.0f'|format(i.margin_pct) }}% (selling at a loss)</span>
+                            {% elif i.margin_pct < 20 %}
+                                <span class="badge bg-warning text-dark">{{ '%.0f'|format(i.margin_pct) }}%</span>
+                            {% else %}
+                                <span class="badge bg-success">{{ '%.0f'|format(i.margin_pct) }}%</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end fw-bold">₹{{ '{:,.0f}'.format(i.total_profit) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">No items with both a recipe and recent purchase history to cost from — see below.</div>
+        {% endif %}
+    </div>
+</div>
+
+{% if unknown %}
+<div class="card">
+    <div class="card-header"><h5 class="card-title mb-0"><i class="ri-question-line icon me-2"></i>Cost Unknown ({{ unknown|length }})</h5></div>
+    <div class="card-body">
+        <p class="text-muted small">These sold in this period but margin can't be computed yet — either no recipe is set (<a href="{{ url_for('master_menu.index') }}">Master Menu → Recipe</a>), or an ingredient in the recipe has no purchase logged in the last 90 days.</p>
+        <div class="d-flex flex-wrap gap-2">
+            {% for i in unknown %}
+            <span class="badge bg-light text-dark border">{{ i.item_name }} · {{ i.qty }} sold{% if not i.has_recipe %} · no recipe{% endif %}</span>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
+<script>
+(function () {
+    if (typeof Chart === 'undefined') return;
+    var INK = '#52514e', GRID = '#e1e0d9';
+    var labels = {{ known|map(attribute='item_name')|list|tojson }};
+    var profit = {{ known|map(attribute='total_profit')|list|tojson }};
+    var margin = {{ known|map(attribute='margin_pct')|list|tojson }};
+
+    var el = document.getElementById('profitChart');
+    if (!el || !labels.length) return;
+    new Chart(el, {
+        type: 'bar',
+        data: { labels: labels, datasets: [{
+            label: 'Total Profit', data: profit,
+            backgroundColor: profit.map(function (v) { return v < 0 ? '#e34948' : '#1f9d55'; }),
+            borderRadius: 4, maxBarThickness: 26
+        }] },
+        options: {
+            indexAxis: 'y',
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: function (c) {
+                    return '₹' + Number(c.parsed.x).toLocaleString('en-IN', {maximumFractionDigits:0}) + ' profit · ' + margin[c.dataIndex].toFixed(0) + '% margin';
+                } } }
+            },
+            scales: {
+                x: { grid: { color: GRID }, ticks: { color: INK, callback: function (v) { return '₹' + Number(v).toLocaleString('en-IN'); } } },
+                y: { grid: { display: false }, ticks: { color: INK } }
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}

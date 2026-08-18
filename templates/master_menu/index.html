@@ -113,6 +113,11 @@
                                    data-testid="edit-btn-{{ item.id }}" aria-label="Edit {{ item.name }}">
                                     <i class="bi bi-pencil-square" aria-hidden="true"></i> Edit
                                 </a>
+                                <a href="{{ url_for('master_menu.recipe', item_id=item.id) }}" class="btn btn-sm btn-light text-success"
+                                   data-bs-toggle="tooltip" data-bs-placement="top" title="Recipe (stock deduction) for: {{ item.name }}"
+                                   data-testid="recipe-btn-{{ item.id }}" aria-label="Recipe for {{ item.name }}">
+                                    <i class="ri-restaurant-2-line" aria-hidden="true"></i> Recipe
+                                </a>
                                 <button type="button" class="btn btn-sm btn-light text-secondary toggle-status-btn"
                                         data-item-id="{{ item.id }}"
                                         data-item-status="{{ 'true' if item.is_active else 'false' }}"

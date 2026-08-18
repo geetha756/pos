@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block title %}Inventory Trend{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="ri-archive-stack-line icon me-2"></i>Inventory Trend</h1>
+    <a href="{{ url_for('inventory.analytics', date_from=date_from, date_to=date_to, location=location_filter) }}" class="btn btn-outline-secondary">
+        <i class="ri-arrow-left-line icon me-1"></i>Back to Analytics
+    </a>
+</div>
+
+<p class="text-muted small mb-3">
+    <strong>Sales → Recipe → Grocery Consumption.</strong> We sold this many of each menu item — based on each item's recipe (<a href="{{ url_for('master_menu.index') }}">Master Menu → Recipe</a>), here's exactly which groceries that consumed, and how much of each. Nothing here is manually calculated; it's read straight from your orders and recipes for the selected date range and location.
+</p>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-6 col-md-3">
+                <label for="date_from" class="form-label">From</label>
+                <input type="date" id="date_from" name="date_from" class="form-control" onchange="this.form.submit()" value="{{ date_from }}">
+            </div>
+            <div class="col-6 col-md-3">
+                <label for="date_to" class="form-label">To</label>
+                <input type="date" id="date_to" name="date_to" class="form-control" onchange="this.form.submit()" value="{{ date_to }}">
+            </div>
+            <div class="col-12 col-md-3">
+                <label for="location" class="form-label">Location</label>
+                <select id="location" name="location" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Locations</option>
+                    {% for loc in locations %}
+                    <option value="{{ loc.id }}" {% if location_filter == loc.id|string %}selected{% endif %}>{{ loc.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <button type="submit" class="btn btn-primary w-100"><i class="ri-search-line icon me-1"></i>Apply</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Total grocery consumption — the headline answer -->
+<div class="card mb-3">
+    <div class="card-header"><h5 class="card-title mb-0"><i class="ri-scales-3-line icon me-2"></i>Total Grocery Consumption (from sales, this period)</h5></div>
+    <div class="card-body">
+        {% if period_grocery %}
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Grocery</th>
+                        <th class="text-end">Consumed from sales</th>
+                        <th class="text-end">Already in Record Usage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for g in period_grocery %}
+                    <tr>
+                        <td class="fw-semibold">{{ g.name }}</td>
+                        <td class="text-end fw-bold">{{ '%g'|format(g.qty) }} {{ g.unit|unit_label }}</td>
+                        <td class="text-end text-muted small">
+                            {% if g.recorded is not none %}{{ '%g'|format(g.recorded) }} {{ g.unit|unit_label }}{% else %}—{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="text-muted small mt-3 mb-0">
+            "Already in Record Usage" is just a reference to what's already logged for these groceries in this window — use the numbers on the left when you go to
+            <a href="{{ url_for('inventory.daily_usage') }}">Record Usage</a> so you don't have to recalculate them by hand.
+        </p>
+        {% else %}
+        <div class="text-center text-muted py-4">No recipe-linked sales in this period.</div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Menu items sold -> their recipe -> grocery breakdown -->
+<div class="card mb-3">
+    <div class="card-header"><h5 class="card-title mb-0"><i class="ri-restaurant-2-line icon me-2"></i>Menu Items Sold → Ingredients Used</h5></div>
+    <div class="card-body">
+        {% if period_items %}
+        <div class="row g-3">
+            {% for it in period_items %}
+            <div class="col-12 col-md-6">
+                <div class="border rounded p-3 h-100">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="fw-bold">{{ it.item_name }}</div>
+                        <span class="badge bg-primary">{{ it.qty }} sold</span>
+                    </div>
+                    {% if it.has_recipe %}
+                    <ul class="list-unstyled small mb-0">
+                        {% for ing in it.ingredients %}
+                        <li class="d-flex justify-content-between border-top pt-1 mt-1">
+                            <span class="text-muted">{{ ing.name }}</span>
+                            <span class="fw-semibold">{{ '%g'|format(ing.consumed) }} {{ ing.unit|unit_label }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="badge bg-light text-dark border">Recipe not configured</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">No sales in this period.</div>
+        {% endif %}
+    </div>
+</div>
+
+{% if no_recipe_items %}
+<div class="card mb-3">
+    <div class="card-header"><h5 class="card-title mb-0"><i class="ri-question-line icon me-2"></i>Sold Without a Recipe ({{ no_recipe_items|length }})</h5></div>
+    <div class="card-body">
+        <p class="text-muted small">These items sold in this period, but their grocery consumption can't be calculated until a recipe is set for them.</p>
+        <div class="d-flex flex-wrap gap-2">
+            {% for it in no_recipe_items %}
+            <span class="badge bg-light text-dark border">{{ it.item_name }} · {{ it.qty }} sold</span>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Day by day -->
+<div class="card">
+    <div class="card-header"><h5 class="card-title mb-0"><i class="ri-calendar-2-line icon me-2"></i>Day by Day</h5></div>
+    <div class="card-body p-0">
+        {% if days %}
+        <div class="accordion accordion-flush" id="dayAccordion">
+            {% for d in days %}
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#day-{{ loop.index }}">
+                        <span class="fw-semibold me-3">{{ d.label }}</span>
+                        <span class="text-muted small">{{ d.sold_items|length }} item{{ 's' if d.sold_items|length != 1 else '' }} sold
+                            {% if d.grocery_totals %} · top: {{ d.grocery_totals[0].name }} ({{ '%g'|format(d.grocery_totals[0].qty) }} {{ d.grocery_totals[0].unit|unit_label }}){% endif %}
+                        </span>
+                    </button>
+                </h2>
+                <div id="day-{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#dayAccordion">
+                    <div class="accordion-body">
+                        <div class="row g-3 mb-3">
+                            {% for it in d.sold_items %}
+                            <div class="col-12 col-md-6 col-lg-4">
+                                <div class="border rounded p-2">
+                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                        <span class="fw-semibold small">{{ it.item_name }}</span>
+                                        <span class="badge bg-primary">{{ it.qty }}</span>
+                                    </div>
+                                    {% if it.has_recipe %}
+                                    <ul class="list-unstyled small mb-0 text-muted">
+                                        {% for ing in it.ingredients %}
+                                        <li>{{ ing.name }}: {{ '%g'|format(ing.consumed) }} {{ ing.unit|unit_label }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                    {% else %}
+                                    <span class="badge bg-light text-dark border small">Recipe not configured</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% if d.grocery_totals %}
+                        <div class="small text-muted mb-1">Total for {{ d.label }}:</div>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for g in d.grocery_totals %}
+                            <span class="badge bg-light text-dark border">{{ g.name }}: {{ '%g'|format(g.qty) }} {{ g.unit|unit_label }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">No sales in this period.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

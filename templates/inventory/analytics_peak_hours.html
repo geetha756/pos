@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Peak Hours / Day{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="ri-time-line icon me-2"></i>Peak Hours / Day</h1>
+    <a href="{{ url_for('inventory.analytics', date_from=date_from, date_to=date_to, location=location_filter) }}" class="btn btn-outline-secondary">
+        <i class="ri-arrow-left-line icon me-1"></i>Back to Analytics
+    </a>
+</div>
+
+<p class="text-muted small mb-3">Revenue through a single day, hour by hour (24-hour time throughout). Hover any point to see that hour's revenue, order count, and exactly what sold.</p>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="GET" class="row g-2 align-items-end">
+            <div class="col-6 col-md-3">
+                <label for="date" class="form-label">Date</label>
+                <input type="date" id="date" name="date" class="form-control" onchange="this.form.submit()" value="{{ selected_date }}">
+            </div>
+            <div class="col-12 col-md-3">
+                <label for="location" class="form-label">Location</label>
+                <select id="location" name="location" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Locations</option>
+                    {% for loc in locations %}
+                    <option value="{{ loc.id }}" {% if location_filter == loc.id|string %}selected{% endif %}>{{ loc.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <input type="hidden" name="date_from" value="{{ date_from }}">
+            <input type="hidden" name="date_to" value="{{ date_to }}">
+            <div class="col-12 col-md-3">
+                <button type="submit" class="btn btn-primary w-100"><i class="ri-search-line icon me-1"></i>Apply</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if peak_hour is not none and peak_revenue > 0 %}
+<div class="card mb-3 border-start border-4 border-danger">
+    <div class="card-body py-3">
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <i class="ri-fire-line" style="font-size:2rem;color:#dc3545;"></i>
+            <div>
+                <div class="text-muted small">Peak Hour</div>
+                <div class="fs-4 fw-bold">{{ '%02d:00' % peak_hour }} – {{ '%02d:00' % ((peak_hour + 1) % 24) }}</div>
+                <div class="small text-muted">₹{{ '{:,.2f}'.format(peak_revenue) }} revenue</div>
+            </div>
+            {% if peak_items %}
+            <div class="ms-auto">
+                <div class="text-muted small mb-1">Top item this hour</div>
+                <div class="fw-bold mb-2" style="color:#dc3545;">
+                    <i class="ri-trophy-line icon me-1"></i>{{ peak_items[0].name }} × {{ peak_items[0].qty }}
+                </div>
+                {% if peak_items|length > 1 %}
+                <div class="text-muted small mb-1">Also sold this hour</div>
+                <div class="d-flex flex-wrap gap-1" style="max-width:420px;">
+                    {% for it in peak_items[1:] %}
+                    <span class="badge bg-light text-dark border">{{ it.name }} × {{ it.qty }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header"><h5 class="card-title mb-0"><i class="ri-line-chart-line icon me-2"></i>Revenue by Hour — {{ selected_date }}</h5></div>
+    <div class="card-body">
+        {% if peak_revenue > 0 %}
+        <div style="position:relative; height:340px;">
+            <canvas id="peakHoursChart"></canvas>
+            <div id="peakTooltip" class="shadow-sm" style="position:absolute; display:none; pointer-events:none; background:#2b2a27; color:#fff; padding:8px 12px; border-radius:6px; font-size:0.8rem; max-width:280px; z-index:5;"></div>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">No sales on this date.</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
+<script>
+(function () {
+    if (typeof Chart === 'undefined') return;
+    var INK = '#52514e', GRID = '#e1e0d9';
+    var hours = {{ hours|tojson }};
+    var peakHour = {{ (peak_hour if peak_hour is not none else -1) }};
+    var canvas = document.getElementById('peakHoursChart');
+    var tooltip = document.getElementById('peakTooltip');
+    if (!canvas || !hours.length) return;
+
+    var points = hours.map(function (h) { return { x: h.hour, y: h.revenue }; });
+
+    // 24-hour time throughout — the axis, the tooltip, and the Peak Hour
+    // card (server-rendered) all agree on the same format.
+    function pad2(n) { return (n < 10 ? '0' : '') + n; }
+    function fmtHour(h) { return pad2(h) + ':00'; }
+    var inr = function (v) { return '₹' + Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };
+
+    // Label only the single busiest hour's point with its top-selling item —
+    // everywhere else stays clean; the full item breakdown for that hour is
+    // already in the "Peak Hour" card above.
+    var topItemLabelsPlugin = {
+        id: 'topItemLabels',
+        afterDatasetsDraw: function (c) {
+            if (peakHour < 0) return;
+            var h = hours[peakHour];
+            if (!h || !h.top_item || h.revenue <= 0) return;
+            var meta = c.getDatasetMeta(0);
+            var point = meta.data[peakHour];
+            if (!point) return;
+            var ctx = c.ctx;
+            ctx.save();
+            ctx.font = '600 12px -apple-system, "Segoe UI", sans-serif';
+            ctx.fillStyle = '#dc3545';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(h.top_item + ' ×' + h.top_item_qty, point.x, point.y - 12);
+            ctx.restore();
+        }
+    };
+
+    var chart = new Chart(canvas, {
+        type: 'line',
+        data: { datasets: [{
+            label: 'Revenue', data: points,
+            borderColor: '#2a78d6', backgroundColor: 'rgba(42,120,214,0.08)',
+            fill: true, tension: 0.35, borderWidth: 2,
+            pointRadius: function (c) { return c.dataIndex === peakHour ? 6 : 2; },
+            pointBackgroundColor: function (c) { return c.dataIndex === peakHour ? '#dc3545' : '#2a78d6'; },
+            pointHoverRadius: function (c) { return c.dataIndex === peakHour ? 7 : 4; }
+        }] },
+        plugins: [topItemLabelsPlugin],
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'nearest', axis: 'x' },
+            layout: { padding: { top: 28 } },
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: {
+                x: {
+                    type: 'linear', min: 0, max: 23,
+                    ticks: { color: INK, stepSize: 2, callback: function (v) { return fmtHour(v); } },
+                    grid: { color: GRID }
+                },
+                y: {
+                    beginAtZero: true, grid: { color: GRID },
+                    ticks: { color: INK, callback: function (v) { return '₹' + Number(v).toLocaleString('en-IN'); } }
+                }
+            }
+        }
+    });
+
+    // Cursor-following tooltip snapped to whichever hour bucket the cursor is
+    // nearest to, showing that hour's own revenue/orders/items — not an
+    // interpolated in-between value, and not just the peak hour's.
+    var area = chart.chartArea;
+    canvas.addEventListener('mousemove', function (evt) {
+        var rect = canvas.getBoundingClientRect();
+        var x = evt.clientX - rect.left, y = evt.clientY - rect.top;
+        if (x < area.left || x > area.right || y < area.top || y > area.bottom) {
+            tooltip.style.display = 'none';
+            return;
+        }
+        var hFrac = chart.scales.x.getValueForPixel(x);
+        var h = Math.max(0, Math.min(23, Math.round(hFrac)));
+        var bucket = hours[h];
+        if (!bucket) { tooltip.style.display = 'none'; return; }
+
+        var itemsText = bucket.items.length
+            ? bucket.items.map(function (it) { return it.name + ' ×' + it.qty; }).join(', ')
+            : 'No items sold';
+
+        tooltip.innerHTML =
+            '<div><strong>' + fmtHour(h) + '–' + fmtHour((h + 1) % 24) + '</strong></div>' +
+            '<div>' + inr(bucket.revenue) + '  ·  ' + bucket.orders + ' order' + (bucket.orders === 1 ? '' : 's') + '</div>' +
+            '<div style="opacity:.85; white-space:normal; max-width:260px; margin-top:2px;">' + itemsText + '</div>';
+        tooltip.style.display = 'block';
+        var left = x + 14, top = y - 10;
+        if (left + 270 > canvas.clientWidth) left = x - 280;
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = Math.max(0, top) + 'px';
+    });
+    canvas.addEventListener('mouseleave', function () { tooltip.style.display = 'none'; });
+})();
+</script>
+{% endblock %}
