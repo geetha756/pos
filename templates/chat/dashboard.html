@@ -4,271 +4,420 @@
 
 {% block extra_head %}
 <style>
-    /* ---------------------------------------------------------------
-       Layout shell
-       --------------------------------------------------------------- */
-    /* Reclaim the main content column's own padding/max-width for this page
-       only, so the chat surface can run edge-to-edge inside a full-bleed
-       band instead of sitting as a narrow boxed card on a mostly-empty page. */
-    main:has(.chat-page-root) { padding-left: 0 !important; padding-right: 0 !important; padding-bottom: 0 !important; }
-    .chat-page-root { display: flex; flex-direction: column; height: calc(100dvh - var(--sns-topbar-h, 0px)); }
-    @media (min-width: 992px) { .chat-page-root { height: 100dvh; } }
-
-    .chat-page-head {
-        display: flex; align-items: center; justify-content: space-between;
-        gap: .75rem; flex-wrap: wrap; flex-shrink: 0;
-        padding: 1rem 1.5rem;
-        background: var(--sns-surface);
-        border-bottom: 1px solid var(--sns-border);
-    }
-    .chat-page-head h1 {
-        display: flex; align-items: center; gap: .6rem;
-        font-size: 1.3rem; margin: 0;
-    }
-    .chat-title-icon {
-        width: 38px; height: 38px; border-radius: 11px;
-        display: inline-flex; align-items: center; justify-content: center;
-        background: linear-gradient(135deg, var(--sns-primary), var(--sns-primary-dark));
-        color: #fff; font-size: 19px; flex-shrink: 0;
-        box-shadow: 0 3px 8px rgba(21,122,94,.28);
-    }
-    .chat-agent-qualifier { color: var(--sns-muted); font-weight: 500; font-size: 1rem; }
-    .chat-toolbar { display: flex; align-items: center; gap: .5rem; }
-
-    .chat-shell {
+    /* =================================================================
+       Shell — sidebar (agents + conversations) + main chat column
+       ================================================================= */
+    main:has(.ai-shell) { padding-left: 0 !important; padding-right: 0 !important; padding-bottom: 0 !important; }
+    .ai-shell {
         display: flex;
-        flex-direction: column;
-        flex: 1 1 auto;
-        min-height: 0;
-        background: var(--sns-bg);
-        overflow: hidden;
+        height: calc(100dvh - var(--sns-topbar-h, 0px));
+    }
+    @media (min-width: 992px) { .ai-shell { height: 100dvh; } }
+
+    .ai-sidebar {
+        width: 300px; flex-shrink: 0;
+        background: var(--sns-surface);
+        border-right: 1px solid var(--sns-border);
+        display: flex; flex-direction: column;
+        transition: width .25s ease, margin-left .25s ease;
+    }
+    .ai-shell.sidebar-collapsed .ai-sidebar { width: 0; margin-left: -1px; overflow: hidden; }
+
+    .ai-sidebar-head {
+        padding: 1rem 1rem .75rem; flex-shrink: 0; border-bottom: 1px solid var(--sns-border);
+        display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+    }
+    .ai-sidebar-title { font-weight: 700; font-size: 1.05rem; color: var(--sns-ink); display: flex; align-items: center; gap: .5rem; }
+    .ai-icon-btn {
+        width: 32px; height: 32px; border-radius: 9px; border: none; background: transparent;
+        color: var(--sns-muted); display: flex; align-items: center; justify-content: center; font-size: 17px;
+        transition: background .15s ease, color .15s ease;
+    }
+    .ai-icon-btn:hover { background: var(--sns-bg); color: var(--sns-ink); }
+
+    .ai-agent-list { flex: 1 1 auto; overflow-y: auto; padding: .5rem .5rem 1rem; }
+
+    /* --- Agent section --- */
+    .ai-agent-section { margin-bottom: .2rem; border-radius: 12px; overflow: hidden; }
+    .ai-agent-head {
+        display: flex; align-items: center; gap: .6rem; padding: .55rem .6rem;
+        cursor: pointer; border-radius: 10px; transition: background .15s ease;
+    }
+    .ai-agent-head:hover { background: var(--sns-bg); }
+    .ai-agent-section.active > .ai-agent-head { background: var(--sns-primary-soft); }
+    .ai-agent-avatar {
+        width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center; font-size: 15px;
+        background: linear-gradient(135deg, var(--sns-primary), var(--sns-primary-dark)); color: #fff;
+    }
+    .ai-agent-name { font-weight: 600; font-size: .92rem; color: var(--sns-ink); flex: 1 1 auto; min-width: 0;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ai-agent-chevron { color: var(--sns-muted); font-size: 16px; transition: transform .2s ease; flex-shrink: 0; }
+    .ai-agent-section.expanded .ai-agent-chevron { transform: rotate(90deg); }
+    .ai-agent-unread {
+        min-width: 18px; height: 18px; border-radius: 9px; background: var(--sns-primary); color: #fff;
+        font-size: .68rem; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0 5px;
     }
 
-    /* ---------------------------------------------------------------
-       Message log
-       --------------------------------------------------------------- */
-    .chat-log {
-        flex: 1 1 auto;
-        overflow-y: auto;
+    .ai-conv-list { max-height: 0; overflow: hidden; transition: max-height .25s ease; padding-left: .5rem; }
+    .ai-agent-section.expanded .ai-conv-list { max-height: 2000px; }
+
+    .ai-new-chat-btn {
+        display: flex; align-items: center; gap: .5rem; width: 100%; text-align: left;
+        border: 1px dashed var(--sns-border); background: transparent; border-radius: 9px;
+        padding: .45rem .6rem; margin: .3rem 0 .5rem; font-size: .85rem; font-weight: 600; color: var(--sns-primary);
+        transition: border-color .15s ease, background .15s ease;
+    }
+    .ai-new-chat-btn:hover { background: var(--sns-primary-soft); border-color: var(--sns-primary); }
+
+    .ai-conv-group-label {
+        font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+        color: var(--sns-muted); padding: .5rem .6rem .25rem;
+    }
+    .ai-conv-item {
+        display: flex; align-items: center; gap: .5rem; padding: .5rem .6rem; border-radius: 9px;
+        cursor: pointer; position: relative; transition: background .15s ease;
+    }
+    .ai-conv-item:hover { background: var(--sns-bg); }
+    .ai-conv-item.active { background: var(--sns-primary-soft); }
+    .ai-conv-item.active .ai-conv-title { color: var(--sns-primary); font-weight: 600; }
+    .ai-conv-icon { color: var(--sns-muted); font-size: 15px; flex-shrink: 0; }
+    .ai-conv-item.active .ai-conv-icon { color: var(--sns-primary); }
+    .ai-conv-body { flex: 1 1 auto; min-width: 0; }
+    .ai-conv-title { font-size: .85rem; color: var(--sns-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: .3rem; }
+    .ai-conv-preview { font-size: .74rem; color: var(--sns-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ai-conv-actions { display: none; align-items: center; gap: .15rem; flex-shrink: 0; }
+    .ai-conv-item:hover .ai-conv-actions { display: flex; }
+    .ai-conv-generating { flex-shrink: 0; display: flex; align-items: center; color: var(--sns-primary); }
+    .ai-conv-generating .spinner-border { width: 12px; height: 12px; border-width: 2px; }
+    .ai-conv-item:hover .ai-conv-generating { display: none; }
+    .ai-conv-actions button {
+        width: 24px; height: 24px; border: none; background: transparent; border-radius: 6px;
+        color: var(--sns-muted); display: flex; align-items: center; justify-content: center; font-size: 13px;
+    }
+    .ai-conv-actions button:hover { background: var(--sns-border); color: var(--sns-ink); }
+    .ai-conv-actions button.danger:hover { color: #b3261e; }
+    .ai-pin-icon { color: var(--sns-primary); font-size: 13px; }
+    .ai-conv-title input {
+        border: 1px solid var(--sns-primary); border-radius: 6px; padding: .1rem .35rem; font-size: .85rem;
+        width: 100%; background: var(--sns-surface); color: var(--sns-ink);
+    }
+
+    .ai-empty-convs { padding: .5rem .6rem 1rem; font-size: .78rem; color: var(--sns-muted); }
+
+    /* --- Sidebar footer / recent+favorites (collapsed by default, small) --- */
+    .ai-sidebar-search-hint {
+        margin: .25rem .5rem .5rem; padding: .5rem .6rem; border-radius: 9px; background: var(--sns-bg);
+        display: flex; align-items: center; gap: .5rem; color: var(--sns-muted); font-size: .82rem; cursor: pointer;
+        border: 1px solid var(--sns-border);
+    }
+    .ai-sidebar-search-hint:hover { border-color: var(--sns-primary); color: var(--sns-ink); }
+    .ai-kbd { font-size: .68rem; border: 1px solid var(--sns-border); border-radius: 4px; padding: 0 4px; background: var(--sns-surface); margin-left: auto; }
+
+    /* =================================================================
+       Main column
+       ================================================================= */
+    .ai-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+
+    .ai-chat-header {
+        flex-shrink: 0; padding: .85rem 1.25rem; border-bottom: 1px solid var(--sns-border); background: var(--sns-surface);
+        display: flex; align-items: center; gap: .75rem;
+    }
+    .ai-chat-header .ai-agent-avatar { width: 40px; height: 40px; border-radius: 11px; font-size: 18px; }
+    .ai-chat-header-text { flex: 1 1 auto; min-width: 0; }
+    .ai-chat-header-text .name { font-weight: 700; font-size: 1.05rem; color: var(--sns-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ai-chat-header-text .desc { font-size: .8rem; color: var(--sns-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ai-chat-header-actions { display: flex; align-items: center; gap: .3rem; flex-shrink: 0; }
+
+    .ai-chat-log {
+        flex: 1 1 auto; overflow-y: auto;
         padding: 1.75rem max(1.5rem, calc(50% - 420px));
-        display: flex;
-        flex-direction: column;
-        gap: 1.25rem;
-        scroll-behavior: smooth;
+        display: flex; flex-direction: column; gap: 1.25rem;
+        scroll-behavior: smooth; background: var(--sns-bg);
     }
-    .chat-row { display: flex; gap: .6rem; max-width: 100%; align-items: flex-end; }
-    .chat-row.user { justify-content: flex-end; }
-    .chat-avatar {
+    .ai-row { display: flex; gap: .6rem; max-width: 100%; align-items: flex-end; animation: aiFadeIn .2s ease; }
+    @keyframes aiFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    .ai-row.user { justify-content: flex-end; }
+    .ai-avatar {
         width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 15px; font-weight: 600;
+        display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600;
     }
-    .chat-row.assistant .chat-avatar {
-        background: linear-gradient(135deg, var(--sns-primary), var(--sns-primary-dark));
-        color: #fff;
+    .ai-row.assistant .ai-avatar { background: linear-gradient(135deg, var(--sns-primary), var(--sns-primary-dark)); color: #fff; }
+    .ai-row.user .ai-avatar { background: var(--sns-ink); color: #fff; order: 2; }
+    .ai-bubble-col { display: flex; flex-direction: column; gap: .25rem; max-width: 78%; }
+    .ai-row.user .ai-bubble-col { align-items: flex-end; }
+    .ai-bubble {
+        border-radius: 16px; padding: .7rem 1rem; line-height: 1.55; font-size: .95rem; word-break: break-word;
+        transition: box-shadow .2s ease;
     }
-    .chat-row.user .chat-avatar {
-        background: var(--sns-ink); color: #fff; order: 2;
-    }
-    .chat-bubble-col { display: flex; flex-direction: column; gap: .25rem; max-width: 78%; }
-    .chat-row.user .chat-bubble-col { align-items: flex-end; }
+    .ai-row.user .ai-bubble { background: var(--sns-primary); color: #fff; border-bottom-right-radius: 4px; }
+    .ai-row.assistant .ai-bubble { background: var(--sns-surface); color: var(--sns-ink); border: 1px solid var(--sns-border); border-bottom-left-radius: 4px; }
+    .ai-row.notice .ai-bubble { background: #fff3cd; border: 1px solid #ffe69c; color: #664d03; font-size: .88rem; }
+    .ai-row.error .ai-bubble { background: #fdecea; border: 1px solid #f3c2bd; color: #8a2c22; font-size: .88rem; }
+    .ai-meta { font-size: .72rem; color: var(--sns-muted); padding: 0 .2rem; }
 
-    .chat-bubble {
-        border-radius: 16px;
-        padding: 0.7rem 1rem;
-        line-height: 1.55;
-        font-size: .95rem;
-        word-break: break-word;
+    .ai-bubble p { margin: 0 0 .6rem; } .ai-bubble p:last-child { margin-bottom: 0; }
+    .ai-bubble ul { margin: .3rem 0 .6rem; padding-left: 1.25rem; } .ai-bubble ul:last-child { margin-bottom: 0; }
+    .ai-bubble li { margin-bottom: .3rem; } .ai-bubble li:last-child { margin-bottom: 0; }
+    .ai-bubble strong { font-weight: 700; }
+    .ai-msg-attachment {
+        display: inline-flex; align-items: center; gap: .35rem; background: rgba(255,255,255,.18);
+        border-radius: 8px; padding: .3rem .55rem; font-size: .82rem; margin-bottom: .4rem;
     }
-    .chat-row.user .chat-bubble {
-        background: var(--sns-primary); color: #fff; border-bottom-right-radius: 4px;
-    }
-    .chat-row.assistant .chat-bubble {
-        background: var(--sns-bg); color: var(--sns-ink);
-        border: 1px solid var(--sns-border); border-bottom-left-radius: 4px;
-    }
-    .chat-row.notice .chat-bubble {
-        background: #fff3cd; border: 1px solid #ffe69c; color: #664d03; font-size: .88rem;
-    }
-    .chat-row.error .chat-bubble {
-        background: #fdecea; border: 1px solid #f3c2bd; color: #8a2c22; font-size: .88rem;
-    }
-    .chat-meta { font-size: .72rem; color: var(--sns-muted); padding: 0 .2rem; }
+    .ai-row.assistant .ai-msg-attachment { background: rgba(0,0,0,.06); }
 
-    /* Structured content inside an assistant bubble: paragraphs, bullet
-       lines ("- " / "• "), and **bold** — BitBerry's replies are plain
-       text with light markdown-ish conventions, not full markdown, so this
-       renders those cleanly instead of dumping one flat escaped blob. */
-    .chat-bubble p { margin: 0 0 .6rem; }
-    .chat-bubble p:last-child { margin-bottom: 0; }
-    .chat-bubble ul { margin: .3rem 0 .6rem; padding-left: 1.25rem; }
-    .chat-bubble ul:last-child { margin-bottom: 0; }
-    .chat-bubble li { margin-bottom: .3rem; }
-    .chat-bubble li:last-child { margin-bottom: 0; }
-    .chat-bubble strong { font-weight: 700; }
-    .chat-bubble code {
-        background: rgba(0,0,0,.06); border-radius: 4px; padding: .1em .35em; font-size: .88em;
+    .ai-typing-dots span {
+        display: inline-block; width: 6px; height: 6px; margin-right: 3px; background: var(--sns-muted);
+        border-radius: 50%; opacity: .4; animation: aiTyping 1s infinite ease-in-out;
     }
+    .ai-typing-dots span:nth-child(2) { animation-delay: .15s; } .ai-typing-dots span:nth-child(3) { animation-delay: .3s; }
+    @keyframes aiTyping { 0%, 60%, 100% { opacity: .3; } 30% { opacity: 1; } }
 
-    /* Suggested prompts (rendered from the assistant's own "▸ …" lines, or
-       shown as a static starter set before the first message) */
-    .chat-suggestions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .4rem; }
-    .chat-suggestion-chip {
-        border: 1px solid var(--sns-border); background: var(--sns-surface);
-        color: var(--sns-ink-soft); border-radius: 999px; padding: .4rem .85rem;
-        font-size: .84rem; font-weight: 500; cursor: pointer;
+    /* --- Empty state --- */
+    .ai-empty-state { margin: auto; text-align: center; padding: 2rem 1rem; max-width: 560px; }
+    .ai-empty-state .ai-agent-avatar { width: 60px; height: 60px; border-radius: 18px; font-size: 28px; margin: 0 auto 1rem; }
+    .ai-empty-state h4 { color: var(--sns-ink); font-weight: 700; margin-bottom: .35rem; }
+    .ai-empty-state p { color: var(--sns-muted); margin-bottom: 1.25rem; }
+    .ai-suggestion-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; text-align: left; }
+    @media (max-width: 560px) { .ai-suggestion-grid { grid-template-columns: 1fr; } }
+    .ai-suggestion-card {
+        border: 1px solid var(--sns-border); background: var(--sns-surface); border-radius: 12px;
+        padding: .7rem .85rem; font-size: .85rem; font-weight: 600; color: var(--sns-ink-soft); cursor: pointer;
+        transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
+    }
+    .ai-suggestion-card:hover { border-color: var(--sns-primary); box-shadow: 0 4px 12px rgba(21,122,94,.12); transform: translateY(-1px); }
+
+    /* --- Quick action chips --- */
+    .ai-quick-actions { display: flex; flex-wrap: wrap; gap: .5rem; padding: 0 max(1.5rem, calc(50% - 420px)) .75rem; background: var(--sns-bg); }
+    .ai-chip {
+        border: 1px solid var(--sns-border); background: var(--sns-surface); color: var(--sns-ink-soft);
+        border-radius: 999px; padding: .35rem .8rem; font-size: .8rem; font-weight: 500; cursor: pointer;
         transition: border-color .15s ease, color .15s ease, background .15s ease;
-        text-align: left;
     }
-    .chat-suggestion-chip:hover {
-        border-color: var(--sns-primary); color: var(--sns-primary); background: var(--sns-primary-soft);
-    }
+    .ai-chip:hover { border-color: var(--sns-primary); color: var(--sns-primary); background: var(--sns-primary-soft); }
+    /* Per-response follow-up chips (parsed from the agent's own bulleted
+       suggestions) — shown under the latest assistant reply only, mirroring
+       BitBerry's own follow-up UI, instead of one static bar for the whole
+       session. */
+    .ai-followup-chips { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .55rem; }
+    .ai-followup-chips .ai-chip { background: var(--sns-bg); }
 
-    .chat-empty { margin: auto; text-align: center; color: var(--sns-muted); padding: 2rem 1rem; }
-    .chat-empty .chat-empty-icon {
-        width: 56px; height: 56px; border-radius: 16px; margin: 0 auto .9rem;
-        display: flex; align-items: center; justify-content: center; font-size: 26px;
-        background: var(--sns-primary-soft); color: var(--sns-primary);
+    /* --- Composer --- */
+    .ai-input-row { flex-shrink: 0; border-top: 1px solid var(--sns-border); padding: 1rem max(1.5rem, calc(50% - 420px)) 1.1rem; background: var(--sns-surface); }
+    .ai-attachment-row { padding: 0 max(1.5rem, calc(50% - 420px)); margin-bottom: .5rem; background: var(--sns-surface); }
+    .ai-attachment-chip {
+        display: inline-flex; align-items: center; gap: .5rem; background: var(--sns-primary-soft);
+        border: 1px solid var(--sns-border); border-radius: 10px; padding: .4rem .5rem .4rem .7rem;
+        font-size: .84rem; color: var(--sns-ink); max-width: 100%;
     }
-    .chat-empty-title { color: var(--sns-ink); font-weight: 600; font-size: 1.05rem; margin-bottom: .3rem; }
+    .ai-attachment-chip .filename { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+    .ai-attachment-chip .spinner-border { width: .85rem; height: .85rem; border-width: .15em; }
+    .ai-attachment-chip .remove-btn { border: none; background: transparent; color: var(--sns-muted); line-height: 1; padding: 0 0 0 .2rem; display: flex; align-items: center; }
+    .ai-attachment-chip .remove-btn:hover { color: #8a2c22; }
+    .ai-attachment-chip.is-error { background: #fdecea; border-color: #f3c2bd; color: #8a2c22; }
 
-    .chat-typing-dots span {
-        display: inline-block; width: 6px; height: 6px; margin-right: 3px;
-        background: var(--sns-muted); border-radius: 50%; opacity: .4;
-        animation: chatTyping 1s infinite ease-in-out;
+    .ai-input-wrap {
+        display: flex; align-items: flex-end; gap: .6rem; background: var(--sns-bg); border: 1px solid var(--sns-border);
+        border-radius: 16px; padding: .35rem .4rem .35rem .5rem; transition: border-color .15s ease, box-shadow .15s ease;
     }
-    .chat-typing-dots span:nth-child(2) { animation-delay: .15s; }
-    .chat-typing-dots span:nth-child(3) { animation-delay: .3s; }
-    @keyframes chatTyping { 0%, 60%, 100% { opacity: .3; } 30% { opacity: 1; } }
+    .ai-input-wrap:focus-within { border-color: var(--sns-primary); box-shadow: 0 0 0 .18rem rgba(21,122,94,.13); }
+    .ai-input-wrap textarea { flex: 1 1 auto; resize: none; border: none; background: transparent; padding: .5rem 0; font-size: .95rem; line-height: 1.4; color: var(--sns-ink); max-height: 160px; }
+    .ai-input-wrap textarea:focus { outline: none; box-shadow: none; }
+    .ai-round-btn {
+        width: 38px; height: 38px; border-radius: 12px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+        border: none; transition: background .15s ease, color .15s ease, opacity .15s ease;
+    }
+    .ai-attach-btn { background: transparent; color: var(--sns-muted); font-size: 18px; }
+    .ai-attach-btn:hover:not(:disabled) { background: var(--sns-border); color: var(--sns-ink); }
+    .ai-attach-btn:disabled { opacity: .45; }
+    .ai-send-btn { background: var(--sns-primary); color: #fff; }
+    .ai-send-btn:hover:not(:disabled) { background: var(--sns-primary-dark); }
+    .ai-send-btn:disabled { opacity: .45; }
+    .ai-send-btn.is-stop { background: var(--sns-ink); }
+    .ai-send-btn.is-stop:hover { background: var(--sns-ink); opacity: .85; }
+    .ai-stopped-note { margin-top: .35rem; font-size: .72rem; color: var(--sns-muted); font-style: italic; }
+    .ai-hint { font-size: .72rem; color: var(--sns-muted); margin-top: .4rem; padding-left: .3rem; }
 
-    /* ---------------------------------------------------------------
-       Composer
-       --------------------------------------------------------------- */
-    .chat-input-row {
-        flex-shrink: 0;
-        border-top: 1px solid var(--sns-border);
-        padding: 1rem max(1.5rem, calc(50% - 420px)) 1.25rem;
-        background: var(--sns-surface);
-    }
-    .chat-input-wrap {
-        display: flex; align-items: flex-end; gap: .6rem;
-        background: var(--sns-bg); border: 1px solid var(--sns-border);
-        border-radius: 16px; padding: .35rem .4rem .35rem .9rem;
-        transition: border-color .15s ease, box-shadow .15s ease;
-    }
-    .chat-input-wrap:focus-within {
-        border-color: var(--sns-primary); box-shadow: 0 0 0 .18rem rgba(21,122,94,.13);
-    }
-    .chat-input-wrap textarea {
-        flex: 1 1 auto; resize: none; border: none; background: transparent;
-        padding: .5rem 0; font-size: .95rem; line-height: 1.4; color: var(--sns-ink);
-        max-height: 160px;
-    }
-    .chat-input-wrap textarea:focus { outline: none; box-shadow: none; }
-    .chat-send-btn {
-        width: 38px; height: 38px; border-radius: 12px; flex-shrink: 0;
-        display: flex; align-items: center; justify-content: center;
-        background: var(--sns-primary); color: #fff; border: none;
-        transition: background .15s ease, opacity .15s ease;
-    }
-    .chat-send-btn:hover:not(:disabled) { background: var(--sns-primary-dark); }
-    .chat-send-btn:disabled { opacity: .45; cursor: default; }
-    .chat-hint { font-size: .72rem; color: var(--sns-muted); margin-top: .4rem; padding-left: .3rem; }
+    .ai-center-state { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; padding: 2rem 1.5rem; }
 
-    /* ---------------------------------------------------------------
-       Agent picker / empty / error states
-       --------------------------------------------------------------- */
-    .agent-picker-card { max-width: 640px; margin: 2.5rem auto; text-align: center; }
-    .agent-picker-card .chat-empty-icon { margin: 0 auto 1rem; }
-    .agent-pick-list { display: grid; gap: .7rem; text-align: left; margin-top: 1.4rem; }
-    .agent-pick-item {
-        border: 1px solid var(--sns-border); border-radius: 14px; padding: 1rem 1.15rem;
-        display: flex; justify-content: space-between; align-items: center; gap: 1rem;
-        cursor: pointer; background: var(--sns-surface);
-        transition: border-color .15s ease, box-shadow .15s ease;
+    /* =================================================================
+       Agent Info Drawer
+       ================================================================= */
+    .ai-drawer-backdrop {
+        position: fixed; inset: 0; background: rgba(15,23,42,.35); z-index: 1200;
+        opacity: 0; pointer-events: none; transition: opacity .2s ease;
     }
-    .agent-pick-item:hover { border-color: var(--sns-primary); box-shadow: 0 4px 12px rgba(21,122,94,.12); }
-    .agent-pick-icon {
-        width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0;
-        display: flex; align-items: center; justify-content: center; font-size: 18px;
-        background: var(--sns-primary-soft); color: var(--sns-primary);
+    .ai-drawer-backdrop.show { opacity: 1; pointer-events: auto; }
+    .ai-drawer {
+        position: fixed; top: 0; right: 0; bottom: 0; width: 360px; max-width: 92vw;
+        background: var(--sns-surface); z-index: 1201; box-shadow: -8px 0 28px rgba(16,24,40,.18);
+        transform: translateX(100%); transition: transform .25s ease; display: flex; flex-direction: column;
     }
+    .ai-drawer.show { transform: translateX(0); }
+    .ai-drawer-head { padding: 1rem 1.25rem; border-bottom: 1px solid var(--sns-border); display: flex; align-items: center; gap: .75rem; }
+    .ai-drawer-head .ai-agent-avatar { width: 44px; height: 44px; border-radius: 12px; font-size: 20px; }
+    .ai-drawer-body { flex: 1 1 auto; overflow-y: auto; padding: 1.1rem 1.25rem; }
+    .ai-drawer-section { margin-bottom: 1.4rem; }
+    .ai-drawer-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--sns-muted); margin-bottom: .4rem; }
+    .ai-drawer-value { font-size: .9rem; color: var(--sns-ink); line-height: 1.5; }
+    .ai-badge-source { display: inline-block; background: var(--sns-primary-soft); color: var(--sns-primary); border-radius: 999px; padding: .2rem .65rem; font-size: .78rem; font-weight: 600; }
 
-    #chat-agent-select {
-        max-width: 240px; border-radius: 10px; font-size: .88rem; font-weight: 500;
+    /* =================================================================
+       Search overlay
+       ================================================================= */
+    .ai-search-backdrop {
+        position: fixed; inset: 0; background: rgba(15,23,42,.35); z-index: 1300;
+        display: flex; align-items: flex-start; justify-content: center; padding-top: 10vh;
+        opacity: 0; pointer-events: none; transition: opacity .15s ease;
     }
+    .ai-search-backdrop.show { opacity: 1; pointer-events: auto; }
+    .ai-search-panel { width: 560px; max-width: 92vw; background: var(--sns-surface); border-radius: 16px; box-shadow: 0 20px 60px rgba(16,24,40,.25); overflow: hidden; }
+    .ai-search-input-row { display: flex; align-items: center; gap: .6rem; padding: .9rem 1.1rem; border-bottom: 1px solid var(--sns-border); }
+    .ai-search-input-row i { color: var(--sns-muted); font-size: 18px; }
+    .ai-search-input-row input { flex: 1 1 auto; border: none; outline: none; font-size: 1rem; color: var(--sns-ink); }
+    .ai-search-results { max-height: 50vh; overflow-y: auto; padding: .5rem; }
+    .ai-search-result { padding: .6rem .7rem; border-radius: 10px; cursor: pointer; }
+    .ai-search-result:hover { background: var(--sns-bg); }
+    .ai-search-result .title { font-weight: 600; font-size: .88rem; color: var(--sns-ink); }
+    .ai-search-result .snippet { font-size: .8rem; color: var(--sns-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ai-search-empty { padding: 2rem 1rem; text-align: center; color: var(--sns-muted); font-size: .88rem; }
+    .ai-search-hint-row { padding: .5rem 1.1rem .8rem; font-size: .72rem; color: var(--sns-muted); display: flex; justify-content: space-between; }
 
-    .chat-center-state { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; padding: 2rem 1.5rem; }
-
+    /* =================================================================
+       Mobile responsive: bottom nav for agents, full-screen chat
+       ================================================================= */
     @media (max-width: 767.98px) {
-        .chat-page-head { padding: .85rem 1rem; }
-        .chat-log { padding: 1.25rem 1rem .5rem; }
-        .chat-input-row { padding: .75rem 1rem 1rem; }
-        .chat-bubble-col { max-width: 88%; }
+        .ai-sidebar { position: fixed; top: 0; bottom: 0; left: 0; z-index: 1100; width: 84vw; max-width: 320px;
+            transform: translateX(-100%); transition: transform .25s ease; box-shadow: 8px 0 24px rgba(16,24,40,.18); }
+        .ai-shell:not(.sidebar-collapsed) .ai-sidebar { transform: translateX(0); }
+        .ai-shell.sidebar-collapsed .ai-sidebar { width: 84vw; max-width: 320px; margin-left: 0; }
+        .ai-chat-header { padding: .75rem 1rem; }
+        .ai-chat-log { padding: 1.25rem 1rem .5rem; }
+        .ai-quick-actions { padding: 0 1rem .6rem; }
+        .ai-input-row { padding: .75rem 1rem 1rem; }
+        .ai-bubble-col { max-width: 88%; }
+        .ai-drawer { width: 92vw; }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="chat-page-root">
-<div class="chat-page-head">
-    <h1>
-        <span class="chat-title-icon"><i class="ri-sparkling-2-fill"></i></span>
-        AI Helper<span class="chat-agent-qualifier" id="chat-h1-agent"></span>
-    </h1>
-    <div class="chat-toolbar">
-        <select class="form-select form-select-sm d-none" id="chat-agent-select"></select>
-        <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="chat-clear-btn">
-            <i class="ri-delete-bin-line icon icon-sm me-1"></i>Clear
-        </button>
-    </div>
-</div>
+<div class="ai-shell" id="ai-shell">
 
-<div id="chat-loading" class="chat-center-state text-muted">
-    <div><div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>Loading your AI Helpers...</div>
-</div>
-
-<div id="chat-agent-picker" class="chat-center-state d-none">
-    <div class="agent-picker-card">
-        <div class="chat-empty-icon"><i class="ri-robot-2-line"></i></div>
-        <h5 class="mb-1">Choose an AI Helper</h5>
-        <p class="text-muted">Pick one of the assistants assigned to you to start chatting.</p>
-        <div class="agent-pick-list" id="agent-pick-list"></div>
-    </div>
-</div>
-
-<div id="chat-no-agents" class="chat-center-state d-none">
-    <div class="agent-picker-card">
-        <div class="chat-empty-icon"><i class="ri-robot-2-line"></i></div>
-        <h5 class="mb-1">No agents are currently assigned to you</h5>
-        <p class="text-muted mb-0">Contact an administrator if you believe this is a mistake.</p>
-    </div>
-</div>
-
-<div id="chat-load-error" class="chat-center-state d-none">
-    <div class="alert alert-danger mb-0" id="chat-load-error-alert"></div>
-</div>
-
-<div class="chat-shell d-none" id="chat-shell">
-    <div class="chat-log" id="chat-log">
-        <div class="chat-empty" id="chat-empty">
-            <div class="chat-empty-icon"><i class="ri-sparkling-2-line"></i></div>
-            <div class="chat-empty-title" id="chat-empty-title">How can I help?</div>
-            <div id="chat-empty-text" class="text-muted"></div>
-            <div class="chat-suggestions" id="chat-suggestions"></div>
+    <!-- ================= Sidebar: agents + conversations ================= -->
+    <aside class="ai-sidebar" id="ai-sidebar">
+        <div class="ai-sidebar-head">
+            <span class="ai-sidebar-title"><i class="ri-sparkling-2-fill" style="color:var(--sns-primary);"></i>AI Helper</span>
+            <button type="button" class="ai-icon-btn d-lg-none" id="ai-sidebar-close-btn" aria-label="Close sidebar"><i class="ri-close-line"></i></button>
         </div>
-    </div>
-
-    <form class="chat-input-row" id="chat-form">
-        <div class="chat-input-wrap">
-            <textarea id="chat-input" rows="1" placeholder="Message your AI Helper..." autocomplete="off"></textarea>
-            <button class="chat-send-btn" type="submit" id="chat-send-btn" aria-label="Send">
-                <i class="ri-send-plane-2-fill"></i>
-            </button>
+        <div class="ai-sidebar-search-hint" id="ai-search-open-btn">
+            <i class="ri-search-line"></i> Search agents &amp; chats <span class="ai-kbd">Ctrl K</span>
         </div>
-        <div class="chat-hint">Enter to send &middot; Shift+Enter for a new line</div>
-    </form>
+        <div class="ai-agent-list" id="ai-agent-list">
+            <div id="ai-agent-list-loading" class="text-center text-muted small py-4">
+                <div class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></div> Loading agents...
+            </div>
+        </div>
+    </aside>
+
+    <!-- ================= Main chat column ================= -->
+    <main class="ai-main">
+        <div id="ai-no-agents" class="ai-center-state d-none">
+            <div class="ai-empty-state">
+                <div class="ai-agent-avatar mx-auto"><i class="ri-robot-2-line"></i></div>
+                <h4>No agents are currently assigned to you</h4>
+                <p class="mb-0">Contact an administrator if you believe this is a mistake.</p>
+            </div>
+        </div>
+
+        <div id="ai-load-error" class="ai-center-state d-none">
+            <div class="alert alert-danger mb-0" id="ai-load-error-alert"></div>
+        </div>
+
+        <div id="ai-chat-area" class="d-none" style="display:flex; flex-direction:column; flex:1 1 auto; min-height:0;">
+            <header class="ai-chat-header">
+                <button type="button" class="ai-icon-btn" id="ai-sidebar-toggle-btn" aria-label="Toggle sidebar" title="Toggle sidebar (Ctrl+B)">
+                    <i class="ri-menu-line"></i>
+                </button>
+                <span class="ai-agent-avatar"><i class="ri-sparkling-2-fill" id="ai-header-icon"></i></span>
+                <div class="ai-chat-header-text">
+                    <div class="name" id="ai-header-name">AI Helper</div>
+                    <div class="desc" id="ai-header-desc"></div>
+                </div>
+                <div class="ai-chat-header-actions">
+                    <button type="button" class="ai-icon-btn" id="ai-header-info-btn" aria-label="Agent information" title="Agent information"><i class="ri-information-line"></i></button>
+                    <button type="button" class="ai-icon-btn" id="ai-header-newchat-btn" aria-label="New chat" title="New chat (Ctrl+N)"><i class="ri-add-line"></i></button>
+                </div>
+            </header>
+
+            <div class="ai-chat-log" id="ai-chat-log">
+                <div class="ai-empty-state" id="ai-empty-state">
+                    <div class="ai-agent-avatar mx-auto"><i class="ri-sparkling-2-fill" id="ai-empty-icon"></i></div>
+                    <h4 id="ai-empty-title">How can I help you today?</h4>
+                    <p id="ai-empty-desc"></p>
+                    <div class="ai-suggestion-grid" id="ai-suggestion-grid"></div>
+                </div>
+            </div>
+
+            <div class="ai-attachment-row d-none" id="ai-attachment-row">
+                <span class="ai-attachment-chip" id="ai-attachment-chip"></span>
+            </div>
+            <form class="ai-input-row" id="ai-form">
+                <div class="ai-input-wrap">
+                    <input type="file" id="ai-file-input" class="d-none" accept="image/jpeg,image/png,image/webp">
+                    <button type="button" class="ai-round-btn ai-attach-btn" id="ai-attach-btn" aria-label="Attach a file" title="Attach a bill/receipt image">
+                        <i class="ri-attachment-2"></i>
+                    </button>
+                    <textarea id="ai-input" rows="1" placeholder="Message this agent..." autocomplete="off"></textarea>
+                    <button class="ai-round-btn ai-send-btn" type="submit" id="ai-send-btn" aria-label="Send">
+                        <i class="ri-send-plane-2-fill" id="ai-send-btn-icon"></i>
+                    </button>
+                </div>
+                <div class="ai-hint">Enter to send &middot; Shift+Enter for a new line &middot; Ctrl+N new chat &middot; Ctrl+K search</div>
+            </form>
+        </div>
+    </main>
 </div>
+
+<!-- ================= Agent info drawer ================= -->
+<div class="ai-drawer-backdrop" id="ai-drawer-backdrop"></div>
+<aside class="ai-drawer" id="ai-drawer" aria-label="Agent information">
+    <div class="ai-drawer-head">
+        <span class="ai-agent-avatar" id="ai-drawer-avatar"><i class="ri-sparkling-2-fill"></i></span>
+        <div class="flex-grow-1 min-width-0">
+            <div class="fw-bold" id="ai-drawer-name">Agent</div>
+            <div class="text-muted small" id="ai-drawer-source"></div>
+        </div>
+        <button type="button" class="ai-icon-btn" id="ai-drawer-close-btn" aria-label="Close"><i class="ri-close-line"></i></button>
+    </div>
+    <div class="ai-drawer-body">
+        <div class="ai-drawer-section">
+            <div class="ai-drawer-label">Description</div>
+            <div class="ai-drawer-value" id="ai-drawer-desc">—</div>
+        </div>
+        <div class="ai-drawer-section">
+            <div class="ai-drawer-label">Assignment</div>
+            <div class="ai-drawer-value" id="ai-drawer-assignment">—</div>
+        </div>
+        <div class="ai-drawer-section">
+            <div class="ai-drawer-label">Agent ID</div>
+            <div class="ai-drawer-value" style="font-size:.78rem; font-family: monospace; word-break: break-all; color: var(--sns-muted);" id="ai-drawer-id">—</div>
+        </div>
+        <p class="text-muted small mt-3 mb-0">Additional details (tools, connected sources, permissions) aren't yet exposed by the agent directory — this panel will show them once available.</p>
+    </div>
+</aside>
+
+<!-- ================= Search overlay ================= -->
+<div class="ai-search-backdrop" id="ai-search-backdrop">
+    <div class="ai-search-panel" id="ai-search-panel">
+        <div class="ai-search-input-row">
+            <i class="ri-search-line"></i>
+            <input type="text" id="ai-search-input" placeholder="Search chats and messages in this agent...">
+            <kbd class="ai-kbd">Esc</kbd>
+        </div>
+        <div class="ai-search-results" id="ai-search-results"></div>
+        <div class="ai-search-hint-row"><span>Searches within the current agent only</span><span>Ctrl+K to open</span></div>
+    </div>
 </div>
 {% endblock %}
 
@@ -278,60 +427,156 @@
     var USER_KEY = {{ (session.user_id or 'anon') | tojson }};
     var AGENTS_URL = {{ url_for('chat.api_agents') | tojson }};
     var SEND_URL = {{ url_for('chat.api_send') | tojson }};
+    var UPLOAD_URL = {{ url_for('chat.api_upload') | tojson }};
     var REAUTH_CHECK_URL = {{ url_for('chat.api_reauth_check') | tojson }};
     var SILENT_REAUTH_URL = {{ url_for('auth.google_auth_silent') | tojson }};
-    var CHAT_BASE_PATH = {{ url_for('chat.dashboard') | tojson }};
     var REQUESTED_AGENT_ID = {{ requested_agent_id | tojson }};
+    var MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+    var STORE_KEY = 'sns_ai_helper_v2_' + USER_KEY;
 
-    var loadingEl = document.getElementById('chat-loading');
-    var pickerEl = document.getElementById('chat-agent-picker');
-    var pickListEl = document.getElementById('agent-pick-list');
-    var noAgentsEl = document.getElementById('chat-no-agents');
-    var loadErrorEl = document.getElementById('chat-load-error');
-    var loadErrorAlertEl = document.getElementById('chat-load-error-alert');
-    var shellEl = document.getElementById('chat-shell');
-    var agentSelectEl = document.getElementById('chat-agent-select');
-    var h1AgentEl = document.getElementById('chat-h1-agent');
+    // =================================================================
+    // Persistent store: { selectedAgentId, sidebarCollapsed,
+    //   selectedConvByAgent: {agentId: convId}, conversations: {agentId: Conversation[]} }
+    // Conversation: {id, title, messages:[{role,content,_attachment?,ts}], pinned, createdAt, updatedAt}
+    // Client-side only (localStorage) — no backend persistence yet.
+    // =================================================================
+    var store = loadStore();
+    function loadStore() {
+        try {
+            var raw = localStorage.getItem(STORE_KEY);
+            var parsed = raw ? JSON.parse(raw) : null;
+            if (parsed && typeof parsed === 'object') {
+                parsed.conversations = parsed.conversations || {};
+                parsed.selectedConvByAgent = parsed.selectedConvByAgent || {};
+                return parsed;
+            }
+        } catch (e) {}
+        return { selectedAgentId: null, sidebarCollapsed: false, selectedConvByAgent: {}, conversations: {} };
+    }
+    function saveStore() {
+        try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (e) {}
+    }
+    function convsFor(agentId) {
+        if (!store.conversations[agentId]) store.conversations[agentId] = [];
+        return store.conversations[agentId];
+    }
+    function uid() { return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 
-    var logEl = document.getElementById('chat-log');
-    var emptyEl = document.getElementById('chat-empty');
-    var emptyTitleEl = document.getElementById('chat-empty-title');
-    var emptyTextEl = document.getElementById('chat-empty-text');
-    var suggestionsEl = document.getElementById('chat-suggestions');
-    var formEl = document.getElementById('chat-form');
-    var inputEl = document.getElementById('chat-input');
-    var sendBtn = document.getElementById('chat-send-btn');
-    var clearBtn = document.getElementById('chat-clear-btn');
+    function createConversation(agentId, title) {
+        var conv = { id: uid(), title: title || 'Untitled Chat', messages: [], pinned: false, createdAt: Date.now(), updatedAt: Date.now() };
+        convsFor(agentId).unshift(conv);
+        store.selectedConvByAgent[agentId] = conv.id;
+        saveStore();
+        return conv;
+    }
+    function getConversation(agentId, convId) {
+        return convsFor(agentId).filter(function (c) { return c.id === convId; })[0] || null;
+    }
+    function deleteConversation(agentId, convId) {
+        store.conversations[agentId] = convsFor(agentId).filter(function (c) { return c.id !== convId; });
+        if (store.selectedConvByAgent[agentId] === convId) delete store.selectedConvByAgent[agentId];
+        saveStore();
+    }
+    function touchConversation(conv) { conv.updatedAt = Date.now(); saveStore(); }
 
-    var STARTER_PROMPTS = ["What were yesterday's sales?", "Show today's revenue summary", "Any low-stock items?"];
+    // --- DOM refs ---
+    var shellEl = document.getElementById('ai-shell');
+    var sidebarEl = document.getElementById('ai-sidebar');
+    var agentListEl = document.getElementById('ai-agent-list');
+    var sidebarToggleBtn = document.getElementById('ai-sidebar-toggle-btn');
+    var sidebarCloseBtn = document.getElementById('ai-sidebar-close-btn');
+
+    var noAgentsEl = document.getElementById('ai-no-agents');
+    var loadErrorEl = document.getElementById('ai-load-error');
+    var loadErrorAlertEl = document.getElementById('ai-load-error-alert');
+    var chatAreaEl = document.getElementById('ai-chat-area');
+
+    var headerIconEl = document.getElementById('ai-header-icon');
+    var headerNameEl = document.getElementById('ai-header-name');
+    var headerDescEl = document.getElementById('ai-header-desc');
+    var headerInfoBtn = document.getElementById('ai-header-info-btn');
+    var headerNewChatBtn = document.getElementById('ai-header-newchat-btn');
+
+    var logEl = document.getElementById('ai-chat-log');
+    var emptyEl = document.getElementById('ai-empty-state');
+    var emptyIconEl = document.getElementById('ai-empty-icon');
+    var emptyTitleEl = document.getElementById('ai-empty-title');
+    var emptyDescEl = document.getElementById('ai-empty-desc');
+    var suggestionGridEl = document.getElementById('ai-suggestion-grid');
+
+    var formEl = document.getElementById('ai-form');
+    var inputEl = document.getElementById('ai-input');
+    var sendBtn = document.getElementById('ai-send-btn');
+    var sendBtnIcon = document.getElementById('ai-send-btn-icon');
+    var attachBtn = document.getElementById('ai-attach-btn');
+    var fileInputEl = document.getElementById('ai-file-input');
+    var attachmentRowEl = document.getElementById('ai-attachment-row');
+    var attachmentChipEl = document.getElementById('ai-attachment-chip');
+
+    var drawerBackdrop = document.getElementById('ai-drawer-backdrop');
+    var drawerEl = document.getElementById('ai-drawer');
+    var drawerCloseBtn = document.getElementById('ai-drawer-close-btn');
+
+    var searchBackdrop = document.getElementById('ai-search-backdrop');
+    var searchOpenBtn = document.getElementById('ai-search-open-btn');
+    var searchInputEl = document.getElementById('ai-search-input');
+    var searchResultsEl = document.getElementById('ai-search-results');
+
+    // Suggestions/quick-actions are derived per-agent from its name +
+    // description (the only capability signal BitBerry's agent directory
+    // actually gives us) — never a single hardcoded set applied to every
+    // agent regardless of what it does. Keyword sets below are domain
+    // *hints*, not claims about what the agent can really do; an agent
+    // matching none of them gets a generic, capability-neutral set instead
+    // of borrowed suggestions from an unrelated domain.
+    var SUGGESTION_DOMAINS = [
+        {
+            keywords: ['sale', 'revenue', 'pos', 'order', 'checkout', 'transaction'],
+            suggestions: ["What were yesterday's sales?", "Show today's revenue summary", "Compare this week vs last week", "Which items sold the most?"],
+        },
+        {
+            keywords: ['inventory', 'stock', 'purchase', 'supplier', 'ingredient'],
+            suggestions: ["Any low-stock items?", "What needs reordering this week?", "Show current inventory levels", "List items nearing expiry"],
+        },
+        {
+            keywords: ['payroll', 'salary', 'wage', 'leave', 'timesheet', 'attendance'],
+            suggestions: ["Show this month's payroll summary", "Who has pending leave requests?", "Any missed clock-ins today?", "Generate a payroll report"],
+        },
+        {
+            keywords: ['server', 'metric', 'cpu', 'gpu', 'uptime', 'infra', 'infrastructure', 'monitor', 'health'],
+            suggestions: ["What's the current server status?", "Any recent errors or downtime?", "Show CPU and memory usage", "Summarize server health for today"],
+        },
+        {
+            keywords: ['staff', 'employee', 'schedule', 'shift'],
+            suggestions: ["Who's scheduled today?", "Show staff performance this week", "Any shift conflicts?", "Summarize attendance trends"],
+        },
+    ];
+    var GENERIC_SUGGESTIONS = ["What can you help me with?", "Summarize what happened today", "Show me a recent overview", "What should I look into?"];
+
+    function suggestionsForAgent(agent) {
+        var haystack = ((agent && agent.name || '') + ' ' + (agent && agent.description || '')).toLowerCase();
+        var domain = SUGGESTION_DOMAINS.filter(function (d) {
+            return d.keywords.some(function (kw) { return haystack.indexOf(kw) !== -1; });
+        })[0];
+        return domain ? domain.suggestions : GENERIC_SUGGESTIONS;
+    }
 
     var agents = [];
-    var currentAgent = null; // {id, name, description, assigned_via}
-    var history = [];
-    var sending = false;
+    var currentAgent = null;
+    var currentConv = null;
+    var pendingAttachment = null;
+    var uploading = false;
 
-    function showOnly(el) {
-        [loadingEl, pickerEl, noAgentsEl, loadErrorEl, shellEl].forEach(function (e) {
-            e.classList.toggle('d-none', e !== el);
-        });
-    }
-
-    function historyKey(agentId) {
-        return 'sns_chat_history_' + USER_KEY + '_' + agentId;
-    }
-
-    function loadHistory(agentId) {
-        try {
-            var raw = localStorage.getItem(historyKey(agentId));
-            var parsed = raw ? JSON.parse(raw) : [];
-            return Array.isArray(parsed) ? parsed : [];
-        } catch (e) { return []; }
-    }
-
-    function saveHistory() {
-        if (!currentAgent) return;
-        try { localStorage.setItem(historyKey(currentAgent.id), JSON.stringify(history)); } catch (e) {}
-    }
+    // Requests are tracked per-conversation (keyed by conv.id), not by a
+    // single global flag. That's what lets the user switch agents/chats
+    // while a reply is still streaming (like ChatGPT) without either
+    // (a) letting them fire a second overlapping request into the SAME
+    // conversation, or (b) having the in-flight reply land in whatever
+    // conversation happens to be on-screen when it finishes. Each entry:
+    // { controller: AbortController, full: string so-far }.
+    var activeSends = {};
+    function isSending(convId) { return !!(convId && activeSends[convId]); }
+    function sending() { return isSending(currentConv && currentConv.id); }
 
     function escapeHtml(s) {
         var d = document.createElement('div');
@@ -339,47 +584,17 @@
         return d.innerHTML;
     }
 
-    // Renders plain text with the light conventions BitBerry's replies
-    // actually use — blank-line paragraphs, "- "/"• "/"▸ " bullet lines, and
-    // **bold** — into real markup, instead of one flat pre-wrapped blob.
-    // Everything is escaped first, so this stays as safe as plain text.
-    function renderMessageHtml(raw) {
-        var text = (raw == null ? '' : String(raw)).replace(/\r\n/g, '\n');
-        var blocks = text.split(/\n{2,}/);
-        var html = blocks.map(function (block) {
-            var lines = block.split('\n').filter(function (l) { return l.trim() !== ''; });
-            var isList = lines.length > 0 && lines.every(function (l) { return /^\s*([-•▸*]|\d+[.)])\s+/.test(l); });
-            if (isList) {
-                var items = lines.map(function (l) {
-                    var item = l.replace(/^\s*([-•▸*]|\d+[.)])\s+/, '');
-                    return '<li>' + inlineFormat(item) + '</li>';
-                }).join('');
-                return '<ul>' + items + '</ul>';
-            }
-            var joined = lines.map(inlineFormat).join('<br>');
-            return '<p>' + joined + '</p>';
-        }).join('');
-        return html || '<p></p>';
+    function agentDisplayName(agent) {
+        var name = (agent && agent.name || '').trim();
+        return name || 'AI Helper';
     }
 
-    function inlineFormat(line) {
-        var escaped = escapeHtml(line);
-        // **bold** only (the one markdown convention BitBerry's replies use).
-        return escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    }
-
-    function timeLabel(date) {
-        try {
-            return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-        } catch (e) { return ''; }
-    }
-
-    // --- Load assigned agents, then resolve which one this page talks to ---
-
+    // =================================================================
+    // Load agents, restore persisted selection
+    // =================================================================
     fetchAgents();
 
     function fetchAgents() {
-        showOnly(loadingEl);
         fetch(AGENTS_URL, { credentials: 'same-origin' })
             .then(function (resp) {
                 if (!resp.ok) {
@@ -391,205 +606,452 @@
             })
             .then(function (data) {
                 agents = data.agents || [];
-                populateAgentSelect();
+                renderSidebarAgents();
                 resolveInitialAgent();
             })
-            .catch(function (err) {
-                showLoadError(err);
-            });
+            .catch(function (err) { showLoadError(err); });
     }
 
     function showLoadError(err) {
         var status = err && err.httpStatus;
         var errCode = err && err.data && err.data.error;
-        var msg;
         if (status === 401 || errCode === 'reauth_required' || errCode === 'invalid_token') {
-            // Same silent-reauth path used for chat sends: refresh the token
-            // invisibly, then retry loading the agent list once.
             attemptSilentReauthThenReload();
             return;
-        } else if (status === 404) {
-            msg = 'Agent unavailable or access denied.';
-        } else if (status === 504) {
-            msg = 'BitBerry took too long to respond. Please try again.';
-        } else {
-            msg = 'Could not load your AI Helpers right now. Please try again in a moment.';
         }
+        var msg = status === 404 ? 'Agent unavailable or access denied.'
+            : status === 504 ? 'BitBerry took too long to respond. Please try again.'
+            : 'Could not load your AI Helpers right now. Please try again in a moment.';
         loadErrorAlertEl.textContent = msg;
-        showOnly(loadErrorEl);
+        showMainState(loadErrorEl);
+        agentListEl.innerHTML = '<div class="text-center text-muted small py-4">Could not load agents.</div>';
     }
 
     var reauthAttempted = false;
     function attemptSilentReauthThenReload() {
         if (reauthAttempted) {
             loadErrorAlertEl.innerHTML = 'Your session has expired. <a href="/login">Sign in again</a>.';
-            showOnly(loadErrorEl);
+            showMainState(loadErrorEl);
             return;
         }
         reauthAttempted = true;
-        var w = window.open(
-            SILENT_REAUTH_URL + '?next=' + encodeURIComponent(window.location.pathname + window.location.search),
-            'sns_silent_reauth',
-            'width=1,height=1,left=-1000,top=-1000'
-        );
+        var w = window.open(SILENT_REAUTH_URL + '?next=' + encodeURIComponent(window.location.pathname + window.location.search),
+            'sns_silent_reauth', 'width=1,height=1,left=-1000,top=-1000');
         var attempts = 0;
         var poll = setInterval(function () {
             attempts++;
-            fetch(REAUTH_CHECK_URL, { credentials: 'same-origin' })
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
-                    if (data.status === 'ok') {
-                        clearInterval(poll);
-                        if (w && !w.closed) w.close();
-                        fetchAgents();
-                    } else if (attempts >= 15) {
-                        clearInterval(poll);
-                        if (w && !w.closed) w.close();
-                        loadErrorAlertEl.innerHTML = 'Your session has expired. <a href="/login">Sign in again</a>.';
-                        showOnly(loadErrorEl);
-                    }
-                })
-                .catch(function () {});
+            fetch(REAUTH_CHECK_URL, { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (data) {
+                if (data.status === 'ok') {
+                    clearInterval(poll); if (w && !w.closed) w.close();
+                    fetchAgents();
+                } else if (attempts >= 15) {
+                    clearInterval(poll); if (w && !w.closed) w.close();
+                    loadErrorAlertEl.innerHTML = 'Your session has expired. <a href="/login">Sign in again</a>.';
+                    showMainState(loadErrorEl);
+                }
+            }).catch(function () {});
         }, 1000);
     }
 
-    // BitBerry's own agent name is shown wherever a specific agent is being
-    // identified (picker, dropdown, H1 qualifier), but the app never relies
-    // on it alone — "AI Helper" (in the nav, page title, and H1 base text)
-    // is the stable, always-present label, and this falls back to it if
-    // BitBerry ever sends a blank/whitespace-only name.
-    function agentDisplayName(agent) {
-        var name = (agent && agent.name || '').trim();
-        return name || 'AI Helper';
+    function showMainState(el) {
+        [noAgentsEl, loadErrorEl, chatAreaEl].forEach(function (e) { e.classList.toggle('d-none', e !== el); });
     }
-
-    function populateAgentSelect() {
-        agentSelectEl.innerHTML = '';
-        agents.forEach(function (a) {
-            var opt = document.createElement('option');
-            opt.value = a.id;
-            opt.textContent = agentDisplayName(a);
-            agentSelectEl.appendChild(opt);
-        });
-        agentSelectEl.classList.toggle('d-none', agents.length < 2);
-    }
-
-    agentSelectEl.addEventListener('change', function () {
-        var chosen = agents.filter(function (a) { return a.id === agentSelectEl.value; })[0];
-        if (chosen) selectAgent(chosen, true);
-    });
 
     function resolveInitialAgent() {
-        if (!agents.length) {
-            showOnly(noAgentsEl);
+        if (!agents.length) { showMainState(noAgentsEl); return; }
+        var match = null;
+        if (REQUESTED_AGENT_ID) match = agents.filter(function (a) { return a.id === REQUESTED_AGENT_ID; })[0];
+        if (!match && store.selectedAgentId) match = agents.filter(function (a) { return a.id === store.selectedAgentId; })[0];
+        if (!match) match = agents[0];
+        selectAgent(match);
+    }
+
+    // =================================================================
+    // Sidebar: agent sections + conversations
+    // =================================================================
+    var expandedAgents = {}; // agentId -> bool, session-only (always expand the active one)
+
+    function renderSidebarAgents() {
+        agentListEl.innerHTML = '';
+        agents.forEach(function (agent) {
+            agentListEl.appendChild(buildAgentSection(agent));
+        });
+    }
+
+    function buildAgentSection(agent) {
+        var isActive = currentAgent && currentAgent.id === agent.id;
+        if (isActive) expandedAgents[agent.id] = true;
+        var expanded = !!expandedAgents[agent.id];
+
+        var section = document.createElement('div');
+        section.className = 'ai-agent-section' + (isActive ? ' active' : '') + (expanded ? ' expanded' : '');
+        section.dataset.agentId = agent.id;
+
+        var head = document.createElement('div');
+        head.className = 'ai-agent-head';
+        head.innerHTML =
+            '<span class="ai-agent-avatar"><i class="ri-sparkling-2-fill"></i></span>' +
+            '<span class="ai-agent-name">' + escapeHtml(agentDisplayName(agent)) + '</span>' +
+            '<i class="ri-arrow-right-s-line ai-agent-chevron"></i>';
+        head.addEventListener('click', function () {
+            if (currentAgent && currentAgent.id === agent.id) {
+                expandedAgents[agent.id] = !expandedAgents[agent.id];
+                section.classList.toggle('expanded', expandedAgents[agent.id]);
+            } else {
+                selectAgent(agent);
+            }
+        });
+        section.appendChild(head);
+
+        var convList = document.createElement('div');
+        convList.className = 'ai-conv-list';
+        renderConvList(convList, agent);
+        section.appendChild(convList);
+
+        return section;
+    }
+
+    function renderConvList(container, agent) {
+        container.innerHTML = '';
+
+        var newBtn = document.createElement('button');
+        newBtn.type = 'button';
+        newBtn.className = 'ai-new-chat-btn';
+        newBtn.innerHTML = '<i class="ri-add-line"></i> New Chat';
+        newBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (!(currentAgent && currentAgent.id === agent.id)) selectAgent(agent);
+            var conv = createConversation(agent.id);
+            openConversation(agent, conv);
+            refreshSidebarForCurrentAgent();
+        });
+        container.appendChild(newBtn);
+
+        var convs = convsFor(agent.id).slice().sort(function (a, b) {
+            if (!!b.pinned !== !!a.pinned) return b.pinned ? 1 : -1;
+            return b.updatedAt - a.updatedAt;
+        });
+
+        if (!convs.length) {
+            var emptyMsg = document.createElement('div');
+            emptyMsg.className = 'ai-empty-convs';
+            emptyMsg.textContent = 'No conversations yet.';
+            container.appendChild(emptyMsg);
             return;
         }
-        var match = REQUESTED_AGENT_ID
-            ? agents.filter(function (a) { return a.id === REQUESTED_AGENT_ID; })[0]
-            : null;
-        if (match) {
-            selectAgent(match, false);
-        } else if (agents.length === 1) {
-            selectAgent(agents[0], true);
-        } else {
-            renderAgentPicker();
-        }
-    }
 
-    function renderAgentPicker() {
-        pickListEl.innerHTML = '';
-        agents.forEach(function (a) {
-            var item = document.createElement('div');
-            item.className = 'agent-pick-item';
-            item.innerHTML =
-                '<div class="d-flex align-items-center gap-3">' +
-                    '<span class="agent-pick-icon"><i class="ri-robot-2-line"></i></span>' +
-                    '<div><div class="fw-semibold">' + escapeHtml(agentDisplayName(a)) + '</div>' +
-                    '<div class="text-muted small">' + escapeHtml(a.description || '') + '</div></div>' +
-                '</div>' +
-                '<span class="btn btn-primary btn-sm">Open Chat</span>';
-            item.addEventListener('click', function () { selectAgent(a, true); });
-            pickListEl.appendChild(item);
+        var groups = groupConversationsByDate(convs);
+        groups.forEach(function (group) {
+            if (!group.items.length) return;
+            var label = document.createElement('div');
+            label.className = 'ai-conv-group-label';
+            label.textContent = group.label;
+            container.appendChild(label);
+            group.items.forEach(function (conv) {
+                container.appendChild(buildConvItem(agent, conv));
+            });
         });
-        showOnly(pickerEl);
     }
 
-    function selectAgent(agent, updateUrl) {
-        currentAgent = agent;
-        history = loadHistory(agent.id);
-        if (updateUrl) {
-            var url = CHAT_BASE_PATH + '?agent=' + encodeURIComponent(agent.id);
-            window.history.replaceState({}, '', url);
+    function groupConversationsByDate(convs) {
+        var now = Date.now();
+        var day = 24 * 60 * 60 * 1000;
+        var startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+        var todayTs = startOfToday.getTime();
+        var groups = {
+            pinned: { label: 'Pinned', items: [] },
+            today: { label: 'Today', items: [] },
+            yesterday: { label: 'Yesterday', items: [] },
+            week: { label: 'Last 7 Days', items: [] },
+            month: { label: 'Last 30 Days', items: [] },
+            older: { label: 'Older', items: [] },
+        };
+        convs.forEach(function (c) {
+            if (c.pinned) { groups.pinned.items.push(c); return; }
+            var age = now - c.updatedAt;
+            if (c.updatedAt >= todayTs) groups.today.items.push(c);
+            else if (c.updatedAt >= todayTs - day) groups.yesterday.items.push(c);
+            else if (age <= 7 * day) groups.week.items.push(c);
+            else if (age <= 30 * day) groups.month.items.push(c);
+            else groups.older.items.push(c);
+        });
+        return [groups.pinned, groups.today, groups.yesterday, groups.week, groups.month, groups.older];
+    }
+
+    function buildConvItem(agent, conv) {
+        var isActive = currentConv && currentConv.id === conv.id && currentAgent && currentAgent.id === agent.id;
+        var item = document.createElement('div');
+        item.className = 'ai-conv-item' + (isActive ? ' active' : '');
+
+        var lastMsg = conv.messages.length ? conv.messages[conv.messages.length - 1] : null;
+        var preview = lastMsg ? (lastMsg.content || '').replace(/\s+/g, ' ').trim().slice(0, 60) : 'No messages yet';
+        // A reply can still be streaming for a conversation the user has
+        // navigated away from (see activeSends) — surface that in the
+        // sidebar rather than leaving it silent.
+        var genBadge = isSending(conv.id) ? '<span class="ai-conv-generating" title="Generating..."><span class="spinner-border spinner-border-sm"></span></span>' : '';
+
+        item.innerHTML =
+            '<i class="ri-chat-3-line ai-conv-icon"></i>' +
+            '<div class="ai-conv-body">' +
+                '<div class="ai-conv-title">' + (conv.pinned ? '<i class="ri-pushpin-fill ai-pin-icon"></i>' : '') + '<span class="ai-conv-title-text">' + escapeHtml(conv.title) + '</span></div>' +
+                '<div class="ai-conv-preview">' + escapeHtml(preview) + '</div>' +
+            '</div>' +
+            genBadge +
+            '<div class="ai-conv-actions">' +
+                '<button type="button" class="ai-conv-pin" title="' + (conv.pinned ? 'Unpin' : 'Pin') + '"><i class="ri-pushpin-line"></i></button>' +
+                '<button type="button" class="ai-conv-rename" title="Rename"><i class="ri-edit-line"></i></button>' +
+                '<button type="button" class="ai-conv-delete danger" title="Delete"><i class="ri-delete-bin-line"></i></button>' +
+            '</div>';
+
+        item.addEventListener('click', function () { openConversation(agent, conv); });
+
+        item.querySelector('.ai-conv-pin').addEventListener('click', function (e) {
+            e.stopPropagation();
+            conv.pinned = !conv.pinned;
+            touchConversation(conv);
+            refreshSidebarForCurrentAgent();
+        });
+
+        item.querySelector('.ai-conv-rename').addEventListener('click', function (e) {
+            e.stopPropagation();
+            startRenaming(item, conv);
+        });
+
+        item.querySelector('.ai-conv-delete').addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (!confirm('Delete "' + conv.title + '"? This cannot be undone.')) return;
+            var wasActive = isActive;
+            deleteConversation(agent.id, conv.id);
+            refreshSidebarForCurrentAgent();
+            if (wasActive) {
+                var remaining = convsFor(agent.id);
+                if (remaining.length) openConversation(agent, remaining[0]);
+                else { var fresh = createConversation(agent.id); openConversation(agent, fresh); refreshSidebarForCurrentAgent(); }
+            }
+        });
+
+        return item;
+    }
+
+    function startRenaming(item, conv) {
+        var titleEl = item.querySelector('.ai-conv-title');
+        var oldHtml = titleEl.innerHTML;
+        titleEl.innerHTML = '';
+        var input = document.createElement('input');
+        input.type = 'text';
+        input.value = conv.title;
+        titleEl.appendChild(input);
+        input.focus();
+        input.select();
+        function commit() {
+            var val = input.value.trim();
+            if (val) { conv.title = val; touchConversation(conv); }
+            refreshSidebarForCurrentAgent();
+            if (currentConv && currentConv.id === conv.id) headerNameEl.textContent = agentDisplayName(currentAgent);
         }
-        var displayName = agentDisplayName(agent);
-        agentSelectEl.value = agent.id;
-        // "AI Helper" (the H1's base text) never changes; this just adds a
-        // qualifier once we know which specific agent is active, so the
-        // heading is never solely dependent on BitBerry's naming.
-        h1AgentEl.textContent = displayName === 'AI Helper' ? '' : ' — ' + displayName;
-        emptyTitleEl.textContent = 'Chat with ' + displayName;
-        emptyTextEl.textContent = agent.description || 'Ask a question to get started.';
-        renderSuggestions();
-        renderAll();
-        showOnly(shellEl);
-        clearBtn.classList.remove('d-none');
-        if (agents.length > 1) agentSelectEl.classList.remove('d-none');
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); commit(); }
+            if (e.key === 'Escape') { titleEl.innerHTML = oldHtml; }
+        });
+        input.addEventListener('blur', commit);
     }
 
-    function renderSuggestions() {
-        suggestionsEl.innerHTML = '';
-        STARTER_PROMPTS.forEach(function (p) {
+    function refreshSidebarForCurrentAgent() {
+        agents.forEach(function (agent) {
+            var section = agentListEl.querySelector('.ai-agent-section[data-agent-id="' + cssEscape(agent.id) + '"]');
+            if (!section) return;
+            var convList = section.querySelector('.ai-conv-list');
+            renderConvList(convList, agent);
+        });
+    }
+
+    function cssEscape(s) {
+        return window.CSS && CSS.escape ? CSS.escape(s) : s.replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+    }
+
+    // =================================================================
+    // Agent selection + conversation opening
+    // =================================================================
+    function selectAgent(agent) {
+        renderSidebarAgents();
+
+        var convs = convsFor(agent.id);
+        var wantedId = store.selectedConvByAgent[agent.id];
+        var conv = (wantedId && getConversation(agent.id, wantedId)) || convs[0] || createConversation(agent.id);
+        openConversation(agent, conv);
+        refreshSidebarForCurrentAgent();
+        showMainState(chatAreaEl);
+
+        // Close the mobile drawer sidebar after picking an agent.
+        if (window.innerWidth < 992) closeSidebarMobile();
+    }
+
+    // Single choke point for "what agent/conversation is on screen" — every
+    // navigation path (agent click, New Chat, conversation click, search
+    // result, header New Chat) goes through this, so the header/empty-state
+    // text can never be left showing a previous agent's identity. Never
+    // update currentAgent/currentConv or headerNameEl/headerDescEl anywhere
+    // else — always route through here instead.
+    function openConversation(agent, conv) {
+        currentAgent = agent;
+        currentConv = conv;
+        store.selectedAgentId = agent.id;
+        store.selectedConvByAgent[agent.id] = conv.id;
+        saveStore();
+
+        headerNameEl.textContent = agentDisplayName(agent);
+        headerDescEl.textContent = agent.description || '';
+        emptyDescEl.textContent = agent.description || 'Ask a question to get started.';
+
+        renderMessages();
+        refreshComposerState();
+        refreshSidebarForCurrentAgent();
+        if (window.innerWidth < 992) closeSidebarMobile();
+    }
+
+    function closeSidebarMobile() { shellEl.classList.add('sidebar-collapsed'); }
+    function openSidebarMobile() { shellEl.classList.remove('sidebar-collapsed'); }
+
+    // =================================================================
+    // Sidebar collapse (desktop) — persisted
+    // =================================================================
+    if (store.sidebarCollapsed) shellEl.classList.add('sidebar-collapsed');
+    function toggleSidebar() {
+        shellEl.classList.toggle('sidebar-collapsed');
+        store.sidebarCollapsed = shellEl.classList.contains('sidebar-collapsed');
+        saveStore();
+    }
+    sidebarToggleBtn.addEventListener('click', toggleSidebar);
+    sidebarCloseBtn.addEventListener('click', closeSidebarMobile);
+
+    // =================================================================
+    // Message rendering
+    // =================================================================
+    function renderMessageHtml(raw) {
+        var text = (raw == null ? '' : String(raw)).replace(/\r\n/g, '\n');
+        var blocks = text.split(/\n{2,}/);
+        var html = blocks.map(function (block) {
+            var lines = block.split('\n').filter(function (l) { return l.trim() !== ''; });
+            var isList = lines.length > 0 && lines.every(function (l) { return /^\s*([-•▸*]|\d+[.)])\s+/.test(l); });
+            if (isList) {
+                var items = lines.map(function (l) {
+                    return '<li>' + inlineFormat(l.replace(/^\s*([-•▸*]|\d+[.)])\s+/, '')) + '</li>';
+                }).join('');
+                return '<ul>' + items + '</ul>';
+            }
+            return '<p>' + lines.map(inlineFormat).join('<br>') + '</p>';
+        }).join('');
+        return html || '<p></p>';
+    }
+    function inlineFormat(line) {
+        return escapeHtml(line).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    }
+    function timeLabel(ts) {
+        try { return new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); } catch (e) { return ''; }
+    }
+
+    // The agent's own replies end with a bulleted list of suggested next
+    // questions (BitBerry's own UI turns that trailing list into clickable
+    // follow-up chips under the reply — see the AI Helper reference screens).
+    // We mirror that here instead of a static, always-on quick-action bar:
+    // pull the LAST bulleted block out of the reply text and offer those
+    // lines as chips, scoped to that one message only.
+    function followUpsFromReply(raw) {
+        var text = (raw == null ? '' : String(raw)).replace(/\r\n/g, '\n').trim();
+        if (!text) return [];
+        var blocks = text.split(/\n{2,}/);
+        var lastBlock = blocks[blocks.length - 1];
+        var lines = lastBlock.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
+        var isList = lines.length > 0 && lines.every(function (l) { return /^([-•▸*]|\d+[.)])\s+/.test(l); });
+        if (!isList) return [];
+        return lines.map(function (l) { return l.replace(/^([-•▸*]|\d+[.)])\s+/, '').trim(); })
+            .filter(function (l) { return l.length > 0 && l.length <= 80; })
+            .slice(0, 6);
+    }
+
+    function clearFollowUpChips() {
+        logEl.querySelectorAll('.ai-followup-chips').forEach(function (el) { el.remove(); });
+    }
+
+    function renderFollowUpChips(col, content) {
+        var followUps = followUpsFromReply(content);
+        if (!followUps.length) return;
+        var wrap = document.createElement('div');
+        wrap.className = 'ai-followup-chips';
+        followUps.forEach(function (label) {
             var chip = document.createElement('button');
             chip.type = 'button';
-            chip.className = 'chat-suggestion-chip';
-            chip.textContent = p;
-            chip.addEventListener('click', function () { submitMessage(p); });
-            suggestionsEl.appendChild(chip);
+            chip.className = 'ai-chip';
+            chip.textContent = label;
+            chip.addEventListener('click', function () { submitMessage(label); });
+            wrap.appendChild(chip);
+        });
+        col.appendChild(wrap);
+    }
+
+    function renderMessages() {
+        logEl.querySelectorAll('.ai-row').forEach(function (el) { el.remove(); });
+        var msgs = currentConv ? currentConv.messages : [];
+        var convIsSending = isSending(currentConv && currentConv.id);
+        emptyEl.style.display = (msgs.length || convIsSending) ? 'none' : '';
+        if (!msgs.length && !convIsSending) { renderEmptyState(); return; }
+        var lastAssistantIdx = -1;
+        msgs.forEach(function (m, i) { if (m.role === 'assistant') lastAssistantIdx = i; });
+        msgs.forEach(function (m, i) {
+            var showFollowUps = m.role === 'assistant' && i === lastAssistantIdx && !convIsSending;
+            appendBubble(m.role, m.content, m._attachment, m.ts, showFollowUps);
+        });
+        logEl.scrollTop = logEl.scrollHeight;
+        // Reopening a conversation that has a reply still streaming in the
+        // background: reattach its live partial content instead of showing
+        // a blank pane (the network request never stopped, we just weren't
+        // looking at it).
+        if (convIsSending) {
+            var active = activeSends[currentConv.id];
+            if (active.full) {
+                var ts = active.ts || Date.now();
+                active.bubbleEl = appendBubble('assistant', active.full, null, ts);
+            } else {
+                appendTyping();
+            }
+        }
+    }
+
+    function renderEmptyState() {
+        var displayName = agentDisplayName(currentAgent);
+        emptyTitleEl.textContent = 'How can I help you today?';
+        suggestionGridEl.innerHTML = '';
+        suggestionsForAgent(currentAgent).forEach(function (s) {
+            var card = document.createElement('div');
+            card.className = 'ai-suggestion-card';
+            card.textContent = s;
+            card.addEventListener('click', function () { submitMessage(s); });
+            suggestionGridEl.appendChild(card);
         });
     }
 
-    // --- Conversation UI ---
-
-    function renderAll() {
-        logEl.querySelectorAll('.chat-row').forEach(function (el) { el.remove(); });
-        emptyEl.style.display = history.length ? 'none' : '';
-        history.forEach(function (msg) { appendBubble(msg.role, msg.content); });
-        logEl.scrollTop = logEl.scrollHeight;
-    }
-
-    function appendBubble(role, content) {
+    function appendBubble(role, content, attachment, ts, showFollowUps) {
         emptyEl.style.display = 'none';
         var row = document.createElement('div');
-        row.className = 'chat-row ' + role;
-
+        row.className = 'ai-row ' + role;
         var avatar = document.createElement('div');
-        avatar.className = 'chat-avatar';
-        avatar.innerHTML = role === 'user'
-            ? '<i class="ri-user-3-fill"></i>'
-            : '<i class="ri-sparkling-2-fill"></i>';
-
+        avatar.className = 'ai-avatar';
+        avatar.innerHTML = role === 'user' ? '<i class="ri-user-3-fill"></i>' : '<i class="ri-sparkling-2-fill"></i>';
         var col = document.createElement('div');
-        col.className = 'chat-bubble-col';
-
+        col.className = 'ai-bubble-col';
         var bubble = document.createElement('div');
-        bubble.className = 'chat-bubble';
-        bubble.innerHTML = renderMessageHtml(content);
+        bubble.className = 'ai-bubble';
+        var attachmentHtml = attachment ? '<div class="ai-msg-attachment"><i class="ri-file-3-line"></i>' + escapeHtml(attachment.filename) + '</div>' : '';
+        bubble.innerHTML = attachmentHtml + renderMessageHtml(content);
         col.appendChild(bubble);
-
         if (role === 'user' || role === 'assistant') {
             var meta = document.createElement('div');
-            meta.className = 'chat-meta';
-            meta.textContent = timeLabel(new Date());
+            meta.className = 'ai-meta';
+            meta.textContent = timeLabel(ts || Date.now());
             col.appendChild(meta);
         }
-
-        if (role === 'user') {
-            row.appendChild(col);
-            row.appendChild(avatar);
-        } else {
-            row.appendChild(avatar);
-            row.appendChild(col);
-        }
+        if (role === 'assistant' && showFollowUps) renderFollowUpChips(col, content);
+        if (role === 'user') { row.appendChild(col); row.appendChild(avatar); } else { row.appendChild(avatar); row.appendChild(col); }
         logEl.appendChild(row);
         logEl.scrollTop = logEl.scrollHeight;
         return bubble;
@@ -598,12 +1060,12 @@
     function appendNotice(kind, text) {
         emptyEl.style.display = 'none';
         var row = document.createElement('div');
-        row.className = 'chat-row ' + kind;
+        row.className = 'ai-row ' + kind;
         var col = document.createElement('div');
-        col.className = 'chat-bubble-col';
+        col.className = 'ai-bubble-col';
         col.style.maxWidth = '92%';
         var bubble = document.createElement('div');
-        bubble.className = 'chat-bubble';
+        bubble.className = 'ai-bubble';
         bubble.innerHTML = renderMessageHtml(text);
         col.appendChild(bubble);
         row.appendChild(col);
@@ -614,179 +1076,295 @@
 
     function appendTyping() {
         var row = document.createElement('div');
-        row.className = 'chat-row assistant';
-        row.id = 'chat-typing-indicator';
-        row.innerHTML =
-            '<div class="chat-avatar"><i class="ri-sparkling-2-fill"></i></div>' +
-            '<div class="chat-bubble-col"><div class="chat-bubble chat-typing-dots"><span></span><span></span><span></span></div></div>';
+        row.className = 'ai-row assistant';
+        row.id = 'ai-typing-indicator';
+        row.innerHTML = '<div class="ai-avatar"><i class="ri-sparkling-2-fill"></i></div><div class="ai-bubble-col"><div class="ai-bubble ai-typing-dots"><span></span><span></span><span></span></div></div>';
         logEl.appendChild(row);
         logEl.scrollTop = logEl.scrollHeight;
     }
-
     function removeTyping() {
-        var el = document.getElementById('chat-typing-indicator');
+        var el = document.getElementById('ai-typing-indicator');
         if (el) el.remove();
     }
 
+    // =================================================================
+    // Composer
+    // =================================================================
     function autoGrow() {
         inputEl.style.height = 'auto';
         inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + 'px';
     }
     inputEl.addEventListener('input', autoGrow);
-
     inputEl.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            formEl.requestSubmit();
-        }
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); formEl.requestSubmit(); }
     });
 
-    clearBtn.addEventListener('click', function () {
-        if (!history.length) return;
-        if (!confirm('Clear this conversation? This cannot be undone.')) return;
-        history = [];
-        saveHistory();
-        renderAll();
+    attachBtn.addEventListener('click', function () { if (!uploading) fileInputEl.click(); });
+    fileInputEl.addEventListener('change', function () {
+        var file = fileInputEl.files && fileInputEl.files[0];
+        fileInputEl.value = '';
+        if (!file) return;
+        if (file.size > MAX_UPLOAD_BYTES) { showAttachmentError(file.name, 'File is larger than 15MB.'); return; }
+        uploadFile(file);
     });
+
+    function showAttachmentChip(html, isError) {
+        attachmentChipEl.className = 'ai-attachment-chip' + (isError ? ' is-error' : '');
+        attachmentChipEl.innerHTML = html;
+        attachmentRowEl.classList.remove('d-none');
+    }
+    function hideAttachmentChip() { attachmentRowEl.classList.add('d-none'); attachmentChipEl.innerHTML = ''; }
+    function showAttachmentError(filename, message) {
+        pendingAttachment = null;
+        showAttachmentChip('<i class="ri-error-warning-line"></i><span class="filename">' + escapeHtml(filename) + ' — ' + escapeHtml(message) + '</span><button type="button" class="remove-btn" aria-label="Dismiss"><i class="ri-close-line"></i></button>');
+        attachmentChipEl.querySelector('.remove-btn').addEventListener('click', hideAttachmentChip);
+    }
+    function uploadFile(file) {
+        uploading = true; attachBtn.disabled = true;
+        showAttachmentChip('<div class="spinner-border" role="status" aria-hidden="true"></div><span class="filename">Uploading ' + escapeHtml(file.name) + '...</span>');
+        var formData = new FormData();
+        formData.append('file', file);
+        fetch(UPLOAD_URL, { method: 'POST', credentials: 'same-origin', body: formData })
+            .then(function (resp) {
+                if (resp.status === 401) throw { httpStatus: 401 };
+                return resp.json().then(function (data) { if (!resp.ok) throw { httpStatus: resp.status, data: data }; return data; });
+            })
+            .then(function (data) {
+                pendingAttachment = { id: data.id, filename: data.filename || file.name, content_type: data.content_type || file.type || 'application/octet-stream' };
+                showAttachmentChip('<i class="ri-file-3-line"></i><span class="filename">' + escapeHtml(pendingAttachment.filename) + '</span><button type="button" class="remove-btn" aria-label="Remove attachment"><i class="ri-close-line"></i></button>');
+                attachmentChipEl.querySelector('.remove-btn').addEventListener('click', function () { pendingAttachment = null; hideAttachmentChip(); });
+            })
+            .catch(function (err) {
+                var status = err && err.httpStatus;
+                var msg = 'Upload failed. Please try again.';
+                if (status === 401) msg = 'Your session expired — try attaching again after signing in.';
+                else if (status === 400 && err.data && err.data.error === 'file_too_large') msg = err.data.message;
+                else if (status === 404) msg = 'Upload is unavailable right now.';
+                else if (status >= 500 || status === 502) msg = 'BitBerry could not accept the file right now.';
+                showAttachmentError(file.name, msg);
+            })
+            .finally(function () { uploading = false; attachBtn.disabled = false; });
+    }
 
     formEl.addEventListener('submit', function (e) {
         e.preventDefault();
+        if (sending()) { stopSending(); return; }
         var text = inputEl.value.trim();
-        if (!text) return;
-        inputEl.value = '';
-        autoGrow();
+        if (!text && !pendingAttachment) return;
+        if (!text) text = 'Please review the attached file.';
+        inputEl.value = ''; autoGrow();
         submitMessage(text);
     });
 
     function submitMessage(text) {
-        if (sending || !currentAgent) return;
-        history.push({ role: 'user', content: text });
-        saveHistory();
-        appendBubble('user', text);
-        send();
+        if (!currentAgent || uploading) return;
+        if (!currentConv) { var c = createConversation(currentAgent.id); openConversation(currentAgent, c); }
+        // Guard is against THIS conversation already having a request in
+        // flight, not a global flag — switching to another agent/chat and
+        // sending there is allowed and must not be blocked by (or block)
+        // this one. See activeSends.
+        if (isSending(currentConv.id)) return;
+        var agent = currentAgent, conv = currentConv;
+        var attachment = pendingAttachment;
+        pendingAttachment = null;
+        hideAttachmentChip();
+
+        var msg = { role: 'user', content: text, _attachment: attachment, ts: Date.now() };
+        conv.messages.push(msg);
+        // First user message in a fresh "Untitled Chat" becomes its title —
+        // mirrors how ChatGPT/Copilot name a new thread from its opening line.
+        if (conv.title === 'Untitled Chat') conv.title = text.slice(0, 48) + (text.length > 48 ? '…' : '');
+        touchConversation(conv);
+        if (conv === currentConv) appendBubble('user', text, attachment, msg.ts);
+        refreshSidebarForCurrentAgent();
+        send(agent, conv, false, attachment);
     }
 
-    function setSending(isSending) {
-        sending = isSending;
-        sendBtn.disabled = isSending;
-        inputEl.disabled = isSending;
+    // Reflects the ON-SCREEN conversation's send state (composer only ever
+    // needs to reflect what's currently open — background sends for other
+    // conversations are tracked in activeSends and surfaced via the sidebar/
+    // renderMessages instead).
+    function refreshComposerState() {
+        var isSendingHere = sending();
+        inputEl.disabled = isSendingHere;
+        sendBtn.disabled = false;
+        sendBtn.classList.toggle('is-stop', isSendingHere);
+        sendBtn.setAttribute('aria-label', isSendingHere ? 'Stop response' : 'Send');
+        sendBtn.setAttribute('title', isSendingHere ? 'Stop response' : 'Send');
+        sendBtnIcon.className = isSendingHere ? 'ri-stop-fill' : 'ri-send-plane-2-fill';
     }
 
-    function send(isRetryAfterReauth) {
-        setSending(true);
-        appendTyping();
+    function stopSending() {
+        var active = currentConv && activeSends[currentConv.id];
+        if (active) active.controller.abort();
+    }
 
+    function send(agent, conv, isRetryAfterReauth, attachment) {
+        var t = {};
+        logTiming(t, 'request_start');
+        activeSends[conv.id] = { controller: null, full: '', ts: null };
+        if (conv === currentConv) { appendTyping(); refreshComposerState(); }
+        var files = attachment ? [{ id: attachment.id, filename: attachment.filename, content_type: attachment.content_type }] : undefined;
+        var wireMessages = conv.messages.map(function (m) { return { role: m.role, content: m.content }; });
+
+        var controller = new AbortController();
+        activeSends[conv.id].controller = controller;
+
+        logTiming(t, 'fetch_start');
         fetch(SEND_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
-            body: JSON.stringify({ agent: currentAgent.id, messages: history, stream: true })
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin',
+            body: JSON.stringify({ agent: agent.id, messages: wireMessages, files: files, stream: true }),
+            signal: controller.signal
         }).then(function (resp) {
+            logTiming(t, 'response_headers');
+            // Correlates this client-side timing/error with the backend's
+            // 'rid=' diagnostics log line for the same request (see
+            // routes/chat.py api_send) — the single most useful thing to
+            // hand over when asking "was this BitBerry or the proxy?".
+            t.rid = resp.headers.get('X-Request-Id') || null;
             if (resp.status === 401 && !isRetryAfterReauth) {
-                // Our own session's Google token is missing/expired (not
-                // BitBerry rejecting a valid one) — silently refresh it via
-                // a prompt=none round trip and retry once automatically.
-                removeTyping();
-                setSending(false);
-                silentReauthThenRetrySend();
+                if (conv === currentConv) { removeTyping(); }
+                delete activeSends[conv.id];
+                if (conv === currentConv) refreshComposerState();
+                silentReauthThenRetrySend(agent, conv, attachment);
                 return null;
             }
-            if (!resp.ok) {
-                return resp.json().catch(function () { return {}; }).then(function (data) {
-                    throw { httpStatus: resp.status, data: data };
-                });
-            }
+            if (!resp.ok) return resp.json().catch(function () { return {}; }).then(function (data) { throw { httpStatus: resp.status, data: data }; });
             return resp;
         }).then(function (resp) {
-            if (!resp) return; // handled above (reauth path)
+            if (!resp) return;
             var contentType = resp.headers.get('Content-Type') || '';
-            if (contentType.indexOf('text/event-stream') !== -1) {
-                return streamResponse(resp);
-            }
+            if (contentType.indexOf('text/event-stream') !== -1) return streamResponse(resp, controller.signal, conv, t);
             return resp.json().then(function (data) {
-                removeTyping();
+                logTiming(t, 'body_complete');
+                if (conv === currentConv) removeTyping();
+                // Always surface a textual reply, even in the (unexpected)
+                // case BitBerry's payload has no content — never fall
+                // through to showing only follow-up/UI chips with nothing
+                // to read (issue: UI component instead of a response).
                 var content = data.content || '';
-                appendBubble('assistant', content);
-                history.push({ role: 'assistant', content: content });
-                saveHistory();
+                var ts = Date.now();
+                if (!content.trim()) {
+                    console.warn('[ai-helper] empty response body rid=' + t.rid);
+                    if (conv === currentConv) appendNotice('error', 'The AI Helper did not return a response. Please try again.');
+                } else {
+                    if (conv === currentConv) appendBubble('assistant', content, null, ts, true);
+                    conv.messages.push({ role: 'assistant', content: content, ts: ts });
+                    touchConversation(conv);
+                    refreshSidebarForCurrentAgent();
+                }
+                logTiming(t, 'render_complete');
             });
         }).catch(function (err) {
-            removeTyping();
-            handleSendError(err);
+            if (conv === currentConv) removeTyping();
+            if (err && err.name === 'AbortError') return;
+            console.error('[ai-helper] send failed rid=' + t.rid, err);
+            if (conv === currentConv) handleSendError(err);
         }).finally(function () {
-            setSending(false);
+            delete activeSends[conv.id];
+            if (conv === currentConv) refreshComposerState();
+            logSummary(t);
         });
+    }
+
+    // ---- Latency instrumentation (Issue 4) -----------------------------
+    // Marks the client-observable milestones of a send: when the request
+    // left the browser, when headers/first byte came back, when the first
+    // streamed token rendered, and when the whole thing finished. Logged
+    // to the console (and easy to wire to a beacon/analytics endpoint)
+    // rather than the UI, since it's a diagnostic, not user-facing.
+    var TIMING_ENABLED = true;
+    function logTiming(t, label) { if (TIMING_ENABLED) t[label] = performance.now(); }
+    function logSummary(t) {
+        if (!TIMING_ENABLED || !t.request_start) return;
+        var rel = function (k) { return t[k] != null ? Math.round(t[k] - t.request_start) + 'ms' : '—'; };
+        console.debug('[ai-helper timing] rid=' + (t.rid || '—') +
+            ' fetch_start=' + rel('fetch_start') +
+            ' response_headers=' + rel('response_headers') +
+            ' first_token=' + rel('first_token') +
+            ' body_complete=' + rel('body_complete') +
+            ' render_complete=' + rel('render_complete'));
     }
 
     function handleSendError(err) {
         var status = err && err.httpStatus;
         var errCode = err && err.data && err.data.error;
-        if (status === 401) {
-            appendNotice('error', 'Invalid or expired token. Please sign in again.');
-        } else if (status === 404) {
-            appendNotice('error', 'AI Helper unavailable, or you do not have access to it. Contact an administrator.');
-        } else if (status === 504 || errCode === 'timeout') {
-            appendNotice('error', 'The AI Helper took too long to respond. Please try again.');
-        } else if (status >= 500 || status === 502) {
-            appendNotice('error', 'The AI Helper is temporarily unavailable. Please try again in a moment.');
-        } else if (errCode === 'bad_request') {
-            appendNotice('error', 'That message could not be sent.');
-        } else {
-            appendNotice('error', 'Something went wrong reaching the AI Helper. Please try again.');
-        }
+        if (status === 401) appendNotice('error', 'Invalid or expired token. Please sign in again.');
+        else if (status === 404) appendNotice('error', 'AI Helper unavailable, or you do not have access to it. Contact an administrator.');
+        else if (status === 504 || errCode === 'timeout') appendNotice('error', 'The AI Helper took too long to respond. Please try again.');
+        else if (status >= 500 || status === 502) appendNotice('error', 'The AI Helper is temporarily unavailable. Please try again in a moment.');
+        else if (errCode === 'bad_request') appendNotice('error', 'That message could not be sent.');
+        else appendNotice('error', 'Something went wrong reaching the AI Helper. Please try again.');
     }
 
-    function silentReauthThenRetrySend() {
-        var notice = appendNotice('system', 'Refreshing your session...');
-        var w = window.open(
-            SILENT_REAUTH_URL + '?next=' + encodeURIComponent(window.location.pathname + window.location.search),
-            'sns_silent_reauth',
-            'width=1,height=1,left=-1000,top=-1000'
-        );
+    function silentReauthThenRetrySend(agent, conv, attachment) {
+        var notice = (conv === currentConv) ? appendNotice('system', 'Refreshing your session...') : null;
+        var w = window.open(SILENT_REAUTH_URL + '?next=' + encodeURIComponent(window.location.pathname + window.location.search),
+            'sns_silent_reauth', 'width=1,height=1,left=-1000,top=-1000');
         var attempts = 0;
         var poll = setInterval(function () {
             attempts++;
-            fetch(REAUTH_CHECK_URL, { credentials: 'same-origin' })
-                .then(function (r) { return r.json(); })
-                .then(function (data) {
-                    if (data.status === 'ok') {
-                        clearInterval(poll);
-                        if (w && !w.closed) w.close();
-                        removeNoticeRow(notice);
-                        send(true);
-                    } else if (attempts >= 15) {
-                        clearInterval(poll);
-                        if (w && !w.closed) w.close();
-                        removeNoticeRow(notice);
+            fetch(REAUTH_CHECK_URL, { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (data) {
+                if (data.status === 'ok') { clearInterval(poll); if (w && !w.closed) w.close(); if (notice) removeNoticeRow(notice); send(agent, conv, true, attachment); }
+                else if (attempts >= 15) {
+                    clearInterval(poll); if (w && !w.closed) w.close(); if (notice) removeNoticeRow(notice);
+                    if (conv === currentConv) {
                         var errBubble = appendNotice('error', 'Your session has expired.');
                         var link = document.createElement('a');
-                        link.href = '/login';
-                        link.className = 'btn btn-sm btn-primary mt-2';
-                        link.textContent = 'Sign in again';
+                        link.href = '/login'; link.className = 'btn btn-sm btn-primary mt-2'; link.textContent = 'Sign in again';
                         errBubble.appendChild(document.createElement('br'));
                         errBubble.appendChild(link);
                     }
-                })
-                .catch(function () {});
+                }
+            }).catch(function () {});
         }, 1000);
     }
+    function removeNoticeRow(bubbleEl) { var row = bubbleEl && bubbleEl.closest('.ai-row'); if (row) row.remove(); }
 
-    function removeNoticeRow(bubbleEl) {
-        var row = bubbleEl && bubbleEl.closest('.chat-row');
-        if (row) row.remove();
-    }
+    // No SSE bytes at all for this long means the connection is stuck
+    // (dropped without either side noticing, or BitBerry never sent
+    // anything past headers) — long enough to never fire during normal tool
+    // calls / thinking time, short enough that "the agent never responds"
+    // resolves into a clear error instead of an infinite typing indicator.
+    var STREAM_STALL_MS = 45000;
 
-    function streamResponse(resp) {
-        removeTyping();
-        var bubble = appendBubble('assistant', '');
+    function streamResponse(resp, signal, conv, t) {
+        if (conv === currentConv) removeTyping();
+        var ts = Date.now();
+        var active = activeSends[conv.id];
+        if (active) { active.ts = ts; if (conv === currentConv) active.bubbleEl = appendBubble('assistant', '', null, ts); }
         var full = '';
+        var posError = null;
         var reader = resp.body.getReader();
         var decoder = new TextDecoder();
         var buffer = '';
-
+        var stopped = false;
+        var stalled = false;
+        var firstToken = false;
+        var stallTimer = null;
+        function armStallTimer() {
+            clearTimeout(stallTimer);
+            stallTimer = setTimeout(function () {
+                stalled = true;
+                console.error('[ai-helper] stream stalled rid=' + t.rid + ' — no bytes for ' + STREAM_STALL_MS + 'ms');
+                reader.cancel().catch(function () {});
+            }, STREAM_STALL_MS);
+        }
+        function markStopped() {
+            var bubble = active && active.bubbleEl;
+            if (!bubble) return;
+            if (!full.trim()) { var row = bubble.closest('.ai-row'); if (row) row.remove(); return; }
+            bubble.innerHTML = renderMessageHtml(full) + '<div class="ai-stopped-note">Stopped</div>';
+        }
         function processBuffer() {
+            // The target bubble is read fresh from activeSends on every
+            // chunk (not captured once in a local var) — the user may
+            // switch back to this conversation mid-stream (renderMessages
+            // reattaches a bubble and records it on `active`) or switch
+            // away from it (nothing to write to) at any point, and delivery
+            // should follow wherever it's actually being looked at.
             var lines = buffer.split('\n');
-            buffer = lines.pop(); // last (possibly incomplete) line stays in buffer
+            buffer = lines.pop();
             lines.forEach(function (line) {
                 line = line.trim();
                 if (!line || line.indexOf('data:') !== 0) return;
@@ -794,25 +1372,72 @@
                 if (jsonStr === '[DONE]') return;
                 try {
                     var evt = JSON.parse(jsonStr);
-                    var delta = evt.choices && evt.choices[0] &&
-                        (evt.choices[0].delta && evt.choices[0].delta.content !== undefined
-                            ? evt.choices[0].delta.content
-                            : (evt.choices[0].message && evt.choices[0].message.content));
+                    // Synthetic marker the proxy injects for a diagnosed
+                    // failure shape it can name precisely (see
+                    // routes/chat.py relay()) — surfaced as a specific
+                    // message in finish() instead of the generic
+                    // "did not return a response" fallback.
+                    if (evt.pos_error) { posError = evt.pos_error; return; }
+                    var delta = evt.choices && evt.choices[0] && (evt.choices[0].delta && evt.choices[0].delta.content !== undefined ? evt.choices[0].delta.content : (evt.choices[0].message && evt.choices[0].message.content));
                     if (delta) {
+                        if (!firstToken) { firstToken = true; logTiming(t, 'first_token'); }
                         full += delta;
-                        bubble.innerHTML = renderMessageHtml(full);
-                        logEl.scrollTop = logEl.scrollHeight;
+                        if (active) {
+                            active.full = full;
+                            if (conv === currentConv && !active.bubbleEl) active.bubbleEl = appendBubble('assistant', full, null, ts);
+                            else if (conv !== currentConv) active.bubbleEl = null;
+                            if (active.bubbleEl) { active.bubbleEl.innerHTML = renderMessageHtml(full); logEl.scrollTop = logEl.scrollHeight; }
+                        }
                     }
-                } catch (e) { /* ignore malformed chunk */ }
+                } catch (e) {}
             });
         }
-
+        function finish(wasStopped) {
+            clearTimeout(stallTimer);
+            logTiming(t, 'body_complete');
+            if (wasStopped) markStopped();
+            if (!full.trim()) {
+                // A user-initiated Stop with nothing generated yet is
+                // expected and silent (markStopped already removed the
+                // empty bubble above). Anything else ending empty — the
+                // connection closing on its own, or our stall watchdog
+                // firing — matches the backend's 'empty_stream'/
+                // 'stream_dropped' diagnostics and is a real error worth
+                // surfacing, never a silently-finished typing indicator.
+                if (!wasStopped || stalled) {
+                    if (conv === currentConv) {
+                        console.warn('[ai-helper] stream ended with no content rid=' + t.rid +
+                            (stalled ? ' (stalled)' : '') + (posError ? ' (pos_error=' + posError + ')' : ''));
+                        var msg = posError === 'tool_call_not_resolved'
+                            ? "This agent tried to look that up but didn't finish — this is a known BitBerry-side issue, not something retrying will fix. Please report it to the BitBerry team."
+                            : stalled
+                                ? 'The AI Helper stopped responding. Please try again.'
+                                : 'The AI Helper did not return a response. Please try again.';
+                        appendNotice('error', msg);
+                    }
+                }
+                return;
+            }
+            conv.messages.push({ role: 'assistant', content: full, ts: ts });
+            touchConversation(conv);
+            refreshSidebarForCurrentAgent();
+            logTiming(t, 'render_complete');
+        }
+        if (signal) {
+            signal.addEventListener('abort', function () {
+                stopped = true;
+                clearTimeout(stallTimer);
+                reader.cancel().catch(function () {});
+            });
+        }
         function pump() {
+            armStallTimer();
             return reader.read().then(function (result) {
+                if (stopped || stalled) { clearTimeout(stallTimer); return; }
                 if (result.done) {
+                    clearTimeout(stallTimer);
                     if (buffer.trim()) { buffer += '\n'; processBuffer(); }
-                    history.push({ role: 'assistant', content: full });
-                    saveHistory();
+                    finish(false);
                     return;
                 }
                 buffer += decoder.decode(result.value, { stream: true });
@@ -820,9 +1445,110 @@
                 return pump();
             });
         }
-
-        return pump();
+        return pump().catch(function (err) {
+            clearTimeout(stallTimer);
+            if (stopped || stalled || (err && err.name === 'AbortError')) { finish(true); return; }
+            throw err;
+        });
     }
+
+    // =================================================================
+    // New chat (header button)
+    // =================================================================
+    function startNewChat() {
+        if (!currentAgent) return;
+        var conv = createConversation(currentAgent.id);
+        openConversation(currentAgent, conv);
+        refreshSidebarForCurrentAgent();
+        inputEl.focus();
+    }
+    headerNewChatBtn.addEventListener('click', startNewChat);
+
+    // =================================================================
+    // Agent info drawer
+    // =================================================================
+    function openDrawer() {
+        if (!currentAgent) return;
+        document.getElementById('ai-drawer-name').textContent = agentDisplayName(currentAgent);
+        document.getElementById('ai-drawer-desc').textContent = currentAgent.description || 'No description provided.';
+        var via = (currentAgent.assigned_via || '').trim();
+        document.getElementById('ai-drawer-source').innerHTML = via ? '<span class="ai-badge-source">' + escapeHtml(via === 'team' ? 'Assigned via team' : 'Directly assigned') + '</span>' : '';
+        var assignmentEl = document.getElementById('ai-drawer-assignment');
+        assignmentEl.textContent = via === 'team' ? 'This agent was assigned to you through a team.' : via === 'direct' ? 'This agent was assigned directly to you.' : 'Not specified.';
+        document.getElementById('ai-drawer-id').textContent = currentAgent.id;
+        drawerBackdrop.classList.add('show');
+        drawerEl.classList.add('show');
+    }
+    function closeDrawer() { drawerBackdrop.classList.remove('show'); drawerEl.classList.remove('show'); }
+    headerInfoBtn.addEventListener('click', openDrawer);
+    drawerCloseBtn.addEventListener('click', closeDrawer);
+    drawerBackdrop.addEventListener('click', closeDrawer);
+
+    // =================================================================
+    // Search (current agent's conversations + messages)
+    // =================================================================
+    function openSearch() {
+        if (!currentAgent) return;
+        searchBackdrop.classList.add('show');
+        searchInputEl.value = '';
+        renderSearchResults('');
+        setTimeout(function () { searchInputEl.focus(); }, 50);
+    }
+    function closeSearch() { searchBackdrop.classList.remove('show'); }
+    searchOpenBtn.addEventListener('click', openSearch);
+    searchBackdrop.addEventListener('click', function (e) { if (e.target === searchBackdrop) closeSearch(); });
+
+    searchInputEl.addEventListener('input', function () { renderSearchResults(searchInputEl.value.trim()); });
+
+    function renderSearchResults(query) {
+        searchResultsEl.innerHTML = '';
+        if (!currentAgent) return;
+        var convs = convsFor(currentAgent.id);
+        var q = query.toLowerCase();
+        var results = [];
+        convs.forEach(function (conv) {
+            if (!q) {
+                results.push({ conv: conv, snippet: conv.messages.length ? conv.messages[conv.messages.length - 1].content : '', matchedMessage: null });
+                return;
+            }
+            var titleMatch = conv.title.toLowerCase().indexOf(q) !== -1;
+            var matchedMessage = conv.messages.filter(function (m) { return (m.content || '').toLowerCase().indexOf(q) !== -1; }).slice(-1)[0];
+            if (titleMatch || matchedMessage) {
+                results.push({ conv: conv, snippet: matchedMessage ? matchedMessage.content : conv.title, matchedMessage: matchedMessage });
+            }
+        });
+        results.sort(function (a, b) { return b.conv.updatedAt - a.conv.updatedAt; });
+
+        if (!results.length) {
+            searchResultsEl.innerHTML = '<div class="ai-search-empty">' + (q ? 'No matches in ' + escapeHtml(agentDisplayName(currentAgent)) + '.' : 'No conversations yet.') + '</div>';
+            return;
+        }
+        results.slice(0, 30).forEach(function (r) {
+            var item = document.createElement('div');
+            item.className = 'ai-search-result';
+            item.innerHTML = '<div class="title">' + escapeHtml(r.conv.title) + '</div><div class="snippet">' + escapeHtml((r.snippet || '').replace(/\s+/g, ' ').trim()) + '</div>';
+            item.addEventListener('click', function () {
+                closeSearch();
+                openConversation(currentAgent, r.conv);
+            });
+            searchResultsEl.appendChild(item);
+        });
+    }
+
+    // =================================================================
+    // Keyboard shortcuts
+    // =================================================================
+    document.addEventListener('keydown', function (e) {
+        var mod = e.ctrlKey || e.metaKey;
+        if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); openSearch(); return; }
+        if (mod && e.key.toLowerCase() === 'n') { e.preventDefault(); startNewChat(); return; }
+        if (mod && e.key.toLowerCase() === 'b') { e.preventDefault(); toggleSidebar(); return; }
+        if (mod && e.shiftKey && e.key.toLowerCase() === 'p') { e.preventDefault(); openSidebarMobile(); searchOpenBtn.focus(); return; }
+        if (e.key === 'Escape') {
+            if (searchBackdrop.classList.contains('show')) closeSearch();
+            else if (drawerEl.classList.contains('show')) closeDrawer();
+        }
+    });
 })();
 </script>
 {% endblock %}

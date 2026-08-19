@@ -1,10 +1,27 @@
 from flask import Flask
 import os
+import logging
 from dotenv import load_dotenv
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Load environment variables from dev.env file
 load_dotenv('.env')
+
+# Chat latency milestones (routes/chat.py, logger 'pos.chat.timing') are
+# logged at INFO, which prints nothing by default — only the diagnostics
+# logger ('pos.chat.diagnostics', WARNING/ERROR) is visible out of the box.
+# Set POS_CHAT_TIMING=1 in .env to also see the per-request timing
+# breakdown (request received / upstream headers / first token / stream
+# complete) in the terminal the app is running in. Off by default so a
+# normal run isn't noisier than it needs to be.
+if os.getenv('POS_CHAT_TIMING', '').strip() == '1':
+    _chat_log_handler = logging.StreamHandler()
+    _chat_log_handler.setFormatter(logging.Formatter('[%(name)s] %(message)s'))
+    for _logger_name in ('pos.chat.timing', 'pos.chat.diagnostics'):
+        _logger = logging.getLogger(_logger_name)
+        _logger.setLevel(logging.INFO)
+        _logger.addHandler(_chat_log_handler)
+        _logger.propagate = False
 
 def create_app():
     """Create and configure the Flask application"""
@@ -162,4 +179,12 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(debug=True, host='0.0.0.0', port=5002)
+    # threaded=True matters specifically for the chat streaming endpoint
+    # (routes/chat.py api_send): a streamed reply holds its connection open
+    # for the full duration of the agent's response. Flask's dev server
+    # defaults to handling one request at a time, so without this, that
+    # open stream blocks every other request the browser makes (agents
+    # refresh, reauth-check polling, a second tab/agent) until it finishes
+    # — which looks exactly like "the agent never responds" from the UI,
+    # even though BitBerry itself answered fine.
+    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
