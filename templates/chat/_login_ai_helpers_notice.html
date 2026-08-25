@@ -1,44 +1,76 @@
-{# One-time "you have AI Helpers assigned" toast shown right after a real
-   interactive login (see routes/auth.py google_callback, which sets
+{# One-time "Welcome back" dialog shown right after a real interactive login
+   (see routes/auth.py google_callback, which sets
    session['show_ai_helpers_login_notice'] only on that path — never on the
    silent prompt=none reauth used for token refresh). base.html pops the
    flag before rendering this include, so it fires exactly once per login:
    not on a page refresh, not on later navigation within the same session,
-   and not again until the user logs out and back in. #}
+   and not again until the user logs out and back in.
+
+   Lists whichever agents GET /chat/api/agents actually returns for this
+   user — never a fixed/example list — and only appears at all if that
+   list is non-empty. #}
 {% if has_perm('chat.view') %}
 <style>
-    .ah-login-toast-wrap {
-        position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 1250; width: 340px; max-width: calc(100vw - 2rem);
+    .ah-welcome-backdrop {
+        position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 1260;
+        display: flex; align-items: center; justify-content: center; padding: 1.25rem;
+        opacity: 0; pointer-events: none; transition: opacity .2s ease;
     }
-    .ah-login-toast {
-        background: var(--sns-surface); border-radius: 16px; box-shadow: 0 16px 40px rgba(16,24,40,.22);
-        border: 1px solid var(--sns-border); padding: 1.1rem 1.1rem 1rem; position: relative;
-        opacity: 0; transform: translateY(16px) scale(.97); transition: opacity .25s ease, transform .25s ease;
-        pointer-events: none;
+    .ah-welcome-backdrop.show { opacity: 1; pointer-events: auto; }
+    .ah-welcome-card {
+        background: var(--sns-surface); border-radius: 20px; width: 380px; max-width: 100%;
+        box-shadow: 0 28px 70px rgba(16,24,40,.3); padding: 1.75rem 1.5rem 1.5rem; text-align: center;
+        position: relative; transform: translateY(14px) scale(.96); transition: transform .22s ease;
     }
-    .ah-login-toast.show { opacity: 1; transform: none; pointer-events: auto; }
-    .ah-login-toast-close {
-        position: absolute; top: .6rem; right: .6rem; width: 26px; height: 26px; border-radius: 8px; border: none;
-        background: transparent; color: var(--sns-muted); display: flex; align-items: center; justify-content: center;
+    .ah-welcome-backdrop.show .ah-welcome-card { transform: none; }
+    .ah-welcome-close {
+        position: absolute; top: .85rem; right: .85rem; width: 30px; height: 30px; border-radius: 9px; border: none;
+        background: transparent; color: var(--sns-muted); display: flex; align-items: center; justify-content: center; font-size: 18px;
     }
-    .ah-login-toast-close:hover { background: var(--sns-bg); color: var(--sns-ink); }
-    .ah-login-toast-icon {
-        width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
-        font-size: 16px; background: linear-gradient(135deg, var(--sns-primary), var(--sns-primary-dark)); color: #fff;
-        margin-bottom: .6rem;
+    .ah-welcome-close:hover { background: var(--sns-bg); color: var(--sns-ink); }
+    .ah-welcome-emoji { font-size: 40px; line-height: 1; margin-bottom: .6rem; }
+    .ah-welcome-title { font-weight: 800; font-size: 1.15rem; color: var(--sns-ink); margin-bottom: .3rem; }
+    .ah-welcome-sub { font-size: .88rem; color: var(--sns-muted); margin-bottom: 1.1rem; }
+    .ah-welcome-agents { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1.3rem; text-align: left; }
+    .ah-welcome-agent {
+        display: flex; align-items: center; gap: .6rem; border: 1px solid var(--sns-border); border-radius: 12px;
+        padding: .55rem .7rem; background: var(--sns-bg);
     }
-    .ah-login-toast-title { font-weight: 700; font-size: .92rem; color: var(--sns-ink); margin-bottom: .5rem; }
-    .ah-login-toast-agent { font-size: .84rem; color: var(--sns-ink-soft); margin-bottom: .2rem; display: flex; align-items: center; gap: .4rem; }
-    .ah-login-toast-agent i { color: var(--sns-primary); font-size: 13px; flex-shrink: 0; }
-    .ah-login-toast-actions { display: flex; gap: .5rem; margin-top: .8rem; }
-    .ah-login-toast-actions .btn { flex: 1 1 auto; font-size: .82rem; padding: .4rem .6rem; }
+    .ah-welcome-agent-avatar {
+        width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+        font-size: 15px; background: linear-gradient(135deg, var(--sns-primary), var(--sns-primary-dark)); color: #fff;
+    }
+    .ah-welcome-agent-body { min-width: 0; flex: 1 1 auto; }
+    .ah-welcome-agent-name { font-weight: 700; font-size: .85rem; color: var(--sns-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ah-welcome-agent-desc { font-size: .74rem; color: var(--sns-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ah-welcome-more { font-size: .78rem; color: var(--sns-muted); text-align: center; }
+    .ah-welcome-actions { display: flex; flex-direction: column; gap: .5rem; }
+    .ah-welcome-actions .btn-primary { padding: .55rem; font-weight: 600; }
+    .ah-welcome-actions .btn-link { color: var(--sns-muted); font-size: .85rem; }
 </style>
 
-<div class="ah-login-toast-wrap" id="ah-login-toast-wrap" aria-live="polite"></div>
+<div class="ah-welcome-backdrop" id="ah-welcome-backdrop">
+    <div class="ah-welcome-card" role="dialog" aria-modal="true" aria-labelledby="ah-welcome-title">
+        <button type="button" class="ah-welcome-close" id="ah-welcome-close-btn" aria-label="Close"><i class="ri-close-line"></i></button>
+        <div class="ah-welcome-emoji">🎉</div>
+        <div class="ah-welcome-title" id="ah-welcome-title">Welcome back{{ (', ' ~ session.user_name.split(' ')[0]) if session.user_name else '' }}!</div>
+        <div class="ah-welcome-sub" id="ah-welcome-sub"></div>
+        <div class="ah-welcome-agents" id="ah-welcome-agents"></div>
+        <div class="ah-welcome-actions">
+            <a class="btn btn-primary" id="ah-welcome-start-btn">Start Using</a>
+            <button type="button" class="btn btn-link" id="ah-welcome-later-btn">Maybe later</button>
+        </div>
+    </div>
+</div>
 
 <script>
 (function () {
-    var wrap = document.getElementById('ah-login-toast-wrap');
+    var backdrop = document.getElementById('ah-welcome-backdrop');
+    var closeBtn = document.getElementById('ah-welcome-close-btn');
+    var laterBtn = document.getElementById('ah-welcome-later-btn');
+    var startBtn = document.getElementById('ah-welcome-start-btn');
+    var subEl = document.getElementById('ah-welcome-sub');
+    var agentsEl = document.getElementById('ah-welcome-agents');
     var agentsUrl = {{ url_for('chat.api_agents') | tojson }};
     var chatUrl = {{ url_for('chat.dashboard') | tojson }};
 
@@ -56,42 +88,44 @@
         .then(function (resp) { return resp.ok ? resp.json() : { agents: [] }; })
         .then(function (data) {
             var agents = data.agents || [];
-            if (!agents.length) return; // nothing assigned — no notice to show
+            if (!agents.length) return; // nothing assigned — no welcome dialog to show
 
-            var el = document.createElement('div');
-            el.className = 'ah-login-toast';
-            el.setAttribute('role', 'status');
+            subEl.textContent = agents.length === 1
+                ? 'You have 1 AI Helper assigned to you.'
+                : 'You have ' + agents.length + ' AI Helpers assigned to you.';
 
-            var listHtml = agents.slice(0, 4).map(function (a) {
-                return '<div class="ah-login-toast-agent"><i class="ri-checkbox-blank-circle-fill"></i>' + escapeHtml(agentDisplayName(a)) + '</div>';
+            var shown = agents.slice(0, 3);
+            agentsEl.innerHTML = shown.map(function (a) {
+                return (
+                    '<div class="ah-welcome-agent">' +
+                        '<span class="ah-welcome-agent-avatar"><i class="ri-sparkling-2-fill"></i></span>' +
+                        '<div class="ah-welcome-agent-body">' +
+                            '<div class="ah-welcome-agent-name">' + escapeHtml(agentDisplayName(a)) + '</div>' +
+                            (a.description ? '<div class="ah-welcome-agent-desc">' + escapeHtml(a.description) + '</div>' : '') +
+                        '</div>' +
+                    '</div>'
+                );
             }).join('');
-            var moreHtml = agents.length > 4 ? '<div class="ah-login-toast-agent text-muted">+' + (agents.length - 4) + ' more</div>' : '';
-
-            el.innerHTML =
-                '<button type="button" class="ah-login-toast-close" aria-label="Dismiss"><i class="ri-close-line"></i></button>' +
-                '<div class="ah-login-toast-icon"><i class="ri-sparkling-2-fill"></i></div>' +
-                '<div class="ah-login-toast-title">' + (agents.length === 1 ? 'You have an AI Helper assigned' : 'You have ' + agents.length + ' AI Helpers assigned') + '</div>' +
-                listHtml + moreHtml +
-                '<div class="ah-login-toast-actions">' +
-                    '<button type="button" class="btn btn-outline-secondary btn-sm" data-role="dismiss">Dismiss</button>' +
-                    '<a class="btn btn-primary btn-sm" href="' + chatUrl + (agents.length === 1 ? '?agent=' + encodeURIComponent(agents[0].id) : '') + '">Open Chat</a>' +
-                '</div>';
-
-            wrap.appendChild(el);
-            requestAnimationFrame(function () { el.classList.add('show'); });
-
-            function dismiss() {
-                el.classList.remove('show');
-                setTimeout(function () { el.remove(); }, 250);
+            if (agents.length > shown.length) {
+                agentsEl.innerHTML += '<div class="ah-welcome-more">+' + (agents.length - shown.length) + ' more</div>';
             }
-            el.querySelector('.ah-login-toast-close').addEventListener('click', dismiss);
-            el.querySelector('[data-role="dismiss"]').addEventListener('click', dismiss);
 
-            // Auto-dismiss after a while so it never lingers as a stuck
-            // overlay if the user just keeps working and ignores it.
-            setTimeout(dismiss, 12000);
+            startBtn.href = chatUrl + (agents.length === 1 ? '?agent=' + encodeURIComponent(agents[0].id) : '');
+
+            backdrop.classList.add('show');
+            closeBtn.focus();
         })
-        .catch(function () { /* silent — a failed fetch just means no toast, not a broken page */ });
+        .catch(function () { /* silent — a failed fetch just means no dialog, not a broken page */ });
+
+    function close() {
+        backdrop.classList.remove('show');
+        setTimeout(function () { backdrop.remove(); }, 200);
+    }
+    closeBtn.addEventListener('click', close);
+    laterBtn.addEventListener('click', close);
+    startBtn.addEventListener('click', close);
+    backdrop.addEventListener('click', function (e) { if (e.target === backdrop) close(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && backdrop.classList.contains('show')) close(); });
 })();
 </script>
 {% endif %}
