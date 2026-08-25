@@ -280,6 +280,12 @@ def process_auth():
                 # be invisible to the user rather than surface a login toast.
                 return redirect(next_url)
             flash(f'Welcome, {user_name}!', 'success')
+            # One-time "you have AI Helpers assigned" notice on the very
+            # next page render — real interactive login only (the silent
+            # prompt=none reauth branch above returns before this line).
+            # base.html pops this flag so it fires exactly once per login,
+            # not on every subsequent page navigation this session.
+            session['show_ai_helpers_login_notice'] = True
             return redirect(url_for('main.dashboard'))
             
         except ValueError as e:

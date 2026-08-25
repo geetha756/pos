@@ -1,0 +1,97 @@
+{# One-time "you have AI Helpers assigned" toast shown right after a real
+   interactive login (see routes/auth.py google_callback, which sets
+   session['show_ai_helpers_login_notice'] only on that path — never on the
+   silent prompt=none reauth used for token refresh). base.html pops the
+   flag before rendering this include, so it fires exactly once per login:
+   not on a page refresh, not on later navigation within the same session,
+   and not again until the user logs out and back in. #}
+{% if has_perm('chat.view') %}
+<style>
+    .ah-login-toast-wrap {
+        position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 1250; width: 340px; max-width: calc(100vw - 2rem);
+    }
+    .ah-login-toast {
+        background: var(--sns-surface); border-radius: 16px; box-shadow: 0 16px 40px rgba(16,24,40,.22);
+        border: 1px solid var(--sns-border); padding: 1.1rem 1.1rem 1rem; position: relative;
+        opacity: 0; transform: translateY(16px) scale(.97); transition: opacity .25s ease, transform .25s ease;
+        pointer-events: none;
+    }
+    .ah-login-toast.show { opacity: 1; transform: none; pointer-events: auto; }
+    .ah-login-toast-close {
+        position: absolute; top: .6rem; right: .6rem; width: 26px; height: 26px; border-radius: 8px; border: none;
+        background: transparent; color: var(--sns-muted); display: flex; align-items: center; justify-content: center;
+    }
+    .ah-login-toast-close:hover { background: var(--sns-bg); color: var(--sns-ink); }
+    .ah-login-toast-icon {
+        width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+        font-size: 16px; background: linear-gradient(135deg, var(--sns-primary), var(--sns-primary-dark)); color: #fff;
+        margin-bottom: .6rem;
+    }
+    .ah-login-toast-title { font-weight: 700; font-size: .92rem; color: var(--sns-ink); margin-bottom: .5rem; }
+    .ah-login-toast-agent { font-size: .84rem; color: var(--sns-ink-soft); margin-bottom: .2rem; display: flex; align-items: center; gap: .4rem; }
+    .ah-login-toast-agent i { color: var(--sns-primary); font-size: 13px; flex-shrink: 0; }
+    .ah-login-toast-actions { display: flex; gap: .5rem; margin-top: .8rem; }
+    .ah-login-toast-actions .btn { flex: 1 1 auto; font-size: .82rem; padding: .4rem .6rem; }
+</style>
+
+<div class="ah-login-toast-wrap" id="ah-login-toast-wrap" aria-live="polite"></div>
+
+<script>
+(function () {
+    var wrap = document.getElementById('ah-login-toast-wrap');
+    var agentsUrl = {{ url_for('chat.api_agents') | tojson }};
+    var chatUrl = {{ url_for('chat.dashboard') | tojson }};
+
+    function escapeHtml(s) {
+        var d = document.createElement('div');
+        d.textContent = s == null ? '' : String(s);
+        return d.innerHTML;
+    }
+    function agentDisplayName(a) {
+        var name = (a && a.name || '').trim();
+        return name || 'AI Helper';
+    }
+
+    fetch(agentsUrl, { credentials: 'same-origin' })
+        .then(function (resp) { return resp.ok ? resp.json() : { agents: [] }; })
+        .then(function (data) {
+            var agents = data.agents || [];
+            if (!agents.length) return; // nothing assigned — no notice to show
+
+            var el = document.createElement('div');
+            el.className = 'ah-login-toast';
+            el.setAttribute('role', 'status');
+
+            var listHtml = agents.slice(0, 4).map(function (a) {
+                return '<div class="ah-login-toast-agent"><i class="ri-checkbox-blank-circle-fill"></i>' + escapeHtml(agentDisplayName(a)) + '</div>';
+            }).join('');
+            var moreHtml = agents.length > 4 ? '<div class="ah-login-toast-agent text-muted">+' + (agents.length - 4) + ' more</div>' : '';
+
+            el.innerHTML =
+                '<button type="button" class="ah-login-toast-close" aria-label="Dismiss"><i class="ri-close-line"></i></button>' +
+                '<div class="ah-login-toast-icon"><i class="ri-sparkling-2-fill"></i></div>' +
+                '<div class="ah-login-toast-title">' + (agents.length === 1 ? 'You have an AI Helper assigned' : 'You have ' + agents.length + ' AI Helpers assigned') + '</div>' +
+                listHtml + moreHtml +
+                '<div class="ah-login-toast-actions">' +
+                    '<button type="button" class="btn btn-outline-secondary btn-sm" data-role="dismiss">Dismiss</button>' +
+                    '<a class="btn btn-primary btn-sm" href="' + chatUrl + (agents.length === 1 ? '?agent=' + encodeURIComponent(agents[0].id) : '') + '">Open Chat</a>' +
+                '</div>';
+
+            wrap.appendChild(el);
+            requestAnimationFrame(function () { el.classList.add('show'); });
+
+            function dismiss() {
+                el.classList.remove('show');
+                setTimeout(function () { el.remove(); }, 250);
+            }
+            el.querySelector('.ah-login-toast-close').addEventListener('click', dismiss);
+            el.querySelector('[data-role="dismiss"]').addEventListener('click', dismiss);
+
+            // Auto-dismiss after a while so it never lingers as a stuck
+            // overlay if the user just keeps working and ignores it.
+            setTimeout(dismiss, 12000);
+        })
+        .catch(function () { /* silent — a failed fetch just means no toast, not a broken page */ });
+})();
+</script>
+{% endif %}
