@@ -62,7 +62,7 @@ def create_app():
     from routes.payroll import payroll_bp
     from routes.inventory import inventory_bp
     from routes.users import users_bp
-    from routes.machines import machines_bp, init_machines_schema
+    from routes.machines import machines_bp, init_machines_schema, EIDLI_MACHINE_ID
     from routes.chat import chat_bp
 
     # Role-based access control: lock management sections behind their module's
@@ -179,4 +179,4 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(debug=True, host='0.0.0.0', port=5002)
+    app.run(debug=True, host='0.0.0.0', port=5000)

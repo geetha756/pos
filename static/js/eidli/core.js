@@ -289,6 +289,60 @@
         });
     }
 
+    // --- Live Temperature Trend chart theme ---------------------------------
+    //
+    // Shared by the Dashboard's own chart (dashboard.js) and History ->
+    // Analytics' "Live Temperature Trend" graph (history-analytics.js) so
+    // the two can never visually drift apart — one definition of what this
+    // specific chart looks like, reused by both call sites instead of two
+    // copies of the same Chart.js option block. Colors are tuned for this
+    // app's light theme (see eidli-hmi.css's --eidli-* tokens); the chart
+    // previously used a dark-UI ink/grid palette left over from an earlier
+    // design that never matched this app's actual (light) background.
+    var TEMP_LINE_COLOR = '#157a5e'; // == --eidli-primary / --eidli-temp — keeps the chart on-brand with the rest of the app
+    var TEMP_FILL_COLOR = 'rgba(21, 122, 94, .10)'; // subtle brand-green wash under the curve, not a heavy fill
+    var THRESHOLD_OFF_COLOR = '#dc2626'; // == --eidli-bad
+    var THRESHOLD_ON_COLOR = '#2563eb'; // distinguishable from both the brand-green line and the red "off" threshold
+    var CHART_INK = '#6b7280'; // == --eidli-ink-soft
+    var CHART_GRID = '#eef0f3'; // faint hairline grid appropriate to a white card, not the dark-theme grid this chart used before
+
+    // Builds the one Chart.js config shape both Live Temperature Trend
+    // charts use. `labelCb` supplies the page-specific tooltip label
+    // callback (each caller reads its own current data array by
+    // dataIndex — kept as an injected callback rather than duplicated here
+    // so this stays a pure, stateless config builder).
+    function tempTrendChartConfig(labels, datasets, yBounds, labelCb) {
+        return {
+            type: 'line', data: { labels: labels, datasets: datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: true, labels: { color: CHART_INK, boxWidth: 12, font: { size: 11 } } },
+                    tooltip: {
+                        backgroundColor: '#ffffff', titleColor: '#111827', bodyColor: '#111827',
+                        borderColor: '#e5e7eb', borderWidth: 1, padding: 10, boxPadding: 4,
+                        callbacks: {
+                            title: function () { return ''; },
+                            label: labelCb
+                        }
+                    }
+                },
+                scales: {
+                    x: { grid: { display: false }, ticks: { color: CHART_INK, maxTicksLimit: 8, font: { size: 10 } } },
+                    y: {
+                        grid: { color: CHART_GRID }, ticks: { color: CHART_INK, callback: function (v) { return v + '°C'; } },
+                        // suggestedMin/Max (not a hard min/max) — a real
+                        // reading outside this padded band still expands the
+                        // axis to show it rather than clipping/hiding it.
+                        suggestedMin: yBounds ? yBounds.min : undefined,
+                        suggestedMax: yBounds ? yBounds.max : undefined
+                    }
+                }
+            }
+        };
+    }
+
     window.Eidli = {
         CONFIG: CONFIG, CONFIGURED: CONFIGURED, URLS: URLS,
         el: el, esc: esc, titleCase: titleCase,
@@ -298,6 +352,9 @@
         machineStateBadge: machineStateBadge, sessionStatusBadge: sessionStatusBadge,
         cycleStatusBadge: cycleStatusBadge, commandStatusBadge: commandStatusBadge, modeBadge: modeBadge,
         apiFetch: apiFetch, errMsg: errMsg,
-        startHeader: startHeader, onStatus: onStatus, getLastStatus: getLastStatus
+        startHeader: startHeader, onStatus: onStatus, getLastStatus: getLastStatus,
+        tempTrendChartConfig: tempTrendChartConfig,
+        TEMP_LINE_COLOR: TEMP_LINE_COLOR, TEMP_FILL_COLOR: TEMP_FILL_COLOR,
+        THRESHOLD_OFF_COLOR: THRESHOLD_OFF_COLOR, THRESHOLD_ON_COLOR: THRESHOLD_ON_COLOR
     };
 })(window);

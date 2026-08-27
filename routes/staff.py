@@ -9,9 +9,78 @@ import psycopg2
 
 staff_bp = Blueprint('staff', __name__)
 
+# Indian states + union territories for the Address Information "State"
+# dropdown on Add/Edit Staff Member. Andhra Pradesh is first so it's the
+# default/pre-selected option.
+INDIAN_STATES = [
+    'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+    'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+    'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya',
+    'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim',
+    'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand',
+    'West Bengal',
+    'Andaman and Nicobar Islands', 'Chandigarh',
+    'Dadra and Nagar Haveli and Daman and Diu', 'Delhi', 'Jammu and Kashmir',
+    'Ladakh', 'Lakshadweep', 'Puducherry',
+]
+
 IFSC_RE = re.compile(r'^[A-Z]{4}0[A-Z0-9]{6}$')
 BANK_ACCOUNT_RE = re.compile(r'^[0-9]{5,20}$')
-PHONE_RE = re.compile(r'^[0-9]{10}$')
+# Kept for reference/back-compat; _is_valid_phone below does the real,
+# explicitly-separated checks and is what every caller actually uses.
+PHONE_RE = re.compile(r'^[6-9][0-9]{9}$')
+
+
+def _has_repeating_pattern(phone, min_run=8):
+    """True if `phone` contains a run of `min_run`+ consecutive digits (out
+    of its 10) that repeats with a period of 1 or 2 - e.g. 7989898989 (the
+    "89" pair keeps repeating from index 2 onward), 7878787878, 1111111111.
+    Checked over every starting position, not just from the very first
+    digit, so a pattern that only kicks in partway through the number
+    (like 7989898989) is still caught - a naive `phone[:2] * 5 == phone`
+    check only catches a pattern that starts at position 0."""
+    n = len(phone)
+    for start in range(0, n - min_run + 1):
+        window = phone[start:]
+        for period in (1, 2):
+            if all(window[i] == window[i % period] for i in range(len(window))):
+                return True
+    return False
+
+
+def _is_valid_phone(phone):
+    """True if `phone` is a plausible, genuine Indian mobile number - not
+    just a well-formed string of digits. Every rule is its own explicit
+    check - deliberately NOT collapsed into a single regex - so a bad first
+    digit is always caught on its own, never masked by (or mistaken for) a
+    plain length check:
+      1. digits only, and exactly 10 of them
+      2. first digit is 6, 7, 8, or 9 (0-5 rejected outright)
+      3. not a straight ascending/descending run across all 10 digits
+         (1234567890, 1234567891, 9876543210, ...) - detected
+         algorithmically, not via a fixed list, so every such run is
+         caught, not just a couple of hardcoded examples
+      4. no repeating/pattern-based dummy run of 8+ digits with period 1 or
+         2, anywhere in the number - not just anchored at the start (see
+         _has_repeating_pattern) - covers all-same-digit numbers
+         (1111111111, 9999999999) and 2-digit alternating patterns
+         (9898989898, 9191919191, and mid-number ones like 7989898989)
+         under one general rule
+    """
+    if not phone:
+        return False
+    if not phone.isdigit() or len(phone) != 10:
+        return False
+    if phone[0] not in ('6', '7', '8', '9'):
+        return False
+    digits = [int(d) for d in phone]
+    ascending = all(digits[i] == digits[i - 1] + 1 for i in range(1, 10))
+    descending = all(digits[i] == digits[i - 1] - 1 for i in range(1, 10))
+    if ascending or descending:
+        return False
+    if _has_repeating_pattern(phone):
+        return False
+    return True
 
 
 def _generate_employee_id():
@@ -49,31 +118,116 @@ def _compute_per_day_salary(monthly_salary):
     return float(monthly_salary) / _days_in_current_month()
 
 
-def _validate_bank_fields(bank_account_number, ifsc_code, monthly_salary, required=False):
-    """Validate the bank/payroll fields. Returns an error message, or None.
-    Format/range checks run before the required checks so a field that's
-    present but invalid is always reported for what's wrong with it, not
-    masked by a blank sibling field's "is required" error.
-    required=True (Edit Staff Member only - Add Staff Member leaves these
-    optional) additionally rejects a blank value for any of the three."""
-    if bank_account_number and not BANK_ACCOUNT_RE.match(bank_account_number):
-        return 'Bank Account Number must be 5-20 digits.'
-    if ifsc_code and not IFSC_RE.match(ifsc_code):
-        return 'IFSC Code must be in a valid format (e.g. SBIN0005814).'
-    if monthly_salary:
+def _validate_bank_fields(bank_account_number, ifsc_code, monthly_salary):
+    """Validate the bank/payroll fields - Bank Account Number, IFSC Code,
+    and Monthly Salary are mandatory on both Add and Edit Staff Member.
+    Returns a list of every error found (empty if all three are present and
+    valid), not just the first - a blank field is reported as "required"
+    and a present-but-malformed field is reported for what's wrong with it."""
+    errors = []
+    if not bank_account_number:
+        errors.append('Bank Account Number is required.')
+    elif not BANK_ACCOUNT_RE.match(bank_account_number):
+        errors.append('Bank Account Number must be 5-20 digits.')
+
+    if not ifsc_code:
+        errors.append('IFSC Code is required.')
+    elif not IFSC_RE.match(ifsc_code):
+        errors.append('IFSC Code must be in a valid format (e.g. SBIN0005814).')
+
+    if not monthly_salary:
+        errors.append('Monthly Salary is required.')
+    else:
         try:
-            if float(monthly_salary) < 0:
-                return 'Monthly Salary cannot be negative.'
+            salary_value = float(monthly_salary)
+            if salary_value < 0:
+                errors.append('Monthly Salary cannot be negative.')
+            elif salary_value == 0:
+                errors.append('Monthly Salary must be greater than zero.')
         except ValueError:
-            return 'Monthly Salary must be a valid number.'
-    if required:
-        if not bank_account_number:
-            return 'Bank Account Number is required.'
-        if not ifsc_code:
-            return 'IFSC Code is required.'
-        if not monthly_salary:
-            return 'Monthly Salary is required.'
-    return None
+            errors.append('Monthly Salary must be a valid number.')
+    return errors
+
+
+def _validate_address_fields(address, city, state, zip_code):
+    """Street Address, City, State, and ZIP are all mandatory. Returns a
+    list of error messages (empty if every field is present)."""
+    errors = []
+    if not address:
+        errors.append('Street Address is required.')
+    if not city:
+        errors.append('City is required.')
+    if not state:
+        errors.append('State is required.')
+    if not zip_code:
+        errors.append('ZIP is required.')
+    return errors
+
+
+def _validate_staff_form(*, first_name, last_name, phone, position_id, department_id,
+                          location_id, hire_date_required, hire_date,
+                          bank_account_number, ifsc_code, monthly_salary,
+                          address, city, state, zip_code,
+                          duplicate_exclude_id=None):
+    """Validate every field on the Add/Edit Staff form and return the full
+    list of error messages found - not just the first one - so the caller
+    can flash and highlight every invalid/missing field at once, matching
+    the inline per-field messages the frontend shows for the same fields."""
+    errors = []
+
+    if not first_name:
+        errors.append('First name is required.')
+    if not last_name:
+        errors.append('Last name is required.')
+    if not position_id:
+        errors.append('Position is required.')
+    if not location_id:
+        errors.append('Location is required.')
+    if hire_date_required and not hire_date:
+        errors.append('Hire date is required.')
+
+    if not phone:
+        errors.append('Phone number is required.')
+    elif phone[0] in ('0', '1', '2', '3', '4', '5'):
+        # Called out explicitly and on its own - checked before every other
+        # phone rule, so a bad first digit is never silently folded into
+        # the generic length/format message below.
+        errors.append('Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.')
+    elif not _is_valid_phone(phone):
+        errors.append('Enter a valid 10-digit mobile number. Example: 7989189681')
+
+    errors.extend(_validate_bank_fields(bank_account_number, ifsc_code, monthly_salary))
+    errors.extend(_validate_address_fields(address, city, state, zip_code))
+
+    # Duplicate-name is checked last since it costs a query, and only when
+    # the name fields themselves are actually present.
+    if first_name and last_name and _find_duplicate_name(first_name, last_name, exclude_id=duplicate_exclude_id):
+        errors.append('A staff member with this name already exists.')
+
+    return errors
+
+
+def _find_duplicate_name(first_name, last_name, exclude_id=None):
+    """Look for another (non-deleted) staff member with the same First +
+    Last Name, case-insensitively. Returns that staff member's row (with a
+    few identifying fields joined in) or None. exclude_id excludes the
+    record currently being edited so it never flags itself."""
+    query = """
+        SELECT s.id, s.employee_id, s.first_name, s.last_name, s.phone,
+               l.name AS location_name, p.title AS position
+        FROM staff s
+        LEFT JOIN locations l ON s.location_id = l.id
+        LEFT JOIN positions p ON s.position_id = p.id
+        WHERE s.is_deleted = FALSE
+          AND LOWER(s.first_name) = LOWER(%s)
+          AND LOWER(s.last_name) = LOWER(%s)
+    """
+    params = [first_name, last_name]
+    if exclude_id:
+        query += " AND s.id != %s"
+        params.append(exclude_id)
+    query += " LIMIT 1"
+    return execute_query_one(query, tuple(params))
 
 @staff_bp.route('/')
 @login_required
@@ -202,18 +356,18 @@ def add():
         ifsc_code = (request.form.get('ifsc_code') or '').strip().upper() or None
         monthly_salary = request.form.get('monthly_salary') or None
 
-        if not first_name or not last_name or not position_id:
-            flash('First name, last name, and position are required', 'error')
-            return render_template('staff/add.html')
+        validation_errors = _validate_staff_form(
+            first_name=first_name, last_name=last_name, phone=phone,
+            position_id=position_id, department_id=department_id, location_id=location_id,
+            hire_date_required=False, hire_date=hire_date,
+            bank_account_number=bank_account_number, ifsc_code=ifsc_code, monthly_salary=monthly_salary,
+            address=address, city=city, state=state, zip_code=zip_code,
+        )
 
-        if not phone or not PHONE_RE.match(phone):
-            flash('Phone number is required and must be exactly 10 digits.', 'error')
-            return render_template('staff/add.html')
-
-        bank_error = _validate_bank_fields(bank_account_number, ifsc_code, monthly_salary)
-        if bank_error:
-            flash(bank_error, 'error')
-            return render_template('staff/add.html')
+        if validation_errors:
+            for message in validation_errors:
+                flash(message, 'error')
+            return _render_staff_form('staff/add.html')
 
         try:
             employee_id = _generate_employee_id()
@@ -235,7 +389,17 @@ def add():
                 flash(f'Error adding staff member: {str(e)}', 'error')
         except Exception as e:
             flash(f'Error adding staff member: {str(e)}', 'error')
+        return _render_staff_form('staff/add.html')
 
+    return _render_staff_form('staff/add.html')
+
+
+def _render_staff_form(template_name, **extra):
+    """Fetch the shared Add/Edit Staff dropdown data (locations, departments,
+    positions, managers) and render the given template with it, plus any
+    extra context (e.g. staff=... for Edit). Used both for the initial GET
+    and to redisplay the form with its dropdowns intact after a validation
+    error on POST."""
     # Get locations, departments, positions and potential managers for dropdowns
     try:
         locations = execute_query("SELECT id, name FROM locations ORDER BY name", fetch=True)
@@ -266,8 +430,8 @@ def add():
         positions = []
         managers = []
 
-    return render_template('staff/add.html', locations=locations or [], departments=departments or [],
-                         positions=positions or [], managers=managers or [])
+    return render_template(template_name, locations=locations or [], departments=departments or [],
+                         positions=positions or [], managers=managers or [], indian_states=INDIAN_STATES, **extra)
 
 @staff_bp.route('/edit/<staff_id>', methods=['GET', 'POST'])
 @login_required
@@ -300,27 +464,19 @@ def edit(staff_id):
         ifsc_code = (request.form.get('ifsc_code') or '').strip().upper() or None
         monthly_salary = request.form.get('monthly_salary') or None
 
-        if not first_name or not last_name or not position_id or not hire_date:
-            staff_member = execute_query_one("SELECT * FROM staff WHERE id = %s", (staff_id,))
-            staff_member['per_hour_salary'] = _compute_per_hour_salary(staff_member.get('monthly_salary'))
-            staff_member['per_day_salary'] = _compute_per_day_salary(staff_member.get('monthly_salary'))
-            flash('First name, last name, position, and hire date are required', 'error')
-            return render_template('staff/edit.html', staff=staff_member)
+        validation_errors = _validate_staff_form(
+            first_name=first_name, last_name=last_name, phone=phone,
+            position_id=position_id, department_id=department_id, location_id=location_id,
+            hire_date_required=True, hire_date=hire_date,
+            bank_account_number=bank_account_number, ifsc_code=ifsc_code, monthly_salary=monthly_salary,
+            address=address, city=city, state=state, zip_code=zip_code,
+            duplicate_exclude_id=staff_id,
+        )
 
-        if not phone or not PHONE_RE.match(phone):
-            staff_member = execute_query_one("SELECT * FROM staff WHERE id = %s", (staff_id,))
-            staff_member['per_hour_salary'] = _compute_per_hour_salary(staff_member.get('monthly_salary'))
-            staff_member['per_day_salary'] = _compute_per_day_salary(staff_member.get('monthly_salary'))
-            flash('Phone number is required and must be exactly 10 digits.', 'error')
-            return render_template('staff/edit.html', staff=staff_member)
-
-        bank_error = _validate_bank_fields(bank_account_number, ifsc_code, monthly_salary, required=True)
-        if bank_error:
-            staff_member = execute_query_one("SELECT * FROM staff WHERE id = %s", (staff_id,))
-            staff_member['per_hour_salary'] = _compute_per_hour_salary(staff_member.get('monthly_salary'))
-            staff_member['per_day_salary'] = _compute_per_day_salary(staff_member.get('monthly_salary'))
-            flash(bank_error, 'error')
-            return render_template('staff/edit.html', staff=staff_member)
+        if validation_errors:
+            for message in validation_errors:
+                flash(message, 'error')
+            return _render_edit_form(staff_id)
 
         try:
             execute_query("""
@@ -341,8 +497,17 @@ def edit(staff_id):
             flash(f'Error updating staff member: {str(e)}', 'error')
         except Exception as e:
             flash(f'Error updating staff member: {str(e)}', 'error')
+        return _render_edit_form(staff_id)
 
     # GET request - show edit form
+    return _render_edit_form(staff_id)
+
+
+def _render_edit_form(staff_id):
+    """Load a staff member (with derived display fields) and render the Edit
+    Staff form for them, with dropdowns intact. Used for the initial GET and
+    to redisplay the form after a validation/save error on POST, so the
+    user's dropdown selections are never dropped."""
     try:
         staff_member = execute_query_one("""
             SELECT s.*
@@ -383,33 +548,7 @@ def edit(staff_id):
         staff_member['per_hour_salary'] = _compute_per_hour_salary(staff_member.get('monthly_salary'))
         staff_member['per_day_salary'] = _compute_per_day_salary(staff_member.get('monthly_salary'))
 
-        # Get locations, departments, positions and potential managers for dropdowns
-        locations = execute_query("SELECT id, name FROM locations ORDER BY name", fetch=True)
-        departments = execute_query("SELECT id, name FROM departments WHERE is_active = TRUE ORDER BY name", fetch=True)
-        positions = execute_query("SELECT id, title FROM positions WHERE is_active = TRUE ORDER BY title", fetch=True)
-
-        # Use regular cursor for managers query to avoid RealDictCursor issues
-        managers_conn = get_db_connection()
-        managers_cursor = managers_conn.cursor()
-        try:
-            managers_cursor.execute("""
-                SELECT s.id, COALESCE(s.first_name, '') || ' ' || COALESCE(s.last_name, '') as name, p.title
-                FROM staff s
-                JOIN positions p ON s.position_id = p.id
-                WHERE (p.title LIKE '%Manager%' OR p.title LIKE '%Director%' OR p.title LIKE '%Supervisor%')
-                AND s.is_active = TRUE AND s.is_deleted = FALSE
-                ORDER BY s.last_name, s.first_name
-            """)
-            managers_raw = managers_cursor.fetchall()
-            # Convert to dict format
-            managers = [{'id': row[0], 'name': row[1], 'title': row[2]} for row in managers_raw]
-        finally:
-            managers_cursor.close()
-            managers_conn.close()
-
-        return render_template('staff/edit.html', staff=staff_member,
-                             locations=locations or [], departments=departments or [],
-                             positions=positions or [], managers=managers or [])
+        return _render_staff_form('staff/edit.html', staff=staff_member)
     except Exception as e:
         flash(f'Error loading staff member: {str(e)}', 'error')
         return redirect(url_for('staff.index'))
@@ -436,6 +575,38 @@ def check_employee_id():
         result = execute_query_one(query, params)
         return jsonify({'exists': result is not None})
 
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@staff_bp.route('/check-duplicate-name', methods=['POST'])
+@login_required
+def check_duplicate_name():
+    """Check if another (non-deleted) staff member already has this First +
+    Last Name. Used by the Add/Edit Staff form to warn about a possible
+    duplicate before submitting."""
+    try:
+        data = request.get_json()
+        first_name = (data.get('first_name') or '').strip()
+        last_name = (data.get('last_name') or '').strip()
+        exclude_id = data.get('exclude_id')  # For edit operations
+
+        if not first_name or not last_name:
+            return jsonify({'exists': False})
+
+        duplicate = _find_duplicate_name(first_name, last_name, exclude_id=exclude_id)
+        if not duplicate:
+            return jsonify({'exists': False})
+
+        return jsonify({
+            'exists': True,
+            'staff': {
+                'name': f"{duplicate['first_name']} {duplicate['last_name']}",
+                'employee_id': duplicate['employee_id'],
+                'phone': duplicate['phone'],
+                'location': duplicate['location_name'],
+                'position': duplicate['position'],
+            }
+        })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

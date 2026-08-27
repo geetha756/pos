@@ -33,6 +33,45 @@
 @media (min-width: 992px) {
     .eidli-app { margin: 0 -1.5rem; padding: 1rem 1.5rem 2.5rem; }
 }
+/* Dashboard + History + Settings only (see idli.html / idli_history.html /
+   idli_settings.html's "eidli-app-fill" modifier class). Makes the white
+   card's own background reach all the way to the bottom of the viewport —
+   flush with the sidebar's own visible height, zero gray/off-white gap
+   below the cards — instead of stopping at its content's natural height.
+   `main` (base.html) always carries a flat 100px bottom padding at
+   tablet/desktop widths (a shared, page-wide inline style — intentionally
+   NOT edited directly, out of scope for every other page that isn't one of
+   these three). A percentage/vh-based height on `.eidli-app-fill` resolves
+   independently of that padding and so either falls short of main's real
+   edge (percentage: resolves against main's content box, excluding the
+   padding) or overshoots the viewport (dvh: doesn't know about main's
+   padding at all, or about a grid row's own real height).
+   `main:has(> .eidli-app-fill)` sidesteps both: turning ONLY that main
+   (never any other page's) into a flex column with min-height:100dvh makes
+   flexbox size .eidli-app-fill against main's true content box
+   automatically (flex's own default cross/main-axis sizing, no
+   percentage-of-padding-box gotcha, no manual calc()). The padding-bottom
+   override right below then removes that 100px content-box padding itself
+   (>=768px only — see its own comment) so main's content box - and so the
+   card - reaches main's true OUTER edge with nothing gray left over at
+   all, on every screen size, all the way down to :has()'s Chrome 105 /
+   Safari 15.4 / Firefox 121 baseline (safe to rely on here). */
+main:has(> .eidli-app-fill) { display: flex; flex-direction: column; min-height: 100dvh; }
+/* >=768px only: below that, base.html's own phone-only media query
+   (max-width:767.98px) already replaces this same padding-bottom with a
+   FUNCTIONAL calc() that clears the fixed mobile bottom-nav bar — real
+   content-safety padding, not decorative, and deliberately left alone so
+   nothing ends up hidden behind that bar on a phone. The flat 100px this
+   overrides only exists at >=768px, where nothing below main needs
+   clearing, so zeroing it there is safe. !important is required to beat
+   main's own inline `style="padding-bottom:100px"` (a page-wide default
+   this rule intentionally does not edit for any page but these three) —
+   still fully scoped by the :has() selector to only ever apply on a main
+   that wraps .eidli-app-fill. */
+@media (min-width: 768px) {
+    main:has(> .eidli-app-fill) { padding-bottom: 0 !important; }
+}
+.eidli-app-fill { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
 .eidli-app * { box-sizing: border-box; }
 .eidli-app a { text-decoration: none; }
 .eidli-app .text-muted { color: var(--eidli-muted) !important; }
@@ -124,6 +163,13 @@
 }
 .eidli-app .card-header .card-title, .eidli-panel-title { color: var(--eidli-ink); font-weight: 700; font-size: .95rem; margin: 0; }
 .eidli-app .card-body { padding: 1rem; }
+
+/* Settings page only: "Sync to Machine" card gets extra vertical padding
+   so the box reads taller/roomier than the other Settings cards — a
+   deliberate visual size bump, not a change to the shared .card-body rule
+   above (which every other card, including Temperature Control, still
+   uses unchanged). */
+.eidli-app .eidli-sync-card .card-body { padding-top: 1.75rem; padding-bottom: 1.75rem; }
 
 /* -------------------------------------------------------- status grid -- */
 
@@ -288,8 +334,15 @@
 .eidli-app .modal-content { background: var(--eidli-surface); color: var(--eidli-ink); border: 1px solid var(--eidli-border); }
 .eidli-app .modal-header, .eidli-app .modal-footer { border-color: var(--eidli-border); }
 
-.eidli-chart-wrap { position: relative; height: 240px; }
+/* Live Temperature Trend chart (Dashboard + History -> Analytics): height
+   scales up gradually across breakpoints rather than one jump at 992px, so
+   the chart stays comfortably readable on phones, tablets and desktops
+   alike instead of feeling cramped just below the old single breakpoint. */
+.eidli-chart-wrap { position: relative; height: 220px; }
+@media (min-width: 576px) { .eidli-chart-wrap { height: 250px; } }
+@media (min-width: 768px) { .eidli-chart-wrap { height: 265px; } }
 @media (min-width: 992px) { .eidli-chart-wrap { height: 280px; } }
+@media (min-width: 1400px) { .eidli-chart-wrap { height: 300px; } }
 
 /* Loading overlay sits ON TOP of the chart (not below it as a separate
    line) so the previous chart stays visibly present, just dimmed, while a

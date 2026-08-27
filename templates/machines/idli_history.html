@@ -7,7 +7,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="eidli-app">
+<div class="eidli-app eidli-app-fill">
     {% include "machines/_idli_nav.html" with context %}
 
     <!-- Global date/time range — applies across Events / Commands / Analytics -->
@@ -55,7 +55,7 @@
     <ul class="nav nav-tabs mb-3" id="eidli-hist-tabs" role="tablist">
         <li class="nav-item" role="presentation"><button class="nav-link active" data-tab="events" type="button">Events</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" data-tab="commands" type="button">Commands</button></li>
-        <li class="nav-item" role="presentation"><button class="nav-link" data-tab="analytics" type="button">Analytics</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-tab="analytics" type="button">Graph</button></li>
     </ul>
 
     <!-- Event log -->
@@ -92,29 +92,6 @@
             <div class="card-header flex-wrap gap-2">
                 <span class="eidli-panel-title" id="eidli-analytics-title">Live Temperature Trend</span>
                 <div class="d-flex align-items-center gap-2">
-                    <label class="form-label mb-0 small text-muted" id="eidli-analytics-graph-type-label">Graph Type</label>
-                    <!-- Custom combobox (WAI-ARIA "select only" combobox pattern) instead of a
-                         native <select> — a native select's own popup is OS-rendered and, in this
-                         app, was found to close unexpectedly on Arrow Down (a browser/OS quirk
-                         triggered by DOM work happening in the select's `change` handler while its
-                         native popup is still open). This version is fully own-rendered/scripted so
-                         its open/close and highlight behavior can be guaranteed correct: mouse click,
-                         Arrow Up/Down (moves the highlight, never closes), Enter (selects + closes),
-                         Escape (closes without changing the selection), and outside-click (closes
-                         without changing the selection) — wired in history-analytics.js. -->
-                    <div class="eidli-combobox" id="eidli-analytics-graph-type">
-                        <button type="button" class="eidli-combobox-trigger form-select form-select-sm"
-                                id="eidli-analytics-graph-type-btn" aria-haspopup="listbox" aria-expanded="false"
-                                aria-labelledby="eidli-analytics-graph-type-label eidli-analytics-graph-type-btn">
-                            <span id="eidli-analytics-graph-type-value">Live Temperature Trend</span>
-                        </button>
-                        <ul class="eidli-combobox-listbox" id="eidli-analytics-graph-type-listbox" role="listbox"
-                            aria-labelledby="eidli-analytics-graph-type-label" tabindex="-1" hidden>
-                            <li role="option" class="eidli-combobox-option" data-value="temperature" aria-selected="true">Live Temperature Trend</li>
-                            <li role="option" class="eidli-combobox-option" data-value="runtime" aria-selected="false">Machine Runtime</li>
-                            <li role="option" class="eidli-combobox-option" data-value="heater" aria-selected="false">Heater ON Time</li>
-                        </ul>
-                    </div>
                     <button type="button" class="btn btn-sm btn-outline-secondary" id="eidli-analytics-refresh" aria-label="Refresh analytics"><i class="ri-refresh-line icon-sm"></i></button>
                 </div>
             </div>

@@ -17,21 +17,22 @@ test.describe('Machine Management - history, filters and failures', () => {
     await expect(page.getByLabel('To date')).toHaveValue('');
   });
 
-  test('MCH-008 - history tabs and graph combobox support mouse and keyboard selection', async ({ page }) => {
+  // Formerly also covered the Graph Type combobox's mouse/keyboard
+  // selection (Machine Runtime as its second option) — that combobox and
+  // the Machine Runtime graph option were removed from the product
+  // (History -> Graph now shows only the Live Temperature Trend chart
+  // directly, with no picker), so this test was narrowed to just the tabs
+  // and the Graph pane's fixed heading rather than adapted to test a
+  // dropdown that no longer exists.
+  test('MCH-008 - history tabs switch correctly and the Graph pane shows a fixed heading with no picker', async ({ page }) => {
     const machine = new MachinePage(page);
     await machine.installConnectedService();
     await machine.gotoHistory();
     await page.getByRole('button', { name: 'Commands' }).click();
     await expect(page.getByText('Command History')).toBeVisible();
-    await page.getByRole('button', { name: 'Analytics' }).click();
-    const combo = page.locator('#eidli-analytics-graph-type-btn');
-    await combo.focus();
-    await combo.press('Enter');
-    await expect(combo).toHaveAttribute('aria-expanded', 'true');
-    await combo.press('ArrowDown');
-    await combo.press('Enter');
-    await expect(combo).toContainText('Machine Runtime');
-    await expect(combo).toHaveAttribute('aria-expanded', 'false');
+    await page.getByRole('button', { name: 'Graph' }).click();
+    await expect(page.locator('#eidli-analytics-title')).toHaveText('Live Temperature Trend');
+    await expect(page.locator('#eidli-analytics-graph-type-btn')).toHaveCount(0);
   });
 
   test('MCH-009 - settings API failure renders an error and leaves no false success', async ({ page }) => {

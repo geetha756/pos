@@ -13,7 +13,7 @@ test.describe('Staff Management - Staff List', () => {
     await test.step('Verify the table columns', async () => {
       const headers = staff.table.locator('thead th');
       await expect(headers).toHaveText([
-        'Employee ID', 'Name', 'Position', 'Department', 'Location', 'Status', 'Actions',
+        'Employee ID', 'Name', 'Position', 'Location', 'Status', 'Actions',
       ]);
     });
 
@@ -27,7 +27,7 @@ test.describe('Staff Management - Staff List', () => {
       expect(count).toBeGreaterThan(0);
       for (let i = 0; i < count; i++) {
         await expect(staff.statusCell(rows.nth(i))).toContainText('Active');
-        await expect(staff.statusCell(rows.nth(i))).not.toContainText('Inactive');
+        await expect(staff.statusCell(rows.nth(i))).not.toContainText('Deactive');
       }
 
       const optionText = await page.locator('#statusFilter option[value="active"]').textContent();

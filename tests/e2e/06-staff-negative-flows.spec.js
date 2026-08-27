@@ -281,9 +281,14 @@ test.describe.serial('Staff Management - Negative Flows (server-side validation 
       await staff.waitForScriptsReady();
     });
 
-    await test.step('Fill IFSC Code and Monthly Salary, leave Bank Account Number blank, and submit', async () => {
+    await test.step('Fill IFSC Code and a distinctive Monthly Salary, leave Bank Account Number blank, and submit', async () => {
+      // Edit pre-populates this field with the existing value, so it must
+      // be explicitly cleared to actually exercise the "left blank" case.
+      await staff.bankAccountInput.fill('');
       await staff.ifscInput.fill('SBIN0005814');
-      await staff.monthlySalaryInput.fill('25000');
+      // Deliberately different from the fixture's default (25000) so the
+      // "nothing was saved" check below can't pass by coincidence.
+      await staff.monthlySalaryInput.fill('31000');
       await staff.submit();
     });
 
@@ -291,7 +296,7 @@ test.describe.serial('Staff Management - Negative Flows (server-side validation 
       await expect(page).toHaveURL(/\/staff\/edit\//);
       await expect(page.locator('#bank_account_number:invalid')).toHaveCount(1);
       const dbRow = dbGetByEmployeeId(managerEmployeeId);
-      expect(dbRow.monthly_salary).not.toBe('25000.00');
+      expect(dbRow.monthly_salary).not.toBe('31000.00');
     });
   });
 

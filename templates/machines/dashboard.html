@@ -272,10 +272,15 @@ document.addEventListener('DOMContentLoaded', function () {
     // never both at once - see renderUptimeNote().
     var uptimeNoteEl = document.getElementById('machine-uptime-note');
     var lastOnTime = null, lastOffTime = null;
+    // Date + time + seconds (e.g. "24 Aug 2026, 12:14:32 pm") so the exact
+    // moment the backend recorded this ON/OFF event is unambiguous, not
+    // just an hour:minute that could be from today or several days ago.
     function fmtHM(iso) {
         var d = new Date(iso);
         if (isNaN(d.getTime())) return null;
-        return d.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', hour12: true });
+        var datePart = d.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' });
+        var timePart = d.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+        return datePart + ', ' + timePart;
     }
     function latestEventTime(eventType) {
         return Eidli.apiFetch(Eidli.URLS.events + '?limit=1&event_type=' + eventType).then(function (res) {

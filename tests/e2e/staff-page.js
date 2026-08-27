@@ -30,11 +30,11 @@ class StaffPage {
   }
 
   statusCell(row) {
-    return row.locator('td').nth(5);
+    return row.locator('td').nth(4);
   }
 
   locationCell(row) {
-    return row.locator('td').nth(4);
+    return row.locator('td').nth(3);
   }
 
   employeeIdCell(row) {
@@ -113,8 +113,17 @@ class StaffPage {
   get bankAccountInput() { return this.page.locator('#bank_account_number'); }
   get ifscInput() { return this.page.locator('#ifsc_code'); }
   get monthlySalaryInput() { return this.page.locator('#monthly_salary'); }
-  get notesInput() { return this.page.locator('#notes'); }
-  get submitButton() { return this.page.locator('button[form="staffForm"]'); }
+  get locationSelect() { return this.page.locator('#location_id'); }
+  get addressInput() { return this.page.locator('#address'); }
+  get cityInput() { return this.page.locator('#city'); }
+  get stateInput() { return this.page.locator('#state'); }
+  get zipInput() { return this.page.locator('#zip_code'); }
+  // Edit Staff Member also has a "Save" button at the bottom of the Staff
+  // Information and Bank Details cards (each just another full-form submit
+  // shortcut, not a partial save) - `.last()` picks the bottom action-bar
+  // button specifically, since it's always the last submit button in DOM
+  // order on every page (Add has only the one).
+  get submitButton() { return this.page.locator('button[form="staffForm"]').last(); }
   get phoneInvalidFeedback() {
     return this.page.locator('#staffForm div.invalid-feedback', { hasText: 'Phone number must be exactly 10 digits.' });
   }
@@ -125,14 +134,38 @@ class StaffPage {
     return this.page.locator('#staffForm div.invalid-feedback', { hasText: 'Please enter a valid IFSC code.' });
   }
 
-  // Last Name and Phone are required fields server- and client-side, so
-  // every caller gets a valid default for both unless it deliberately wants
-  // to test the blank/invalid case itself (see NEG-008/NEG-009).
-  async fillNewStaff({ firstName, lastName = 'Fixture', phone = '9000000000', position }) {
+  // First Name, Last Name, Phone, Position, Location, Bank Account Number,
+  // IFSC Code, Monthly Salary, Street Address, City, State, and ZIP are all
+  // required fields server- and client-side, so every caller gets a valid
+  // default for each unless it deliberately wants to test the blank/invalid
+  // case itself (see NEG-001/002/008/009/011). Department was removed from
+  // the Add/Edit forms - the `department` param is accepted and ignored for
+  // backward compatibility with existing call sites, but no longer fills
+  // anything.
+  async fillNewStaff({
+    firstName, lastName = 'Fixture', phone = '9000000010', position,
+    department = true, location = true,
+    bankAccountNumber = '123456789012', ifscCode = 'SBIN0005814', monthlySalary = '25000',
+    address = '123 Test Street', city = 'Test City', state = 'Andhra Pradesh', zip = '500001',
+  }) {
     await this.firstNameInput.fill(firstName);
     await this.lastNameInput.fill(lastName);
     if (phone) await this.phoneInput.fill(phone);
     if (position) await this.positionSelect.selectOption({ label: position });
+    // `true` (the default) just picks whatever the first real option is -
+    // callers that care about a specific value pass a label/value string.
+    if (location && !(await this.locationSelect.isDisabled())) {
+      await this.locationSelect.selectOption(
+        location === true ? { index: 1 } : { label: location }
+      );
+    }
+    if (bankAccountNumber) await this.bankAccountInput.fill(bankAccountNumber);
+    if (ifscCode) await this.ifscInput.fill(ifscCode);
+    if (monthlySalary) await this.monthlySalaryInput.fill(monthlySalary);
+    if (address) await this.addressInput.fill(address);
+    if (city) await this.cityInput.fill(city);
+    if (state) await this.stateInput.selectOption({ label: state });
+    if (zip) await this.zipInput.fill(zip);
   }
 
   async submit() {

@@ -28,7 +28,7 @@
                 <h5 class="card-title mb-0">Staff Information</h5>
             </div>
             <div class="card-body">
-                <form method="POST" id="staffForm">
+                <form method="POST" id="staffForm" novalidate data-check-duplicate-url="{{ url_for('staff.check_duplicate_name') }}">
                     <!-- Basic Information -->
                     <div class="row mb-3">
                         <div class="col-md-4">
@@ -39,6 +39,7 @@
                         <div class="col-md-4">
                             <label for="first_name" class="form-label">First Name <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="first_name" name="first_name" required>
+                            <div class="invalid-feedback">First name is required.</div>
                         </div>
                         <div class="col-md-4">
                             <label for="last_name" class="form-label">Last Name <span class="text-danger">*</span></label>
@@ -47,18 +48,32 @@
                         </div>
                     </div>
 
+                    <div id="duplicateNameWarning" class="alert alert-warning d-none" role="alert">
+                        <div class="d-flex">
+                            <i class="ri-error-warning-line icon me-2 mt-1"></i>
+                            <div>
+                                <strong>A staff member with this name already exists.</strong>
+                                <div id="duplicateNameDetails" class="small mt-1"></div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Contact Information -->
                     <div class="row mb-3">
                         <div class="col-md-12">
                             <label for="phone" class="form-label">Phone <span class="text-danger">*</span></label>
-                            <input type="tel" class="form-control" id="phone" name="phone" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" required>
-                            <div class="invalid-feedback">Phone number is required and must be exactly 10 digits.</div>
+                            <div class="input-group has-validation">
+                                <span class="input-group-text">+91</span>
+                                <input type="tel" class="form-control" id="phone" name="phone" inputmode="numeric" pattern="[6-9][0-9]{9}" maxlength="10" placeholder="Enter 10-digit mobile number (e.g. 7989189681)" required>
+                                <div class="invalid-feedback">Enter a valid 10-digit mobile number. Example: 7989189681</div>
+                            </div>
+                            <div class="form-text">Enter 10-digit mobile number (e.g. 7989189681).</div>
                         </div>
                     </div>
 
                     <!-- Job Information -->
                     <div class="row mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-12">
                             <label for="position_id" class="form-label">Position <span class="text-danger">*</span></label>
                             <select class="form-select" id="position_id" name="position_id" required>
                                 <option value="">Select Position</option>
@@ -66,23 +81,15 @@
                                 <option value="{{ position.id }}">{{ position.title }}</option>
                                 {% endfor %}
                             </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="department_id" class="form-label">Department</label>
-                            <select class="form-select" id="department_id" name="department_id">
-                                <option value="">Select Department</option>
-                                {% for department in departments %}
-                                <option value="{{ department.id }}">{{ department.name }}</option>
-                                {% endfor %}
-                            </select>
+                            <div class="invalid-feedback">Position is required.</div>
                         </div>
                     </div>
 
                     <!-- Location -->
                     <div class="row mb-3">
                         <div class="col-md-12">
-                            <label for="location_id" class="form-label">Location</label>
-                            <select class="form-select" id="location_id" name="location_id" {% if is_scoped() %}disabled{% endif %}>
+                            <label for="location_id" class="form-label">Location <span class="text-danger">*</span></label>
+                            <select class="form-select" id="location_id" name="location_id" {% if is_scoped() %}disabled{% endif %} required>
                                 <option value="">Select Location</option>
                                 {% for location in locations %}
                                 <option value="{{ location.id }}" {% if is_scoped() and location.id|string == scoped_location_id() %}selected{% endif %}>{{ location.name }}</option>
@@ -92,48 +99,63 @@
                             <input type="hidden" name="location_id" value="{{ scoped_location_id() }}">
                             <div class="form-text">Your store (locked).</div>
                             {% endif %}
+                            <div class="invalid-feedback">Location is required.</div>
                         </div>
                     </div>
 
-                    <!-- Bank & Payroll Details -->
-                    <div class="row mb-3">
-                        <div class="col-md-4">
-                            <label for="bank_account_number" class="form-label">Bank Account Number</label>
-                            <input type="text" class="form-control" id="bank_account_number" name="bank_account_number" pattern="[0-9]{5,20}">
-                            <div class="invalid-feedback">Bank Account Number must be 5-20 digits.</div>
-                        </div>
-                        <div class="col-md-4">
-                            <label for="ifsc_code" class="form-label">IFSC Code</label>
-                            <input type="text" class="form-control text-uppercase" id="ifsc_code" name="ifsc_code" pattern="[A-Za-z]{4}0[A-Za-z0-9]{6}" placeholder="e.g. SBIN0005814">
-                            <div class="invalid-feedback">Please enter a valid IFSC code.</div>
-                        </div>
-                        <div class="col-md-4">
-                            <label for="monthly_salary" class="form-label">Monthly Salary</label>
-                            <div class="input-group">
-                                <span class="input-group-text">₹</span>
-                                <input type="number" class="form-control" id="monthly_salary" name="monthly_salary" step="0.01" min="0">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="per_hour_salary" class="form-label">Per Hour Salary</label>
-                            <div class="input-group">
-                                <span class="input-group-text">₹</span>
-                                <input type="text" class="form-control" id="per_hour_salary" value="0.00" readonly>
-                            </div>
-                            <div class="form-text">Auto-calculated from Monthly Salary.</div>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="per_day_salary" class="form-label">Per Day Salary</label>
-                            <div class="input-group">
-                                <span class="input-group-text">₹</span>
-                                <input type="text" class="form-control" id="per_day_salary" value="0.00" readonly>
-                            </div>
-                            <div class="form-text">Auto-calculated from Monthly Salary.</div>
-                        </div>
-                    </div>
                 </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bank Details -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Bank Details</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="bank_account_number" class="form-label">Bank Account Number <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="bank_account_number" name="bank_account_number" pattern="[0-9]{5,20}" form="staffForm" required>
+                        <div class="invalid-feedback">Bank Account Number is required and must be 5-20 digits.</div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="ifsc_code" class="form-label">IFSC Code <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control text-uppercase" id="ifsc_code" name="ifsc_code" pattern="[A-Za-z]{4}0[A-Za-z0-9]{6}" placeholder="e.g. SBIN0005814" form="staffForm" required>
+                        <div class="invalid-feedback">IFSC Code is required and must be in a valid format (e.g. SBIN0005814).</div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="monthly_salary" class="form-label">Monthly Salary <span class="text-danger">*</span></label>
+                        <div class="input-group has-validation">
+                            <span class="input-group-text">₹</span>
+                            <input type="number" class="form-control" id="monthly_salary" name="monthly_salary" step="0.01" min="0.01" form="staffForm" required>
+                            <div class="invalid-feedback">Monthly Salary is required.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="per_hour_salary" class="form-label">Per Hour Salary</label>
+                        <div class="input-group">
+                            <span class="input-group-text">₹</span>
+                            <input type="text" class="form-control" id="per_hour_salary" value="0.00" readonly>
+                        </div>
+                        <div class="form-text">Auto-calculated from Monthly Salary.</div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="per_day_salary" class="form-label">Per Day Salary <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">₹</span>
+                            <input type="text" class="form-control" id="per_day_salary" value="0.00" readonly>
+                        </div>
+                        <div class="form-text">Auto-calculated from Monthly Salary.</div>
+                    </div>
+                    <div class="col-md-4 mb-3"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -142,39 +164,37 @@
 <!-- Address Information -->
 <div class="row mb-4">
     <div class="col-12">
-        <div class="card mb-3">
+        <div class="card">
             <div class="card-header">
                 <h6 class="card-title mb-0">Address Information</h6>
             </div>
             <div class="card-body">
                 <div class="mb-3">
-                    <label for="address" class="form-label">Street Address</label>
-                    <textarea class="form-control" id="address" name="address" rows="2" form="staffForm"></textarea>
+                    <label for="address" class="form-label">Street Address <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="address" name="address" rows="2" form="staffForm" required></textarea>
+                    <div class="invalid-feedback">Street Address is required.</div>
                 </div>
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label for="city" class="form-label">City</label>
-                        <input type="text" class="form-control" id="city" name="city" form="staffForm">
+                        <label for="city" class="form-label">City <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="city" name="city" form="staffForm" required>
+                        <div class="invalid-feedback">City is required.</div>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <label for="state" class="form-label">State</label>
-                        <input type="text" class="form-control" id="state" name="state" form="staffForm">
+                        <label for="state" class="form-label">State <span class="text-danger">*</span></label>
+                        <select class="form-select" id="state" name="state" form="staffForm" required>
+                            {% for state_name in indian_states %}
+                            <option value="{{ state_name }}" {% if state_name == 'Andhra Pradesh' %}selected{% endif %}>{{ state_name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="invalid-feedback">State is required.</div>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <label for="zip_code" class="form-label">ZIP</label>
-                        <input type="text" class="form-control" id="zip_code" name="zip_code" form="staffForm">
+                        <label for="zip_code" class="form-label">ZIP <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="zip_code" name="zip_code" form="staffForm" required>
+                        <div class="invalid-feedback">ZIP is required.</div>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Notes -->
-        <div class="card">
-            <div class="card-header">
-                <h6 class="card-title mb-0">Additional Notes</h6>
-            </div>
-            <div class="card-body">
-                <textarea class="form-control" id="notes" name="notes" rows="4" form="staffForm" placeholder="Any additional notes about this staff member..."></textarea>
             </div>
         </div>
     </div>
@@ -197,46 +217,6 @@
 </div>
 
 {% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Per Hour Salary: derived from Monthly Salary over this month's actual
-    // day count x an 8-hour day, mirroring the server-side calculation used
-    // once the staff member is saved.
-    const monthlySalaryInput = document.getElementById('monthly_salary');
-    const perHourInput = document.getElementById('per_hour_salary');
-    const perDayInput = document.getElementById('per_day_salary');
-    function updatePerHourSalary() {
-        const monthly = parseFloat(monthlySalaryInput.value);
-        const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-        const perHour = monthly > 0 ? monthly / (daysInMonth * 8) : 0;
-        const perDay = monthly > 0 ? monthly / daysInMonth : 0;
-        perHourInput.value = perHour.toFixed(2);
-        perDayInput.value = perDay.toFixed(2);
-    }
-    monthlySalaryInput.addEventListener('input', updatePerHourSalary);
-
-    // Phone: digits only, max 10 - reject anything else with a validation popup
-    document.getElementById('phone').addEventListener('input', function(e) {
-        var original = this.value;
-        var cleaned = original.replace(/\D/g, '').slice(0, 10);
-        if (cleaned !== original) {
-            this.setCustomValidity('Phone number must contain numbers only, up to 10 digits.');
-            this.reportValidity();
-        } else {
-            this.setCustomValidity('');
-        }
-        this.value = cleaned;
-    });
-
-    // Form validation
-    document.getElementById('staffForm').addEventListener('submit', function(e) {
-        if (!this.checkValidity()) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-        this.classList.add('was-validated');
-    });
-});
-</script>
+<script src="{{ url_for('static', filename='js/staff-form.js') }}"></script>
 {% endblock %}
 {% endblock %}

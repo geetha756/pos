@@ -54,18 +54,20 @@ test.describe.serial('Staff Management - Edit, Phone Validation, Status Change, 
 
   test('TC-007: Edit updates and persists staff details', async ({ page }) => {
     const staff = new StaffPage(page);
-    const marker = 'Updated by Playwright E2E - ' + Date.now();
+    const marker = 'PWCity' + Date.now();
 
-    await test.step('Open Edit for the fixture staff member and change Notes', async () => {
+    await test.step('Open Edit for the fixture staff member and change City', async () => {
       await staff.goto();
       const row = staff.rowByText(FIXTURE_FIRST_NAME);
       await staff.clickEdit(row);
       await expect(page.getByRole('heading', { name: 'Edit Staff Member' })).toBeVisible();
-      await staff.notesInput.fill(marker);
+      // Street Address, City, State, and ZIP are all required.
+      await staff.addressInput.fill('123 Test Street');
+      await staff.cityInput.fill(marker);
+      await staff.stateInput.selectOption({ label: 'Andhra Pradesh' });
+      await staff.zipInput.fill('500001');
       // Bank Account Number, IFSC Code, and Monthly Salary are required on
-      // Edit (Add Staff Member never collected them for this fixture), so
-      // any Edit save needs valid values here regardless of which field the
-      // test is actually exercising.
+      // Edit.
       await staff.bankAccountInput.fill('123456789012');
       await staff.ifscInput.fill('SBIN0005814');
       await staff.monthlySalaryInput.fill('25000');
@@ -76,7 +78,7 @@ test.describe.serial('Staff Management - Edit, Phone Validation, Status Change, 
       await expect(page).toHaveURL(/\/staff\/$/);
       const row = staff.rowByText(FIXTURE_FIRST_NAME);
       await staff.clickEdit(row);
-      await expect(staff.notesInput).toHaveValue(marker);
+      await expect(staff.cityInput).toHaveValue(marker);
     });
   });
 
@@ -114,15 +116,11 @@ test.describe.serial('Staff Management - Edit, Phone Validation, Status Change, 
     });
 
     await test.step('An incomplete (non-10-digit) phone blocks submission via validation', async () => {
-      // NOTE: <form id="staffForm"> has no `novalidate`, so the browser's
-      // own native constraint validation intercepts before the page's
-      // 'submit' handler ever runs - the custom
-      // "Phone number must be exactly 10 digits." <div class="invalid-feedback">
-      // text never actually renders on a real submit attempt (the browser's
-      // generic built-in validation bubble shows instead). Submission is
-      // still correctly blocked either way, which is what's asserted here -
-      // the pattern-mismatch state itself (:invalid pseudo-class) is the
-      // reliable, real signal. Documented as a finding, app code untouched.
+      // <form id="staffForm"> has `novalidate`, so the page's own 'submit'
+      // handler (not the browser's native bubble) is what blocks this -
+      // it calls checkValidity()/reportValidity() itself and prevents the
+      // submit. Either way, the pattern-mismatch state (:invalid
+      // pseudo-class) is the reliable, real signal asserted here.
       await staff.phoneInput.fill('12345');
       await staff.submit();
       await expect(page).toHaveURL(/\/staff\/edit\//); // still on the Edit page - submission was blocked
@@ -161,7 +159,7 @@ test.describe.serial('Staff Management - Edit, Phone Validation, Status Change, 
       await page.waitForURL(/status=inactive/);
       const row = staff.rowByText(FIXTURE_FIRST_NAME);
       await expect(row).toBeVisible();
-      await expect(staff.statusCell(row)).toContainText('Inactive');
+      await expect(staff.statusCell(row)).toContainText('Deactive');
       await expect(row.getByRole('button', { name: 'Activate' })).toBeVisible();
     });
 

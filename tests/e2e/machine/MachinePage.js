@@ -5,7 +5,11 @@ const { success, settings, status, temperatureLogs } = require('./test-data');
 class MachinePage {
   constructor(page) { this.page = page; }
 
-  async installConnectedService({ settingsResponse = success(settings), statusResponse = success(status), events = [], commands = [] } = {}) {
+  async installConnectedService({
+    settingsResponse = success(settings), statusResponse = success(status),
+    events = [], commands = [], heatingCycles = [], temperatureLogsResponse = null,
+    eventsResponse = null, commandsResponse = null, heatingCyclesResponse = null,
+  } = {}) {
     await this.page.route('**/machines/idli/**', async (route) => {
       const url = new URL(route.request().url());
       if (route.request().isNavigationRequest()) {
@@ -14,14 +18,17 @@ class MachinePage {
         return route.fulfill({ response, body: html });
       }
       let body = success({});
+      let status_ = 200;
       if (url.pathname.endsWith('/status')) body = statusResponse;
       else if (url.pathname.endsWith('/settings') && route.request().method() === 'GET') body = settingsResponse;
-      else if (url.pathname.endsWith('/temperature-logs')) body = success(temperatureLogs);
-      else if (url.pathname.endsWith('/events')) body = success({ items: events, total: events.length });
-      else if (url.pathname.endsWith('/commands')) body = success({ items: commands, total: commands.length });
+      else if (url.pathname.endsWith('/temperature-logs')) body = temperatureLogsResponse || success(temperatureLogs);
+      else if (url.pathname.endsWith('/events')) body = eventsResponse || success({ items: events, total: events.length });
+      else if (url.pathname.endsWith('/commands')) body = commandsResponse || success({ items: commands, total: commands.length });
+      else if (url.pathname.endsWith('/heating-cycles')) body = heatingCyclesResponse || success({ items: heatingCycles, total: heatingCycles.length });
       else if (url.pathname.endsWith('/settings/sync')) body = success({ request_id: null });
       else if (url.pathname.endsWith('/settings') && route.request().method() === 'PATCH') body = success(settings);
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+      if (typeof body === 'object' && body !== null && typeof body.__status === 'number') { status_ = body.__status; }
+      await route.fulfill({ status: status_, contentType: 'application/json', body: JSON.stringify(body) });
     });
   }
 

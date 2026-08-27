@@ -198,7 +198,7 @@
         if (value === null || value === undefined || value === '') return null;
         var n = Number(value);
         if (isNaN(n)) return String(value);
-        return (Math.round(n * 100) / 100).toString().replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1') + '�C';
+        return (Math.round(n * 100) / 100).toString().replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1') + '°C';
     }
 
     function thresholdForHeaterEvent(e, turningOn) {
@@ -229,7 +229,7 @@
         var direct = valueFromEvent(e, ['temperature', 'current_temperature', 'target_temperature', 'threshold_value', 'threshold']);
         if (direct !== null) return fmtEventTemp(direct);
         var msg = String((e && e.event_message) || '');
-        var match = msg.match(/\((-?\d+(?:\.\d+)?)\s*(?:�C|C)?\)/i) || msg.match(/(-?\d+(?:\.\d+)?)\s*(?:�C|C)/i);
+        var match = msg.match(/\((-?\d+(?:\.\d+)?)\s*(?:°C|C)?\)/i) || msg.match(/(-?\d+(?:\.\d+)?)\s*(?:°C|C)/i);
         return match ? fmtEventTemp(match[1]) : null;
     }
 

@@ -54,8 +54,8 @@
                 <h6 class="card-title">Staff Status</h6>
                 <select class="form-select" id="statusFilter">
                     <option value="all" {% if selected_status == 'all' %}selected{% endif %}>All Staff ({{ all_count }})</option>
-                    <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active Staff ({{ active_count }})</option>
-                    <option value="inactive" {% if selected_status == 'inactive' %}selected{% endif %}>Inactive Staff ({{ inactive_count }})</option>
+                    <option value="active" {% if selected_status == 'active' %}selected{% endif %}>Active ({{ active_count }})</option>
+                    <option value="inactive" {% if selected_status == 'inactive' %}selected{% endif %}>Deactive ({{ inactive_count }})</option>
                 </select>
             </div>
         </div>
@@ -67,12 +67,19 @@
         {% if staff %}
         <div class="table-responsive">
             <table class="table table-striped table-hover" id="staffTable">
+                <colgroup>
+                    <col style="width: 12%;">
+                    <col style="width: 22%;">
+                    <col style="width: 16%;">
+                    <col style="width: 16%;">
+                    <col style="width: 12%;">
+                    <col style="width: 22%;">
+                </colgroup>
                 <thead>
                     <tr>
                         <th>Employee ID</th>
                         <th>Name</th>
                         <th>Position</th>
-                        <th>Department</th>
                         <th>Location</th>
                         <th>Status</th>
                         <th>Actions</th>
@@ -94,11 +101,10 @@
                             </div>
                         </td>
                         <td>{{ member.position }}</td>
-                        <td>{{ member.department or '-' }}</td>
                         <td>{{ member.location_name or '-' }}</td>
                         <td>
                             <span class="badge {% if member.is_active %}bg-success{% else %}bg-secondary{% endif %}">
-                                {% if member.is_active %}Active{% else %}Inactive{% endif %}
+                                {% if member.is_active %}Active{% else %}Deactive{% endif %}
                             </span>
                         </td>
                         <td>
@@ -107,11 +113,11 @@
                                    data-bs-toggle="tooltip" data-bs-placement="top" title="View Details">
                                     View
                                 </a>
+                                {% if member.is_active %}
                                 <a href="{{ url_for('staff.edit', staff_id=member.id) }}" class="btn btn-sm btn-light text-primary"
                                    data-bs-toggle="tooltip" data-bs-placement="top" title="Edit">
                                     Edit
                                 </a>
-                                {% if member.is_active %}
                                 <button type="button" class="btn btn-sm btn-light text-danger deactivate-staff-btn"
                                         data-staff-id="{{ member.id }}"
                                         data-staff-name="{{ (member.first_name + ' ' + member.last_name)|replace("'", "\\'")|replace('"', '\\"')|replace('\n',' ')|replace('\r',' ') }}"

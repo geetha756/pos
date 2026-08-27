@@ -82,7 +82,7 @@ def _validate_range(value, lo, hi, field):
 
 
 def _validate_threshold(value, label):
-    """Off/Restart threshold-specific validation — 0-100°C, with the exact
+    """Off/Restart threshold-specific validation — 0-200°C, with the exact
     field-labeled message text this needs (distinct from _validate_range's
     generic 'field must be between lo and hi', still used for offset)."""
     try:
@@ -91,8 +91,8 @@ def _validate_threshold(value, label):
         raise eidli.EidliError(f'{label} must be a number.', 400)
     if num < 0:
         raise eidli.EidliError(f'{label} must be greater than or equal to 0°C.', 400)
-    if num > 100:
-        raise eidli.EidliError(f'{label} must be less than or equal to 100°C.', 400)
+    if num > 200:
+        raise eidli.EidliError(f'{label} must be less than or equal to 200°C.', 400)
     return num
 
 

@@ -29,7 +29,7 @@ test.describe('Staff Management - Filters', () => {
       const count = await rows.count();
       expect(count).toBeGreaterThan(0);
       for (let i = 0; i < count; i++) {
-        await expect(staff.statusCell(rows.nth(i))).toContainText('Inactive');
+        await expect(staff.statusCell(rows.nth(i))).toContainText('Deactive');
         await expect(staff.statusCell(rows.nth(i))).not.toContainText(/^Active$/);
       }
     });
@@ -71,7 +71,7 @@ test.describe('Staff Management - Filters', () => {
       let sawInactive = false;
       for (let i = 0; i < count; i++) {
         const text = await staff.statusCell(rows.nth(i)).textContent();
-        if (text.includes('Inactive')) sawInactive = true;
+        if (text.includes('Deactive')) sawInactive = true;
         else if (text.includes('Active')) sawActive = true;
       }
       expect(sawActive).toBe(true);

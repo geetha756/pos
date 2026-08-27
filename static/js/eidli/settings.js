@@ -21,10 +21,10 @@
         var html = '<form id="eidli-settings-form">';
         html += '<div class="row g-3">';
         html += '<div class="col-sm-6 col-lg-3"><label class="form-label">Off Threshold (°C)</label>' +
-            '<input type="number" step="0.01" min="0" max="100" class="form-control" id="eidli-set-off" value="' + esc(settings.off_temperature) + '">' +
+            '<input type="number" step="0.01" min="0" max="200" class="form-control" id="eidli-set-off" value="' + esc(settings.off_temperature) + '">' +
             '<div class="form-text">Heater turns off when this is reached.</div></div>';
         html += '<div class="col-sm-6 col-lg-3"><label class="form-label">Restart Threshold (°C)</label>' +
-            '<input type="number" step="0.01" min="0" max="100" class="form-control" id="eidli-set-on" value="' + esc(settings.on_temperature) + '">' +
+            '<input type="number" step="0.01" min="0" max="200" class="form-control" id="eidli-set-on" value="' + esc(settings.on_temperature) + '">' +
             '<div class="form-text">Heater restarts once temperature drops to this.</div></div>';
         html += '<div class="col-sm-6 col-lg-3"><label class="form-label">Temperature Offset (°C)</label>' +
             '<input type="number" step="0.01" min="-10" max="10" class="form-control" id="eidli-set-offset" value="' + esc(settings.temperature_offset) + '">' +
@@ -55,17 +55,17 @@
         var off = el('eidli-set-off').value, on = el('eidli-set-on').value, offset = el('eidli-set-offset').value;
 
         // Blocks the save entirely — no API call — the instant either
-        // threshold exceeds 100°C, with the exact message text this needs,
-        // rather than relying on the native max="100" bubble or waiting on
+        // threshold exceeds 200°C, with the exact message text this needs,
+        // rather than relying on the native max="200" bubble or waiting on
         // a round-trip to the backend's own validation to find out.
         var offNum = parseFloat(off);
-        if (!isNaN(offNum) && offNum > 100) {
-            msg.textContent = 'Off Threshold must be less than or equal to 100°C.'; msg.className = 'mt-2 small text-danger';
+        if (!isNaN(offNum) && offNum > 200) {
+            msg.textContent = 'Off Threshold must be less than or equal to 200°C.'; msg.className = 'mt-2 small text-danger';
             return;
         }
         var onNum = parseFloat(on);
-        if (!isNaN(onNum) && onNum > 100) {
-            msg.textContent = 'Restart Threshold must be less than or equal to 100°C.'; msg.className = 'mt-2 small text-danger';
+        if (!isNaN(onNum) && onNum > 200) {
+            msg.textContent = 'Restart Threshold must be less than or equal to 200°C.'; msg.className = 'mt-2 small text-danger';
             return;
         }
 
@@ -85,9 +85,19 @@
         apiFetch(URLS.settings, { method: 'PATCH', body: JSON.stringify(body) }).then(function (res) {
             submitBtn.disabled = false;
             if (res.ok && res.body.success) {
-                msg.textContent = 'Saved.'; msg.className = 'mt-2 small text-success';
                 window.showToast('success', 'Settings saved.');
+                // renderSettings() below rebuilds the whole form (fresh
+                // values, a fresh #eidli-settings-msg element, a fresh
+                // submit listener) from the server's own confirmed-saved
+                // response — never a stale local copy. Setting "Saved." on
+                // the OLD `msg` reference before that rebuild would set text
+                // on a node about to be discarded (body.innerHTML = ...)
+                // before the browser ever paints it, so the message must be
+                // set on the NEW element renderSettings() just created,
+                // after it runs — not before.
                 renderSettings(res.body.data);
+                var freshMsg = el('eidli-settings-msg');
+                if (freshMsg) { freshMsg.textContent = 'Saved.'; freshMsg.className = 'mt-2 small text-success'; }
             } else {
                 var m = errMsg(res, 'Failed to save settings.');
                 msg.textContent = m; msg.className = 'mt-2 small text-danger';

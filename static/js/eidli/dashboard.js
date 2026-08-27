@@ -35,6 +35,9 @@
     var el = E.el, esc = E.esc, apiFetch = E.apiFetch, errMsg = E.errMsg;
     var fmtTemp = E.fmtTemp, fmtRelative = E.fmtRelative;
     var URLS = E.URLS, CONFIGURED = E.CONFIGURED;
+    var TEMP_LINE_COLOR = E.TEMP_LINE_COLOR, TEMP_FILL_COLOR = E.TEMP_FILL_COLOR;
+    var THRESHOLD_OFF_COLOR = E.THRESHOLD_OFF_COLOR, THRESHOLD_ON_COLOR = E.THRESHOLD_ON_COLOR;
+    var buildTempChartConfig = E.tempTrendChartConfig;
 
     var lastSettings = null;
     var lastLiveTemp = null; // { temperature, recorded_at } - the freshest temperature-logs record seen so far
@@ -234,10 +237,14 @@
     // ranges whose upper bound was in the past, which no longer exist here).
 
     var IST_TZ_LOCAL = 'Asia/Kolkata';
+    // Includes seconds (not just hour:minute) so the ~2s live-temperature
+    // poll's actual update cadence is visible in both the table and the
+    // chart's x-axis - at minute resolution alone, several consecutive
+    // ticks render as the same label and the live update looks frozen.
     function fmtHM(iso) {
         var d = new Date(iso);
         if (isNaN(d.getTime())) return '—';
-        return d.toLocaleTimeString('en-IN', { timeZone: IST_TZ_LOCAL, hour: '2-digit', minute: '2-digit', hour12: true });
+        return d.toLocaleTimeString('en-IN', { timeZone: IST_TZ_LOCAL, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
     }
     function fmtDMY(iso) {
         var d = new Date(iso);
@@ -289,6 +296,22 @@
         };
     }
 
+    // Coerces a raw reading's temperature to a finite number, or `null` when
+    // it's missing/invalid — NEVER to 0 or any other fabricated stand-in.
+    // Number(null) is 0 and Number('') is 0 in plain JS, so a naive
+    // Number(r.temperature) would silently plot a missing reading as a real
+    // 0°C point; this guards against that. Chart.js treats a `null` data
+    // point as a genuine gap (nothing drawn there) rather than a value, and
+    // with spanGaps left at its default false (see chart config below) it
+    // does not draw a connecting line across that gap either — so a missing
+    // reading shows as a break in the line, never as an invented value or a
+    // fake straight-line interpolation.
+    function safeTemp(raw) {
+        if (raw === null || raw === undefined || raw === '') return null;
+        var n = Number(raw);
+        return isNaN(n) ? null : n;
+    }
+
     function renderChart() {
         var items = chartItems;
         el('eidli-temp-chart-empty').style.display = items.length ? 'none' : 'block';
@@ -296,22 +319,33 @@
         if (typeof Chart === 'undefined') return;
 
         var labels = items.map(function (r) { return chartLabelFor(r.recorded_at); });
-        var temps = items.map(function (r) { return Number(r.temperature); });
-        var yBounds = computeStableYBounds(temps);
+        var temps = items.map(function (r) { return safeTemp(r.temperature); });
+        var yBounds = computeStableYBounds(temps.filter(function (t) { return t !== null; }));
         // Each point here is either a single live reading (the chart's
         // tail — see refreshLiveTemperature) or the mean of a contiguous
         // slice of real readings (the backfill on load/refresh — see
-        // aggregateSlice in sampleRange). Never fabricated/interpolated.
-        // tension: 0 draws straight segments between points rather than a
-        // curved spline — a spline can overshoot past the actual plotted
-        // values between points, which would misrepresent real data no
-        // aggregation choice should paper over.
-        var datasets = [{ label: 'Temperature (°C)', data: temps, borderColor: '#ff8a3d', backgroundColor: 'rgba(255,138,61,.12)', borderWidth: 2, pointRadius: 0, tension: 0, fill: true }];
+        // aggregateSlice in sampleRange). Never fabricated/interpolated —
+        // a missing/invalid reading is plotted as `null` (a real gap, see
+        // safeTemp above), never as 0 or an interpolated guess.
+        // tension: .35 draws a gently smoothed curve through the real
+        // points (matches the reference design) while staying clamped to
+        // Chart.js's own cubic-interpolation-mode default, which keeps the
+        // curve from overshooting past the plotted values between points —
+        // still an honest representation of the real data, just visually
+        // softened instead of hard straight-line segments.
+        var datasets = [{
+            label: 'Temperature (°C)', data: temps,
+            borderColor: TEMP_LINE_COLOR, backgroundColor: TEMP_FILL_COLOR,
+            borderWidth: 2.5, tension: 0.35, cubicInterpolationMode: 'monotone',
+            fill: true, spanGaps: false,
+            pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: TEMP_LINE_COLOR,
+            pointHoverBorderColor: '#ffffff', pointHoverBorderWidth: 2
+        }];
         if (lastSettings && lastSettings.off_temperature != null) {
-            datasets.push({ label: 'Heater Off (' + Number(lastSettings.off_temperature).toFixed(1) + '°C)', data: temps.map(function () { return Number(lastSettings.off_temperature); }), borderColor: '#f04747', borderDash: [6, 4], borderWidth: 1, pointRadius: 0, fill: false });
+            datasets.push({ label: 'Heater Off (' + Number(lastSettings.off_temperature).toFixed(1) + '°C)', data: temps.map(function () { return Number(lastSettings.off_temperature); }), borderColor: THRESHOLD_OFF_COLOR, borderDash: [5, 4], borderWidth: 1.25, pointRadius: 0, tension: 0, fill: false });
         }
         if (lastSettings && lastSettings.on_temperature != null) {
-            datasets.push({ label: 'Heater Restart (' + Number(lastSettings.on_temperature).toFixed(1) + '°C)', data: temps.map(function () { return Number(lastSettings.on_temperature); }), borderColor: '#4098ff', borderDash: [6, 4], borderWidth: 1, pointRadius: 0, fill: false });
+            datasets.push({ label: 'Heater Restart (' + Number(lastSettings.on_temperature).toFixed(1) + '°C)', data: temps.map(function () { return Number(lastSettings.on_temperature); }), borderColor: THRESHOLD_ON_COLOR, borderDash: [5, 4], borderWidth: 1.25, pointRadius: 0, tension: 0, fill: false });
         }
         // Update the existing Chart.js instance in place rather than
         // destroy()/recreate on every 20s auto-refresh — avoids the visible
@@ -330,42 +364,14 @@
             return;
         }
 
-        var INK = '#a7b1bf', GRID = '#2c3644';
-        tempChart = new Chart(el('eidli-temp-chart'), {
-            type: 'line', data: { labels: labels, datasets: datasets },
-            options: {
-                responsive: true, maintainAspectRatio: false, animation: false,
-                plugins: {
-                    legend: { display: true, labels: { color: INK, boxWidth: 12, font: { size: 11 } } },
-                    tooltip: {
-                        callbacks: {
-                            title: function () { return ''; },
-                            // Temperature / Date / Time on separate lines for the
-                            // main series; threshold lines just show their label.
-                            label: function (ctx) {
-                                if (ctx.dataset.label !== 'Temperature (°C)') return ctx.dataset.label;
-                                var r = chartItems[ctx.dataIndex];
-                                if (!r) return '';
-                                return [fmtTemp(r.temperature), fmtDMY(r.recorded_at), fmtHM(r.recorded_at)];
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    x: { grid: { display: false }, ticks: { color: INK, maxTicksLimit: 8, font: { size: 10 } } },
-                    y: {
-                        grid: { color: GRID }, ticks: { color: INK, callback: function (v) { return v + '°C'; } },
-                        // suggestedMin/Max (not a hard min/max) — a real
-                        // reading outside this padded band still expands
-                        // the axis to show it rather than clipping/hiding
-                        // it; see computeStableYBounds() above for why this
-                        // exists and how it's kept real-data-driven.
-                        suggestedMin: yBounds ? yBounds.min : undefined,
-                        suggestedMax: yBounds ? yBounds.max : undefined
-                    }
-                }
-            }
-        });
+        tempChart = new Chart(el('eidli-temp-chart'), buildTempChartConfig(labels, datasets, yBounds, function (ctx) {
+            // Temperature / Date / Time on separate lines for the main
+            // series; threshold lines just show their own label.
+            if (ctx.dataset.label !== 'Temperature (°C)') return ctx.dataset.label;
+            var r = chartItems[ctx.dataIndex];
+            if (!r) return '';
+            return [fmtTemp(r.temperature), fmtDMY(r.recorded_at), fmtHM(r.recorded_at)];
+        }));
     }
 
     // Today's bounds, always anchored to Asia/Kolkata (via core.js's

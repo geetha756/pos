@@ -7,7 +7,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="eidli-app">
+<div class="eidli-app eidli-app-fill">
     {% include "machines/_idli_nav.html" with context %}
 
     <div class="card mb-3">
@@ -17,7 +17,7 @@
         </div>
     </div>
 
-    <div class="card">
+    <div class="card eidli-sync-card">
         <div class="card-header"><span class="eidli-panel-title">Sync to Machine</span></div>
         <div class="card-body">
             <p class="text-muted small mb-2">Push the currently saved settings down to the machine over MQTT — use this if the machine's own configuration may have drifted from what's saved here.</p>
