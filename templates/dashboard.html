@@ -4,6 +4,8 @@
 
 {% block content %}
 
+{% include 'chat/_agent_notifications.html' %}
+
 <!-- Module Statistics -->
 <div class="row mb-4">
     {% if has_perm('orders.view') %}

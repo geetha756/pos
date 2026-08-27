@@ -1,0 +1,828 @@
+{% extends "base.html" %}
+
+{% block title %}AI Helper - Sip & Snack Portal{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* ---------------------------------------------------------------
+       Layout shell
+       --------------------------------------------------------------- */
+    /* Reclaim the main content column's own padding/max-width for this page
+       only, so the chat surface can run edge-to-edge inside a full-bleed
+       band instead of sitting as a narrow boxed card on a mostly-empty page. */
+    main:has(.chat-page-root) { padding-left: 0 !important; padding-right: 0 !important; padding-bottom: 0 !important; }
+    .chat-page-root { display: flex; flex-direction: column; height: calc(100dvh - var(--sns-topbar-h, 0px)); }
+    @media (min-width: 992px) { .chat-page-root { height: 100dvh; } }
+
+    .chat-page-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: .75rem; flex-wrap: wrap; flex-shrink: 0;
+        padding: 1rem 1.5rem;
+        background: var(--sns-surface);
+        border-bottom: 1px solid var(--sns-border);
+    }
+    .chat-page-head h1 {
+        display: flex; align-items: center; gap: .6rem;
+        font-size: 1.3rem; margin: 0;
+    }
+    .chat-title-icon {
+        width: 38px; height: 38px; border-radius: 11px;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: linear-gradient(135deg, var(--sns-primary), var(--sns-primary-dark));
+        color: #fff; font-size: 19px; flex-shrink: 0;
+        box-shadow: 0 3px 8px rgba(21,122,94,.28);
+    }
+    .chat-agent-qualifier { color: var(--sns-muted); font-weight: 500; font-size: 1rem; }
+    .chat-toolbar { display: flex; align-items: center; gap: .5rem; }
+
+    .chat-shell {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        min-height: 0;
+        background: var(--sns-bg);
+        overflow: hidden;
+    }
+
+    /* ---------------------------------------------------------------
+       Message log
+       --------------------------------------------------------------- */
+    .chat-log {
+        flex: 1 1 auto;
+        overflow-y: auto;
+        padding: 1.75rem max(1.5rem, calc(50% - 420px));
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        scroll-behavior: smooth;
+    }
+    .chat-row { display: flex; gap: .6rem; max-width: 100%; align-items: flex-end; }
+    .chat-row.user { justify-content: flex-end; }
+    .chat-avatar {
+        width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 15px; font-weight: 600;
+    }
+    .chat-row.assistant .chat-avatar {
+        background: linear-gradient(135deg, var(--sns-primary), var(--sns-primary-dark));
+        color: #fff;
+    }
+    .chat-row.user .chat-avatar {
+        background: var(--sns-ink); color: #fff; order: 2;
+    }
+    .chat-bubble-col { display: flex; flex-direction: column; gap: .25rem; max-width: 78%; }
+    .chat-row.user .chat-bubble-col { align-items: flex-end; }
+
+    .chat-bubble {
+        border-radius: 16px;
+        padding: 0.7rem 1rem;
+        line-height: 1.55;
+        font-size: .95rem;
+        word-break: break-word;
+    }
+    .chat-row.user .chat-bubble {
+        background: var(--sns-primary); color: #fff; border-bottom-right-radius: 4px;
+    }
+    .chat-row.assistant .chat-bubble {
+        background: var(--sns-bg); color: var(--sns-ink);
+        border: 1px solid var(--sns-border); border-bottom-left-radius: 4px;
+    }
+    .chat-row.notice .chat-bubble {
+        background: #fff3cd; border: 1px solid #ffe69c; color: #664d03; font-size: .88rem;
+    }
+    .chat-row.error .chat-bubble {
+        background: #fdecea; border: 1px solid #f3c2bd; color: #8a2c22; font-size: .88rem;
+    }
+    .chat-meta { font-size: .72rem; color: var(--sns-muted); padding: 0 .2rem; }
+
+    /* Structured content inside an assistant bubble: paragraphs, bullet
+       lines ("- " / "• "), and **bold** — BitBerry's replies are plain
+       text with light markdown-ish conventions, not full markdown, so this
+       renders those cleanly instead of dumping one flat escaped blob. */
+    .chat-bubble p { margin: 0 0 .6rem; }
+    .chat-bubble p:last-child { margin-bottom: 0; }
+    .chat-bubble ul { margin: .3rem 0 .6rem; padding-left: 1.25rem; }
+    .chat-bubble ul:last-child { margin-bottom: 0; }
+    .chat-bubble li { margin-bottom: .3rem; }
+    .chat-bubble li:last-child { margin-bottom: 0; }
+    .chat-bubble strong { font-weight: 700; }
+    .chat-bubble code {
+        background: rgba(0,0,0,.06); border-radius: 4px; padding: .1em .35em; font-size: .88em;
+    }
+
+    /* Suggested prompts (rendered from the assistant's own "▸ …" lines, or
+       shown as a static starter set before the first message) */
+    .chat-suggestions { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .4rem; }
+    .chat-suggestion-chip {
+        border: 1px solid var(--sns-border); background: var(--sns-surface);
+        color: var(--sns-ink-soft); border-radius: 999px; padding: .4rem .85rem;
+        font-size: .84rem; font-weight: 500; cursor: pointer;
+        transition: border-color .15s ease, color .15s ease, background .15s ease;
+        text-align: left;
+    }
+    .chat-suggestion-chip:hover {
+        border-color: var(--sns-primary); color: var(--sns-primary); background: var(--sns-primary-soft);
+    }
+
+    .chat-empty { margin: auto; text-align: center; color: var(--sns-muted); padding: 2rem 1rem; }
+    .chat-empty .chat-empty-icon {
+        width: 56px; height: 56px; border-radius: 16px; margin: 0 auto .9rem;
+        display: flex; align-items: center; justify-content: center; font-size: 26px;
+        background: var(--sns-primary-soft); color: var(--sns-primary);
+    }
+    .chat-empty-title { color: var(--sns-ink); font-weight: 600; font-size: 1.05rem; margin-bottom: .3rem; }
+
+    .chat-typing-dots span {
+        display: inline-block; width: 6px; height: 6px; margin-right: 3px;
+        background: var(--sns-muted); border-radius: 50%; opacity: .4;
+        animation: chatTyping 1s infinite ease-in-out;
+    }
+    .chat-typing-dots span:nth-child(2) { animation-delay: .15s; }
+    .chat-typing-dots span:nth-child(3) { animation-delay: .3s; }
+    @keyframes chatTyping { 0%, 60%, 100% { opacity: .3; } 30% { opacity: 1; } }
+
+    /* ---------------------------------------------------------------
+       Composer
+       --------------------------------------------------------------- */
+    .chat-input-row {
+        flex-shrink: 0;
+        border-top: 1px solid var(--sns-border);
+        padding: 1rem max(1.5rem, calc(50% - 420px)) 1.25rem;
+        background: var(--sns-surface);
+    }
+    .chat-input-wrap {
+        display: flex; align-items: flex-end; gap: .6rem;
+        background: var(--sns-bg); border: 1px solid var(--sns-border);
+        border-radius: 16px; padding: .35rem .4rem .35rem .9rem;
+        transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .chat-input-wrap:focus-within {
+        border-color: var(--sns-primary); box-shadow: 0 0 0 .18rem rgba(21,122,94,.13);
+    }
+    .chat-input-wrap textarea {
+        flex: 1 1 auto; resize: none; border: none; background: transparent;
+        padding: .5rem 0; font-size: .95rem; line-height: 1.4; color: var(--sns-ink);
+        max-height: 160px;
+    }
+    .chat-input-wrap textarea:focus { outline: none; box-shadow: none; }
+    .chat-send-btn {
+        width: 38px; height: 38px; border-radius: 12px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        background: var(--sns-primary); color: #fff; border: none;
+        transition: background .15s ease, opacity .15s ease;
+    }
+    .chat-send-btn:hover:not(:disabled) { background: var(--sns-primary-dark); }
+    .chat-send-btn:disabled { opacity: .45; cursor: default; }
+    .chat-hint { font-size: .72rem; color: var(--sns-muted); margin-top: .4rem; padding-left: .3rem; }
+
+    /* ---------------------------------------------------------------
+       Agent picker / empty / error states
+       --------------------------------------------------------------- */
+    .agent-picker-card { max-width: 640px; margin: 2.5rem auto; text-align: center; }
+    .agent-picker-card .chat-empty-icon { margin: 0 auto 1rem; }
+    .agent-pick-list { display: grid; gap: .7rem; text-align: left; margin-top: 1.4rem; }
+    .agent-pick-item {
+        border: 1px solid var(--sns-border); border-radius: 14px; padding: 1rem 1.15rem;
+        display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+        cursor: pointer; background: var(--sns-surface);
+        transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .agent-pick-item:hover { border-color: var(--sns-primary); box-shadow: 0 4px 12px rgba(21,122,94,.12); }
+    .agent-pick-icon {
+        width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center; font-size: 18px;
+        background: var(--sns-primary-soft); color: var(--sns-primary);
+    }
+
+    #chat-agent-select {
+        max-width: 240px; border-radius: 10px; font-size: .88rem; font-weight: 500;
+    }
+
+    .chat-center-state { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; padding: 2rem 1.5rem; }
+
+    @media (max-width: 767.98px) {
+        .chat-page-head { padding: .85rem 1rem; }
+        .chat-log { padding: 1.25rem 1rem .5rem; }
+        .chat-input-row { padding: .75rem 1rem 1rem; }
+        .chat-bubble-col { max-width: 88%; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-page-root">
+<div class="chat-page-head">
+    <h1>
+        <span class="chat-title-icon"><i class="ri-sparkling-2-fill"></i></span>
+        AI Helper<span class="chat-agent-qualifier" id="chat-h1-agent"></span>
+    </h1>
+    <div class="chat-toolbar">
+        <select class="form-select form-select-sm d-none" id="chat-agent-select"></select>
+        <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="chat-clear-btn">
+            <i class="ri-delete-bin-line icon icon-sm me-1"></i>Clear
+        </button>
+    </div>
+</div>
+
+<div id="chat-loading" class="chat-center-state text-muted">
+    <div><div class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>Loading your AI Helpers...</div>
+</div>
+
+<div id="chat-agent-picker" class="chat-center-state d-none">
+    <div class="agent-picker-card">
+        <div class="chat-empty-icon"><i class="ri-robot-2-line"></i></div>
+        <h5 class="mb-1">Choose an AI Helper</h5>
+        <p class="text-muted">Pick one of the assistants assigned to you to start chatting.</p>
+        <div class="agent-pick-list" id="agent-pick-list"></div>
+    </div>
+</div>
+
+<div id="chat-no-agents" class="chat-center-state d-none">
+    <div class="agent-picker-card">
+        <div class="chat-empty-icon"><i class="ri-robot-2-line"></i></div>
+        <h5 class="mb-1">No agents are currently assigned to you</h5>
+        <p class="text-muted mb-0">Contact an administrator if you believe this is a mistake.</p>
+    </div>
+</div>
+
+<div id="chat-load-error" class="chat-center-state d-none">
+    <div class="alert alert-danger mb-0" id="chat-load-error-alert"></div>
+</div>
+
+<div class="chat-shell d-none" id="chat-shell">
+    <div class="chat-log" id="chat-log">
+        <div class="chat-empty" id="chat-empty">
+            <div class="chat-empty-icon"><i class="ri-sparkling-2-line"></i></div>
+            <div class="chat-empty-title" id="chat-empty-title">How can I help?</div>
+            <div id="chat-empty-text" class="text-muted"></div>
+            <div class="chat-suggestions" id="chat-suggestions"></div>
+        </div>
+    </div>
+
+    <form class="chat-input-row" id="chat-form">
+        <div class="chat-input-wrap">
+            <textarea id="chat-input" rows="1" placeholder="Message your AI Helper..." autocomplete="off"></textarea>
+            <button class="chat-send-btn" type="submit" id="chat-send-btn" aria-label="Send">
+                <i class="ri-send-plane-2-fill"></i>
+            </button>
+        </div>
+        <div class="chat-hint">Enter to send &middot; Shift+Enter for a new line</div>
+    </form>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var USER_KEY = {{ (session.user_id or 'anon') | tojson }};
+    var AGENTS_URL = {{ url_for('chat.api_agents') | tojson }};
+    var SEND_URL = {{ url_for('chat.api_send') | tojson }};
+    var REAUTH_CHECK_URL = {{ url_for('chat.api_reauth_check') | tojson }};
+    var SILENT_REAUTH_URL = {{ url_for('auth.google_auth_silent') | tojson }};
+    var CHAT_BASE_PATH = {{ url_for('chat.dashboard') | tojson }};
+    var REQUESTED_AGENT_ID = {{ requested_agent_id | tojson }};
+
+    var loadingEl = document.getElementById('chat-loading');
+    var pickerEl = document.getElementById('chat-agent-picker');
+    var pickListEl = document.getElementById('agent-pick-list');
+    var noAgentsEl = document.getElementById('chat-no-agents');
+    var loadErrorEl = document.getElementById('chat-load-error');
+    var loadErrorAlertEl = document.getElementById('chat-load-error-alert');
+    var shellEl = document.getElementById('chat-shell');
+    var agentSelectEl = document.getElementById('chat-agent-select');
+    var h1AgentEl = document.getElementById('chat-h1-agent');
+
+    var logEl = document.getElementById('chat-log');
+    var emptyEl = document.getElementById('chat-empty');
+    var emptyTitleEl = document.getElementById('chat-empty-title');
+    var emptyTextEl = document.getElementById('chat-empty-text');
+    var suggestionsEl = document.getElementById('chat-suggestions');
+    var formEl = document.getElementById('chat-form');
+    var inputEl = document.getElementById('chat-input');
+    var sendBtn = document.getElementById('chat-send-btn');
+    var clearBtn = document.getElementById('chat-clear-btn');
+
+    var STARTER_PROMPTS = ["What were yesterday's sales?", "Show today's revenue summary", "Any low-stock items?"];
+
+    var agents = [];
+    var currentAgent = null; // {id, name, description, assigned_via}
+    var history = [];
+    var sending = false;
+
+    function showOnly(el) {
+        [loadingEl, pickerEl, noAgentsEl, loadErrorEl, shellEl].forEach(function (e) {
+            e.classList.toggle('d-none', e !== el);
+        });
+    }
+
+    function historyKey(agentId) {
+        return 'sns_chat_history_' + USER_KEY + '_' + agentId;
+    }
+
+    function loadHistory(agentId) {
+        try {
+            var raw = localStorage.getItem(historyKey(agentId));
+            var parsed = raw ? JSON.parse(raw) : [];
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) { return []; }
+    }
+
+    function saveHistory() {
+        if (!currentAgent) return;
+        try { localStorage.setItem(historyKey(currentAgent.id), JSON.stringify(history)); } catch (e) {}
+    }
+
+    function escapeHtml(s) {
+        var d = document.createElement('div');
+        d.textContent = s == null ? '' : String(s);
+        return d.innerHTML;
+    }
+
+    // Renders plain text with the light conventions BitBerry's replies
+    // actually use — blank-line paragraphs, "- "/"• "/"▸ " bullet lines, and
+    // **bold** — into real markup, instead of one flat pre-wrapped blob.
+    // Everything is escaped first, so this stays as safe as plain text.
+    function renderMessageHtml(raw) {
+        var text = (raw == null ? '' : String(raw)).replace(/\r\n/g, '\n');
+        var blocks = text.split(/\n{2,}/);
+        var html = blocks.map(function (block) {
+            var lines = block.split('\n').filter(function (l) { return l.trim() !== ''; });
+            var isList = lines.length > 0 && lines.every(function (l) { return /^\s*([-•▸*]|\d+[.)])\s+/.test(l); });
+            if (isList) {
+                var items = lines.map(function (l) {
+                    var item = l.replace(/^\s*([-•▸*]|\d+[.)])\s+/, '');
+                    return '<li>' + inlineFormat(item) + '</li>';
+                }).join('');
+                return '<ul>' + items + '</ul>';
+            }
+            var joined = lines.map(inlineFormat).join('<br>');
+            return '<p>' + joined + '</p>';
+        }).join('');
+        return html || '<p></p>';
+    }
+
+    function inlineFormat(line) {
+        var escaped = escapeHtml(line);
+        // **bold** only (the one markdown convention BitBerry's replies use).
+        return escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    }
+
+    function timeLabel(date) {
+        try {
+            return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        } catch (e) { return ''; }
+    }
+
+    // --- Load assigned agents, then resolve which one this page talks to ---
+
+    fetchAgents();
+
+    function fetchAgents() {
+        showOnly(loadingEl);
+        fetch(AGENTS_URL, { credentials: 'same-origin' })
+            .then(function (resp) {
+                if (!resp.ok) {
+                    return resp.json().catch(function () { return {}; }).then(function (data) {
+                        throw { httpStatus: resp.status, data: data };
+                    });
+                }
+                return resp.json();
+            })
+            .then(function (data) {
+                agents = data.agents || [];
+                populateAgentSelect();
+                resolveInitialAgent();
+            })
+            .catch(function (err) {
+                showLoadError(err);
+            });
+    }
+
+    function showLoadError(err) {
+        var status = err && err.httpStatus;
+        var errCode = err && err.data && err.data.error;
+        var msg;
+        if (status === 401 || errCode === 'reauth_required' || errCode === 'invalid_token') {
+            // Same silent-reauth path used for chat sends: refresh the token
+            // invisibly, then retry loading the agent list once.
+            attemptSilentReauthThenReload();
+            return;
+        } else if (status === 404) {
+            msg = 'Agent unavailable or access denied.';
+        } else if (status === 504) {
+            msg = 'BitBerry took too long to respond. Please try again.';
+        } else {
+            msg = 'Could not load your AI Helpers right now. Please try again in a moment.';
+        }
+        loadErrorAlertEl.textContent = msg;
+        showOnly(loadErrorEl);
+    }
+
+    var reauthAttempted = false;
+    function attemptSilentReauthThenReload() {
+        if (reauthAttempted) {
+            loadErrorAlertEl.innerHTML = 'Your session has expired. <a href="/login">Sign in again</a>.';
+            showOnly(loadErrorEl);
+            return;
+        }
+        reauthAttempted = true;
+        var w = window.open(
+            SILENT_REAUTH_URL + '?next=' + encodeURIComponent(window.location.pathname + window.location.search),
+            'sns_silent_reauth',
+            'width=1,height=1,left=-1000,top=-1000'
+        );
+        var attempts = 0;
+        var poll = setInterval(function () {
+            attempts++;
+            fetch(REAUTH_CHECK_URL, { credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.status === 'ok') {
+                        clearInterval(poll);
+                        if (w && !w.closed) w.close();
+                        fetchAgents();
+                    } else if (attempts >= 15) {
+                        clearInterval(poll);
+                        if (w && !w.closed) w.close();
+                        loadErrorAlertEl.innerHTML = 'Your session has expired. <a href="/login">Sign in again</a>.';
+                        showOnly(loadErrorEl);
+                    }
+                })
+                .catch(function () {});
+        }, 1000);
+    }
+
+    // BitBerry's own agent name is shown wherever a specific agent is being
+    // identified (picker, dropdown, H1 qualifier), but the app never relies
+    // on it alone — "AI Helper" (in the nav, page title, and H1 base text)
+    // is the stable, always-present label, and this falls back to it if
+    // BitBerry ever sends a blank/whitespace-only name.
+    function agentDisplayName(agent) {
+        var name = (agent && agent.name || '').trim();
+        return name || 'AI Helper';
+    }
+
+    function populateAgentSelect() {
+        agentSelectEl.innerHTML = '';
+        agents.forEach(function (a) {
+            var opt = document.createElement('option');
+            opt.value = a.id;
+            opt.textContent = agentDisplayName(a);
+            agentSelectEl.appendChild(opt);
+        });
+        agentSelectEl.classList.toggle('d-none', agents.length < 2);
+    }
+
+    agentSelectEl.addEventListener('change', function () {
+        var chosen = agents.filter(function (a) { return a.id === agentSelectEl.value; })[0];
+        if (chosen) selectAgent(chosen, true);
+    });
+
+    function resolveInitialAgent() {
+        if (!agents.length) {
+            showOnly(noAgentsEl);
+            return;
+        }
+        var match = REQUESTED_AGENT_ID
+            ? agents.filter(function (a) { return a.id === REQUESTED_AGENT_ID; })[0]
+            : null;
+        if (match) {
+            selectAgent(match, false);
+        } else if (agents.length === 1) {
+            selectAgent(agents[0], true);
+        } else {
+            renderAgentPicker();
+        }
+    }
+
+    function renderAgentPicker() {
+        pickListEl.innerHTML = '';
+        agents.forEach(function (a) {
+            var item = document.createElement('div');
+            item.className = 'agent-pick-item';
+            item.innerHTML =
+                '<div class="d-flex align-items-center gap-3">' +
+                    '<span class="agent-pick-icon"><i class="ri-robot-2-line"></i></span>' +
+                    '<div><div class="fw-semibold">' + escapeHtml(agentDisplayName(a)) + '</div>' +
+                    '<div class="text-muted small">' + escapeHtml(a.description || '') + '</div></div>' +
+                '</div>' +
+                '<span class="btn btn-primary btn-sm">Open Chat</span>';
+            item.addEventListener('click', function () { selectAgent(a, true); });
+            pickListEl.appendChild(item);
+        });
+        showOnly(pickerEl);
+    }
+
+    function selectAgent(agent, updateUrl) {
+        currentAgent = agent;
+        history = loadHistory(agent.id);
+        if (updateUrl) {
+            var url = CHAT_BASE_PATH + '?agent=' + encodeURIComponent(agent.id);
+            window.history.replaceState({}, '', url);
+        }
+        var displayName = agentDisplayName(agent);
+        agentSelectEl.value = agent.id;
+        // "AI Helper" (the H1's base text) never changes; this just adds a
+        // qualifier once we know which specific agent is active, so the
+        // heading is never solely dependent on BitBerry's naming.
+        h1AgentEl.textContent = displayName === 'AI Helper' ? '' : ' — ' + displayName;
+        emptyTitleEl.textContent = 'Chat with ' + displayName;
+        emptyTextEl.textContent = agent.description || 'Ask a question to get started.';
+        renderSuggestions();
+        renderAll();
+        showOnly(shellEl);
+        clearBtn.classList.remove('d-none');
+        if (agents.length > 1) agentSelectEl.classList.remove('d-none');
+    }
+
+    function renderSuggestions() {
+        suggestionsEl.innerHTML = '';
+        STARTER_PROMPTS.forEach(function (p) {
+            var chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'chat-suggestion-chip';
+            chip.textContent = p;
+            chip.addEventListener('click', function () { submitMessage(p); });
+            suggestionsEl.appendChild(chip);
+        });
+    }
+
+    // --- Conversation UI ---
+
+    function renderAll() {
+        logEl.querySelectorAll('.chat-row').forEach(function (el) { el.remove(); });
+        emptyEl.style.display = history.length ? 'none' : '';
+        history.forEach(function (msg) { appendBubble(msg.role, msg.content); });
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function appendBubble(role, content) {
+        emptyEl.style.display = 'none';
+        var row = document.createElement('div');
+        row.className = 'chat-row ' + role;
+
+        var avatar = document.createElement('div');
+        avatar.className = 'chat-avatar';
+        avatar.innerHTML = role === 'user'
+            ? '<i class="ri-user-3-fill"></i>'
+            : '<i class="ri-sparkling-2-fill"></i>';
+
+        var col = document.createElement('div');
+        col.className = 'chat-bubble-col';
+
+        var bubble = document.createElement('div');
+        bubble.className = 'chat-bubble';
+        bubble.innerHTML = renderMessageHtml(content);
+        col.appendChild(bubble);
+
+        if (role === 'user' || role === 'assistant') {
+            var meta = document.createElement('div');
+            meta.className = 'chat-meta';
+            meta.textContent = timeLabel(new Date());
+            col.appendChild(meta);
+        }
+
+        if (role === 'user') {
+            row.appendChild(col);
+            row.appendChild(avatar);
+        } else {
+            row.appendChild(avatar);
+            row.appendChild(col);
+        }
+        logEl.appendChild(row);
+        logEl.scrollTop = logEl.scrollHeight;
+        return bubble;
+    }
+
+    function appendNotice(kind, text) {
+        emptyEl.style.display = 'none';
+        var row = document.createElement('div');
+        row.className = 'chat-row ' + kind;
+        var col = document.createElement('div');
+        col.className = 'chat-bubble-col';
+        col.style.maxWidth = '92%';
+        var bubble = document.createElement('div');
+        bubble.className = 'chat-bubble';
+        bubble.innerHTML = renderMessageHtml(text);
+        col.appendChild(bubble);
+        row.appendChild(col);
+        logEl.appendChild(row);
+        logEl.scrollTop = logEl.scrollHeight;
+        return bubble;
+    }
+
+    function appendTyping() {
+        var row = document.createElement('div');
+        row.className = 'chat-row assistant';
+        row.id = 'chat-typing-indicator';
+        row.innerHTML =
+            '<div class="chat-avatar"><i class="ri-sparkling-2-fill"></i></div>' +
+            '<div class="chat-bubble-col"><div class="chat-bubble chat-typing-dots"><span></span><span></span><span></span></div></div>';
+        logEl.appendChild(row);
+        logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function removeTyping() {
+        var el = document.getElementById('chat-typing-indicator');
+        if (el) el.remove();
+    }
+
+    function autoGrow() {
+        inputEl.style.height = 'auto';
+        inputEl.style.height = Math.min(inputEl.scrollHeight, 160) + 'px';
+    }
+    inputEl.addEventListener('input', autoGrow);
+
+    inputEl.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            formEl.requestSubmit();
+        }
+    });
+
+    clearBtn.addEventListener('click', function () {
+        if (!history.length) return;
+        if (!confirm('Clear this conversation? This cannot be undone.')) return;
+        history = [];
+        saveHistory();
+        renderAll();
+    });
+
+    formEl.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var text = inputEl.value.trim();
+        if (!text) return;
+        inputEl.value = '';
+        autoGrow();
+        submitMessage(text);
+    });
+
+    function submitMessage(text) {
+        if (sending || !currentAgent) return;
+        history.push({ role: 'user', content: text });
+        saveHistory();
+        appendBubble('user', text);
+        send();
+    }
+
+    function setSending(isSending) {
+        sending = isSending;
+        sendBtn.disabled = isSending;
+        inputEl.disabled = isSending;
+    }
+
+    function send(isRetryAfterReauth) {
+        setSending(true);
+        appendTyping();
+
+        fetch(SEND_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ agent: currentAgent.id, messages: history, stream: true })
+        }).then(function (resp) {
+            if (resp.status === 401 && !isRetryAfterReauth) {
+                // Our own session's Google token is missing/expired (not
+                // BitBerry rejecting a valid one) — silently refresh it via
+                // a prompt=none round trip and retry once automatically.
+                removeTyping();
+                setSending(false);
+                silentReauthThenRetrySend();
+                return null;
+            }
+            if (!resp.ok) {
+                return resp.json().catch(function () { return {}; }).then(function (data) {
+                    throw { httpStatus: resp.status, data: data };
+                });
+            }
+            return resp;
+        }).then(function (resp) {
+            if (!resp) return; // handled above (reauth path)
+            var contentType = resp.headers.get('Content-Type') || '';
+            if (contentType.indexOf('text/event-stream') !== -1) {
+                return streamResponse(resp);
+            }
+            return resp.json().then(function (data) {
+                removeTyping();
+                var content = data.content || '';
+                appendBubble('assistant', content);
+                history.push({ role: 'assistant', content: content });
+                saveHistory();
+            });
+        }).catch(function (err) {
+            removeTyping();
+            handleSendError(err);
+        }).finally(function () {
+            setSending(false);
+        });
+    }
+
+    function handleSendError(err) {
+        var status = err && err.httpStatus;
+        var errCode = err && err.data && err.data.error;
+        if (status === 401) {
+            appendNotice('error', 'Invalid or expired token. Please sign in again.');
+        } else if (status === 404) {
+            appendNotice('error', 'AI Helper unavailable, or you do not have access to it. Contact an administrator.');
+        } else if (status === 504 || errCode === 'timeout') {
+            appendNotice('error', 'The AI Helper took too long to respond. Please try again.');
+        } else if (status >= 500 || status === 502) {
+            appendNotice('error', 'The AI Helper is temporarily unavailable. Please try again in a moment.');
+        } else if (errCode === 'bad_request') {
+            appendNotice('error', 'That message could not be sent.');
+        } else {
+            appendNotice('error', 'Something went wrong reaching the AI Helper. Please try again.');
+        }
+    }
+
+    function silentReauthThenRetrySend() {
+        var notice = appendNotice('system', 'Refreshing your session...');
+        var w = window.open(
+            SILENT_REAUTH_URL + '?next=' + encodeURIComponent(window.location.pathname + window.location.search),
+            'sns_silent_reauth',
+            'width=1,height=1,left=-1000,top=-1000'
+        );
+        var attempts = 0;
+        var poll = setInterval(function () {
+            attempts++;
+            fetch(REAUTH_CHECK_URL, { credentials: 'same-origin' })
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.status === 'ok') {
+                        clearInterval(poll);
+                        if (w && !w.closed) w.close();
+                        removeNoticeRow(notice);
+                        send(true);
+                    } else if (attempts >= 15) {
+                        clearInterval(poll);
+                        if (w && !w.closed) w.close();
+                        removeNoticeRow(notice);
+                        var errBubble = appendNotice('error', 'Your session has expired.');
+                        var link = document.createElement('a');
+                        link.href = '/login';
+                        link.className = 'btn btn-sm btn-primary mt-2';
+                        link.textContent = 'Sign in again';
+                        errBubble.appendChild(document.createElement('br'));
+                        errBubble.appendChild(link);
+                    }
+                })
+                .catch(function () {});
+        }, 1000);
+    }
+
+    function removeNoticeRow(bubbleEl) {
+        var row = bubbleEl && bubbleEl.closest('.chat-row');
+        if (row) row.remove();
+    }
+
+    function streamResponse(resp) {
+        removeTyping();
+        var bubble = appendBubble('assistant', '');
+        var full = '';
+        var reader = resp.body.getReader();
+        var decoder = new TextDecoder();
+        var buffer = '';
+
+        function processBuffer() {
+            var lines = buffer.split('\n');
+            buffer = lines.pop(); // last (possibly incomplete) line stays in buffer
+            lines.forEach(function (line) {
+                line = line.trim();
+                if (!line || line.indexOf('data:') !== 0) return;
+                var jsonStr = line.slice(5).trim();
+                if (jsonStr === '[DONE]') return;
+                try {
+                    var evt = JSON.parse(jsonStr);
+                    var delta = evt.choices && evt.choices[0] &&
+                        (evt.choices[0].delta && evt.choices[0].delta.content !== undefined
+                            ? evt.choices[0].delta.content
+                            : (evt.choices[0].message && evt.choices[0].message.content));
+                    if (delta) {
+                        full += delta;
+                        bubble.innerHTML = renderMessageHtml(full);
+                        logEl.scrollTop = logEl.scrollHeight;
+                    }
+                } catch (e) { /* ignore malformed chunk */ }
+            });
+        }
+
+        function pump() {
+            return reader.read().then(function (result) {
+                if (result.done) {
+                    if (buffer.trim()) { buffer += '\n'; processBuffer(); }
+                    history.push({ role: 'assistant', content: full });
+                    saveHistory();
+                    return;
+                }
+                buffer += decoder.decode(result.value, { stream: true });
+                processBuffer();
+                return pump();
+            });
+        }
+
+        return pump();
+    }
+})();
+</script>
+{% endblock %}

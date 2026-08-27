@@ -62,7 +62,8 @@ def create_app():
     from routes.payroll import payroll_bp
     from routes.inventory import inventory_bp
     from routes.users import users_bp
-    from routes.machines import machines_bp, init_machines_schema, EIDLI_MACHINE_ID
+    from routes.machines import machines_bp, init_machines_schema
+    from routes.chat import chat_bp
 
     # Role-based access control: lock management sections behind their module's
     # view permission. Must be attached before the blueprints are registered.
@@ -96,6 +97,7 @@ def create_app():
     app.register_blueprint(inventory_bp, url_prefix='/inventory')
     app.register_blueprint(users_bp, url_prefix='/users')
     app.register_blueprint(machines_bp, url_prefix='/machines')
+    app.register_blueprint(chat_bp, url_prefix='/chat')
 
     with app.app_context():
         init_machines_schema()
@@ -177,12 +179,4 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
-    # threaded=True is required, not optional: Werkzeug's dev server
-    # defaults to single-threaded (confirmed: run_simple's `threaded` param
-    # defaults to False), and every /idli/api/* route makes a *blocking*
-    # outbound requests.request() call to the machine's own backend. Without
-    # this, the ~8 fetches the Dashboard fires "in parallel" on load get
-    # serialized one-at-a-time by Flask itself — each queued behind the
-    # last — which is what actually produced the multi-second initial load,
-    # not anything in the frontend's fetch logic.
-    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
+    app.run(debug=True, host='0.0.0.0', port=5002)

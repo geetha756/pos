@@ -47,6 +47,12 @@ WORKER_PERMISSION_CODES: Set[str] = {
     'inventory.view', 'inventory.create', 'inventory.edit', 'inventory.export',
     # Location menu — what the store sells and at what price
     'location_menu.view', 'location_menu.manage',
+    # Chat assistant — access is really gated by BitBerry's own per-user
+    # agent assignment (a worker with no assigned agent just sees "No agents
+    # are currently assigned to you"), so there's no reason to also block it
+    # at the POS permission layer. Without this, a worker whose email BitBerry
+    # assigned an agent to would never see it show up anywhere in the POS.
+    'chat.view',
     # Staff + payroll are hidden from store managers for now.
 }
 

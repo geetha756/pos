@@ -1202,6 +1202,14 @@
                             </a>
                         </li>
                         {% endif %}
+                        {% if has_perm('chat.view') %}
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('chat') %} active{% endif %}" href="{{ url_for('chat.dashboard') }}">
+                                <i class="ri-chat-3-line icon"></i>
+                                <span class="nav-link-label">AI Helper</span>
+                            </a>
+                        </li>
+                        {% endif %}
                         {% if has_perm('staff.view') %}
                         <li class="nav-item">
                             <a class="nav-link d-flex align-items-center gap-2{% if request.endpoint and request.endpoint.startswith('staff') %} active{% endif %}" href="{{ url_for('staff.index') }}">
