@@ -25,6 +25,14 @@
         display: flex; align-items: center; gap: .6rem;
         font-size: 1.3rem; margin: 0;
     }
+    .chat-menu-btn {
+        width: 38px; height: 38px; border-radius: 11px; flex-shrink: 0;
+        display: inline-flex; align-items: center; justify-content: center;
+        border: 1px solid var(--sns-border); background: var(--sns-surface);
+        color: var(--sns-ink); font-size: 18px;
+        transition: background .15s ease, border-color .15s ease;
+    }
+    .chat-menu-btn:hover { background: var(--sns-bg); border-color: var(--sns-primary); }
     .chat-title-icon {
         width: 38px; height: 38px; border-radius: 11px;
         display: inline-flex; align-items: center; justify-content: center;
@@ -37,11 +45,73 @@
 
     .chat-shell {
         display: flex;
-        flex-direction: column;
+        flex-direction: row;
         flex: 1 1 auto;
         min-height: 0;
         background: var(--sns-bg);
         overflow: hidden;
+        position: relative;
+    }
+
+    /* ---------------------------------------------------------------
+       Conversations panel (☰ menu: New Chat + previous conversations)
+       --------------------------------------------------------------- */
+    .chat-history-overlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,.28); z-index: 1040;
+    }
+    .chat-history-panel {
+        width: 300px; max-width: 82vw; flex-shrink: 0;
+        display: flex; flex-direction: column;
+        background: var(--sns-surface); border-right: 1px solid var(--sns-border);
+        position: absolute; top: 0; bottom: 0; left: 0; z-index: 1050;
+        transform: translateX(-100%);
+        transition: transform .2s ease;
+    }
+    .chat-history-panel.open { transform: translateX(0); }
+    .chat-history-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: .5rem; padding: .9rem 1rem; border-bottom: 1px solid var(--sns-border); flex-shrink: 0;
+    }
+    .chat-history-head strong { font-size: .95rem; }
+    .chat-history-close {
+        width: 30px; height: 30px; border-radius: 8px; border: none; background: transparent;
+        color: var(--sns-muted); display: inline-flex; align-items: center; justify-content: center;
+    }
+    .chat-history-close:hover { background: var(--sns-bg); color: var(--sns-ink); }
+    .chat-new-btn {
+        margin: .85rem 1rem 0; display: flex; align-items: center; gap: .5rem;
+        border: 1px solid var(--sns-border); border-radius: 12px; padding: .6rem .85rem;
+        background: var(--sns-surface); color: var(--sns-ink); font-weight: 500; font-size: .9rem;
+        transition: border-color .15s ease, background .15s ease;
+    }
+    .chat-new-btn:hover { border-color: var(--sns-primary); color: var(--sns-primary); background: var(--sns-primary-soft); }
+    .chat-thread-list { flex: 1 1 auto; overflow-y: auto; padding: .75rem; display: flex; flex-direction: column; gap: .3rem; }
+    .chat-thread-item {
+        display: flex; align-items: center; gap: .5rem;
+        border-radius: 10px; padding: .55rem .7rem; cursor: pointer;
+        color: var(--sns-ink-soft); font-size: .87rem;
+        transition: background .12s ease;
+    }
+    .chat-thread-item:hover { background: var(--sns-bg); }
+    .chat-thread-item.active { background: var(--sns-primary-soft); color: var(--sns-primary); font-weight: 600; }
+    .chat-thread-title { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .chat-thread-del {
+        flex-shrink: 0; width: 24px; height: 24px; border: none; background: transparent;
+        color: var(--sns-muted); border-radius: 6px; display: inline-flex; align-items: center; justify-content: center;
+        opacity: 0; transition: opacity .12s ease;
+    }
+    .chat-thread-item:hover .chat-thread-del { opacity: 1; }
+    .chat-thread-del:hover { background: rgba(220,53,69,.12); color: #dc3545; }
+    .chat-thread-empty { color: var(--sns-muted); font-size: .84rem; padding: .5rem .7rem; }
+
+    @media (min-width: 992px) {
+        .chat-history-overlay { display: none; }
+        .chat-history-panel { position: relative; transform: none; display: none; }
+        .chat-history-panel.open { display: flex; }
+    }
+
+    .chat-main-col {
+        flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column;
     }
 
     /* ---------------------------------------------------------------
@@ -213,6 +283,9 @@
 <div class="chat-page-root">
 <div class="chat-page-head">
     <h1>
+        <button type="button" class="chat-menu-btn d-none" id="chat-menu-btn" aria-label="Conversations">
+            <i class="ri-menu-line"></i>
+        </button>
         <span class="chat-title-icon"><i class="ri-sparkling-2-fill"></i></span>
         AI Helper<span class="chat-agent-qualifier" id="chat-h1-agent"></span>
     </h1>
@@ -250,24 +323,40 @@
 </div>
 
 <div class="chat-shell d-none" id="chat-shell">
-    <div class="chat-log" id="chat-log">
-        <div class="chat-empty" id="chat-empty">
-            <div class="chat-empty-icon"><i class="ri-sparkling-2-line"></i></div>
-            <div class="chat-empty-title" id="chat-empty-title">How can I help?</div>
-            <div id="chat-empty-text" class="text-muted"></div>
-            <div class="chat-suggestions" id="chat-suggestions"></div>
-        </div>
-    </div>
-
-    <form class="chat-input-row" id="chat-form">
-        <div class="chat-input-wrap">
-            <textarea id="chat-input" rows="1" placeholder="Message your AI Helper..." autocomplete="off"></textarea>
-            <button class="chat-send-btn" type="submit" id="chat-send-btn" aria-label="Send">
-                <i class="ri-send-plane-2-fill"></i>
+    <div class="chat-history-overlay d-none" id="chat-history-overlay"></div>
+    <div class="chat-history-panel" id="chat-history-panel">
+        <div class="chat-history-head">
+            <strong>Conversations</strong>
+            <button type="button" class="chat-history-close" id="chat-history-close" aria-label="Close">
+                <i class="ri-close-line"></i>
             </button>
         </div>
-        <div class="chat-hint">Enter to send &middot; Shift+Enter for a new line</div>
-    </form>
+        <button type="button" class="chat-new-btn" id="chat-new-btn">
+            <i class="ri-add-line"></i> New chat
+        </button>
+        <div class="chat-thread-list" id="chat-thread-list"></div>
+    </div>
+
+    <div class="chat-main-col">
+        <div class="chat-log" id="chat-log">
+            <div class="chat-empty" id="chat-empty">
+                <div class="chat-empty-icon"><i class="ri-sparkling-2-line"></i></div>
+                <div class="chat-empty-title" id="chat-empty-title">How can I help?</div>
+                <div id="chat-empty-text" class="text-muted"></div>
+                <div class="chat-suggestions" id="chat-suggestions"></div>
+            </div>
+        </div>
+
+        <form class="chat-input-row" id="chat-form">
+            <div class="chat-input-wrap">
+                <textarea id="chat-input" rows="1" placeholder="Message your AI Helper..." autocomplete="off"></textarea>
+                <button class="chat-send-btn" type="submit" id="chat-send-btn" aria-label="Send">
+                    <i class="ri-send-plane-2-fill"></i>
+                </button>
+            </div>
+            <div class="chat-hint">Enter to send &middot; Shift+Enter for a new line</div>
+        </form>
+    </div>
 </div>
 </div>
 {% endblock %}
@@ -302,12 +391,20 @@
     var inputEl = document.getElementById('chat-input');
     var sendBtn = document.getElementById('chat-send-btn');
     var clearBtn = document.getElementById('chat-clear-btn');
+    var menuBtn = document.getElementById('chat-menu-btn');
+    var historyPanelEl = document.getElementById('chat-history-panel');
+    var historyOverlayEl = document.getElementById('chat-history-overlay');
+    var historyCloseBtn = document.getElementById('chat-history-close');
+    var newChatBtn = document.getElementById('chat-new-btn');
+    var threadListEl = document.getElementById('chat-thread-list');
 
     var STARTER_PROMPTS = ["What were yesterday's sales?", "Show today's revenue summary", "Any low-stock items?"];
 
     var agents = [];
     var currentAgent = null; // {id, name, description, assigned_via}
-    var history = [];
+    var threads = [];        // all saved conversations for the current agent
+    var currentThreadId = null;
+    var history = [];        // messages of the currently open thread
     var sending = false;
 
     function showOnly(el) {
@@ -316,22 +413,151 @@
         });
     }
 
-    function historyKey(agentId) {
+    // Threads are stored per agent as a list of {id, title, updatedAt, messages}.
+    // Older versions of this page kept one flat message array under
+    // 'sns_chat_history_<user>_<agentId>' — that's migrated into a single
+    // thread the first time this loads, so nobody's existing conversation
+    // disappears.
+    function legacyHistoryKey(agentId) {
         return 'sns_chat_history_' + USER_KEY + '_' + agentId;
     }
+    function threadsKey(agentId) {
+        return 'sns_chat_threads_' + USER_KEY + '_' + agentId;
+    }
 
-    function loadHistory(agentId) {
+    function loadThreads(agentId) {
         try {
-            var raw = localStorage.getItem(historyKey(agentId));
-            var parsed = raw ? JSON.parse(raw) : [];
-            return Array.isArray(parsed) ? parsed : [];
-        } catch (e) { return []; }
+            var raw = localStorage.getItem(threadsKey(agentId));
+            var parsed = raw ? JSON.parse(raw) : null;
+            if (Array.isArray(parsed)) return parsed;
+        } catch (e) { /* fall through to migration */ }
+
+        // Migrate legacy single-thread history, if any.
+        try {
+            var legacyRaw = localStorage.getItem(legacyHistoryKey(agentId));
+            var legacyMsgs = legacyRaw ? JSON.parse(legacyRaw) : [];
+            if (Array.isArray(legacyMsgs) && legacyMsgs.length) {
+                var migrated = [{
+                    id: 't_' + Date.now(),
+                    title: threadTitleFromMessages(legacyMsgs),
+                    updatedAt: Date.now(),
+                    messages: legacyMsgs
+                }];
+                saveThreads(agentId, migrated);
+                localStorage.removeItem(legacyHistoryKey(agentId));
+                return migrated;
+            }
+        } catch (e) { /* ignore */ }
+        return [];
+    }
+
+    function saveThreads(agentId, list) {
+        try { localStorage.setItem(threadsKey(agentId), JSON.stringify(list)); } catch (e) {}
+    }
+
+    function threadTitleFromMessages(msgs) {
+        var firstUser = msgs.filter(function (m) { return m.role === 'user'; })[0];
+        var text = (firstUser && firstUser.content || '').trim().replace(/\s+/g, ' ');
+        if (!text) return 'New chat';
+        return text.length > 42 ? text.slice(0, 42) + '…' : text;
     }
 
     function saveHistory() {
-        if (!currentAgent) return;
-        try { localStorage.setItem(historyKey(currentAgent.id), JSON.stringify(history)); } catch (e) {}
+        if (!currentAgent || !currentThreadId) return;
+        var thread = threads.filter(function (t) { return t.id === currentThreadId; })[0];
+        if (!thread) {
+            thread = { id: currentThreadId, title: 'New chat', updatedAt: Date.now(), messages: [] };
+            threads.unshift(thread);
+        }
+        thread.messages = history;
+        thread.title = threadTitleFromMessages(history);
+        thread.updatedAt = Date.now();
+        // Most-recently-updated first.
+        threads.sort(function (a, b) { return b.updatedAt - a.updatedAt; });
+        saveThreads(currentAgent.id, threads);
+        renderThreadList();
     }
+
+    function startNewThread() {
+        currentThreadId = 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+        history = [];
+        renderAll();
+        closeHistoryPanel();
+        inputEl.focus();
+    }
+
+    function openThread(threadId) {
+        var thread = threads.filter(function (t) { return t.id === threadId; })[0];
+        if (!thread) return;
+        currentThreadId = thread.id;
+        history = thread.messages.slice();
+        renderAll();
+        closeHistoryPanel();
+    }
+
+    function deleteThread(threadId) {
+        threads = threads.filter(function (t) { return t.id !== threadId; });
+        saveThreads(currentAgent.id, threads);
+        if (threadId === currentThreadId) {
+            if (threads.length) {
+                openThread(threads[0].id);
+            } else {
+                startNewThread();
+            }
+        } else {
+            renderThreadList();
+        }
+    }
+
+    function renderThreadList() {
+        threadListEl.innerHTML = '';
+        if (!threads.length) {
+            var empty = document.createElement('div');
+            empty.className = 'chat-thread-empty';
+            empty.textContent = 'No previous conversations yet.';
+            threadListEl.appendChild(empty);
+            return;
+        }
+        threads.forEach(function (t) {
+            var item = document.createElement('div');
+            item.className = 'chat-thread-item' + (t.id === currentThreadId ? ' active' : '');
+
+            var title = document.createElement('span');
+            title.className = 'chat-thread-title';
+            title.textContent = t.title || 'New chat';
+            item.appendChild(title);
+
+            var del = document.createElement('button');
+            del.type = 'button';
+            del.className = 'chat-thread-del';
+            del.setAttribute('aria-label', 'Delete conversation');
+            del.innerHTML = '<i class="ri-delete-bin-line"></i>';
+            del.addEventListener('click', function (e) {
+                e.stopPropagation();
+                if (!confirm('Delete this conversation? This cannot be undone.')) return;
+                deleteThread(t.id);
+            });
+            item.appendChild(del);
+
+            item.addEventListener('click', function () { openThread(t.id); });
+            threadListEl.appendChild(item);
+        });
+    }
+
+    function openHistoryPanel() {
+        historyPanelEl.classList.add('open');
+        historyOverlayEl.classList.remove('d-none');
+    }
+    function closeHistoryPanel() {
+        historyPanelEl.classList.remove('open');
+        historyOverlayEl.classList.add('d-none');
+    }
+    menuBtn.addEventListener('click', function () {
+        if (historyPanelEl.classList.contains('open')) { closeHistoryPanel(); } else { openHistoryPanel(); }
+    });
+    historyCloseBtn.addEventListener('click', closeHistoryPanel);
+    historyOverlayEl.addEventListener('click', closeHistoryPanel);
+    newChatBtn.addEventListener('click', startNewThread);
 
     function escapeHtml(s) {
         var d = document.createElement('div');
@@ -516,7 +742,16 @@
 
     function selectAgent(agent, updateUrl) {
         currentAgent = agent;
-        history = loadHistory(agent.id);
+        threads = loadThreads(agent.id);
+        threads.sort(function (a, b) { return b.updatedAt - a.updatedAt; });
+        if (threads.length) {
+            currentThreadId = threads[0].id;
+            history = threads[0].messages.slice();
+        } else {
+            currentThreadId = 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+            history = [];
+        }
+        renderThreadList();
         if (updateUrl) {
             var url = CHAT_BASE_PATH + '?agent=' + encodeURIComponent(agent.id);
             window.history.replaceState({}, '', url);
@@ -533,6 +768,7 @@
         renderAll();
         showOnly(shellEl);
         clearBtn.classList.remove('d-none');
+        menuBtn.classList.remove('d-none');
         if (agents.length > 1) agentSelectEl.classList.remove('d-none');
     }
 
@@ -644,9 +880,7 @@
     clearBtn.addEventListener('click', function () {
         if (!history.length) return;
         if (!confirm('Clear this conversation? This cannot be undone.')) return;
-        history = [];
-        saveHistory();
-        renderAll();
+        deleteThread(currentThreadId);
     });
 
     formEl.addEventListener('submit', function (e) {
