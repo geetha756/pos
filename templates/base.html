@@ -1384,6 +1384,10 @@
         </div>
     </div>
 
+    {% if session.pop('show_ai_helpers_login_notice', False) %}
+        {% include 'chat/_login_ai_helpers_notice.html' %}
+    {% endif %}
+
     <!-- Mobile bottom navigation (phones only) — primary store-manager actions -->
     <nav class="mobile-bottomnav d-lg-none" aria-label="Primary">
         <a href="{{ url_for('main.dashboard') }}" class="{% if request.endpoint == 'main.dashboard' %}active{% endif %}">
