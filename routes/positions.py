@@ -21,7 +21,7 @@ def index():
                        COUNT(s.id) as staff_count
                 FROM positions p
                 LEFT JOIN departments d ON p.department_id = d.id
-                LEFT JOIN staff s ON p.id = s.position_id AND s.is_active = TRUE
+                LEFT JOIN staff s ON p.id = s.position_id AND s.is_active = TRUE AND s.is_deleted = FALSE
                 GROUP BY p.id, p.title, p.description, p.department_id, p.salary_min, p.salary_max,
                          p.is_active, p.created_at, p.updated_at, d.name
                 ORDER BY p.title
@@ -239,7 +239,7 @@ def view(position_id):
                        COALESCE(d.name, 'No Department') as department, s.is_active
                 FROM staff s
                 LEFT JOIN departments d ON s.department_id = d.id
-                WHERE s.position_id = %s
+                WHERE s.position_id = %s AND s.is_deleted = FALSE
                 ORDER BY COALESCE(s.last_name, ''), COALESCE(s.first_name, '')
             """, (position_id,))
             staff_raw = staff_cursor.fetchall()

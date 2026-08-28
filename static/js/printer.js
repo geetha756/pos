@@ -117,7 +117,7 @@
           '<h5 style="margin:0 0 .75rem;">🖨️ Printer Settings</h5>' +
           '<div style="font-size:.9rem;color:#374151;margin-bottom:.75rem;">' +
             'Current printer: <b>' + (status.name ? status.name : 'none selected') + '</b>' +
-            (status.connected ? ' <span style="color:#15803d;">(connected)</span>' : '') +
+            (status.connected ? ' <span style="color:#157a5e;">(connected)</span>' : '') +
           '</div>' +
           (this.isNative()
             ? '<button id="sns-pick" style="width:100%;padding:.7rem;border:none;border-radius:10px;background:#0d6efd;color:#fff;font-weight:600;margin-bottom:1rem;">Choose / change Bluetooth printer</button>'

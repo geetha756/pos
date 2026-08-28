@@ -172,6 +172,38 @@ def init_user_admin_schema():
     execute_query("CREATE UNIQUE INDEX IF NOT EXISTS orders_client_order_id_uniq "
                   "ON orders (client_order_id) WHERE client_order_id IS NOT NULL")
 
+    # Staff module: bank details + monthly salary. Auto-generated Employee
+    # IDs (EMP01, EMP02, ...) are computed fresh from MAX(employee_id) on
+    # each add (see routes/staff.py _generate_employee_id) rather than via a
+    # DB sequence, so a gap left by deleting the highest-numbered staff
+    # member is reclaimed immediately instead of only at the next restart.
+    execute_query("ALTER TABLE staff ADD COLUMN IF NOT EXISTS bank_account_number VARCHAR(50)")
+    execute_query("ALTER TABLE staff ADD COLUMN IF NOT EXISTS ifsc_code VARCHAR(20)")
+    execute_query("ALTER TABLE staff ADD COLUMN IF NOT EXISTS monthly_salary DECIMAL(10,2)")
+    # Soft delete: deleted staff are never removed from the table (their id
+    # is still referenced by orders, payroll, timesheets, etc.) - they're
+    # just hidden from the normal Active/Inactive lists and dropdowns.
+    execute_query("ALTER TABLE staff ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE")
+    # Some environments have an older, differently-named `bank_ifsc_code`
+    # column already holding real data. Backfill it into `ifsc_code` (without
+    # ever overwriting an ifsc_code that's already set) so that data isn't
+    # orphaned; the legacy column itself is left untouched.
+    execute_query("""
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'staff' AND column_name = 'bank_ifsc_code'
+            ) THEN
+                UPDATE staff SET ifsc_code = bank_ifsc_code
+                WHERE ifsc_code IS NULL AND bank_ifsc_code IS NOT NULL;
+            END IF;
+        END $$;
+    """)
+    # Drop the old sequence-based approach's leftover object, if present -
+    # it's no longer used and its drift is exactly what caused ID gaps.
+    execute_query("DROP SEQUENCE IF EXISTS staff_employee_id_seq")
+
     # Permissions catalog
     execute_query(
         """
@@ -450,6 +482,7 @@ def seed_permissions_if_needed():
         'inventory': ['view','create','edit','delete','adjust','export'],
         'users': ['view','create','edit','delete','manage_permissions','manage_api_keys','view_audit'],
         'machines': ['view'],
+        'chat': ['view'],
     }
 
     for module, actions in modules_actions.items():

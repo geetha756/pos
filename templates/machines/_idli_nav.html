@@ -1,0 +1,33 @@
+<!-- Shared header for the Electric Idli Machine Dashboard / History / Settings
+     pages. Included with `active_tab` set to 'dashboard' | 'history' | 'settings'.
+     Populated by static/js/eidli/core.js (Eidli.startHeader()), which every
+     page's extra_js block calls once. -->
+<div class="eidli-shell-header">
+    <div class="eidli-shell-title">
+        <span class="eidli-shell-icon"><i class="ri-drop-line"></i></span>
+        <div class="min-w-0">
+            <div class="eidli-shell-name">Electric Idli Machine</div>
+            <div class="eidli-shell-sub" id="eidli-machine-name">&nbsp;</div>
+        </div>
+    </div>
+    <nav class="eidli-shell-tabs" aria-label="Machine sections">
+        <a href="{{ url_for('machines.idli_detail') }}"{% if active_tab == 'dashboard' %} class="active" aria-current="page"{% endif %}>Dashboard</a>
+        <a href="{{ url_for('machines.idli_history_page') }}"{% if active_tab == 'history' %} class="active" aria-current="page"{% endif %}>History</a>
+        <a href="{{ url_for('machines.idli_settings_page') }}"{% if active_tab == 'settings' %} class="active" aria-current="page"{% endif %}>Settings</a>
+    </nav>
+    <div class="eidli-shell-status">
+        <span id="eidli-conn-badge" class="eidli-conn-badge eidli-conn-connecting"><i class="ri-checkbox-blank-circle-fill"></i> CONNECTING…</span>
+        <span id="eidli-clock" class="eidli-shell-clock"></span>
+    </div>
+</div>
+<div class="eidli-shell-subline">
+    <a href="{{ url_for('machines.dashboard') }}" class="eidli-shell-back"><i class="ri-arrow-left-line"></i> Machines</a>
+    <span id="eidli-last-seen" class="eidli-shell-lastseen">Last telemetry: —</span>
+</div>
+
+{% if not eidli_configured %}
+<div class="eidli-alert eidli-alert-warn" role="alert">
+    <i class="ri-error-warning-line"></i>
+    <div><strong>Electric Idli Machine is not connected.</strong> An administrator needs to set <code>EIDLI_API_BASE_URL</code> and <code>EIDLI_MACHINE_ID</code> before live data can appear here.</div>
+</div>
+{% endif %}

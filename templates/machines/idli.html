@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Electric Idli Machine — Dashboard{% endblock %}
+
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/eidli-hmi.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="eidli-app eidli-app-fill">
+    {% include "machines/_idli_nav.html" %}
+
+    <!-- Priority 1: faults/safety — empty and invisible under normal operation -->
+    <div id="eidli-fault-banner"></div>
+
+    <!-- Priority 2/3: machine state, temperature, heater, sensor, mode — answers
+         "is it online / running / hot / heating / healthy / auto-or-manual" in one glance -->
+    <div class="eidli-stat-grid">
+        <div class="eidli-stat-card">
+            <div class="eidli-stat-label"><i class="ri-cpu-line"></i> Machine</div>
+            <div class="eidli-stat-value" id="eidli-grid-machine">—</div>
+        </div>
+        <div class="eidli-stat-card">
+            <div class="eidli-stat-label"><i class="ri-thermometer-line"></i> Temperature</div>
+            <div class="eidli-stat-value eidli-emph" id="eidli-grid-temp">—</div>
+        </div>
+        <div class="eidli-stat-card">
+            <div class="eidli-stat-label"><i class="ri-fire-line"></i> Heater</div>
+            <div class="eidli-stat-value" id="eidli-grid-heater">—</div>
+        </div>
+        <div class="eidli-stat-card">
+            <div class="eidli-stat-label"><i class="ri-radar-line"></i> Sensor</div>
+            <div class="eidli-stat-value" id="eidli-grid-sensor">—</div>
+        </div>
+        <div class="eidli-stat-card">
+            <div class="eidli-stat-label"><i class="ri-thermometer-line"></i> Thresholds</div>
+            <div class="eidli-stat-value eidli-thresholds-value">
+                Off at <strong id="eidli-threshold-off">—</strong><br>
+                Restart at <strong id="eidli-threshold-restart">—</strong>
+            </div>
+        </div>
+    </div>
+    <div id="eidli-settings-error"></div>
+
+    <div class="row g-3 mb-3">
+        <!-- Live temperature graph -->
+        <div class="col-12">
+            <div class="card h-100">
+                <div class="card-header">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <span class="eidli-panel-title">Live Temperature Trend</span>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="eidli-temp-refresh" aria-label="Refresh temperature chart">
+                        <i class="ri-refresh-line icon-sm"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="eidli-chart-wrap">
+                        <canvas id="eidli-temp-chart"></canvas>
+                        <div id="eidli-temp-chart-loading" class="eidli-chart-overlay" style="display:none;">
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            <span id="eidli-temp-chart-loading-text">Loading…</span>
+                        </div>
+                    </div>
+                    <div id="eidli-temp-chart-empty" class="eidli-section-empty" style="display:none;">No temperature telemetry available yet today.</div>
+                    <div id="eidli-temp-chart-error" class="eidli-section-error" style="display:none;">Couldn't refresh the chart — showing the previously loaded data.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
+<script>
+    window.EIDLI_CONFIG = {
+        configured: {{ eidli_configured|tojson }},
+        urls: {
+            machine: '{{ url_for("machines.idli_machine") }}',
+            status: '{{ url_for("machines.idli_status") }}',
+            settings: '{{ url_for("machines.idli_get_settings") }}',
+            temperatureLogs: '{{ url_for("machines.idli_temperature_logs") }}'
+        }
+    };
+</script>
+<script src="{{ url_for('static', filename='js/eidli/core.js') }}"></script>
+<script src="{{ url_for('static', filename='js/eidli/dashboard.js') }}"></script>
+{% endblock %}

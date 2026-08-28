@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Electric Idli Machine — History{% endblock %}
+
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/eidli-hmi.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="eidli-app eidli-app-fill">
+    {% include "machines/_idli_nav.html" with context %}
+
+    <!-- Global date/time range — applies across Events / Commands / Analytics -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Quick date range">
+                <span class="text-muted small align-self-center me-1">Quick range:</span>
+                <button type="button" class="btn btn-sm btn-outline-secondary eidli-date-preset" data-preset="today">Today</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary eidli-date-preset" data-preset="yesterday">Yesterday</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary eidli-date-preset" data-preset="week">Last 7 Days</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary eidli-date-preset" data-preset="month">Last 30 Days</button>
+                <button type="button" class="btn btn-sm btn-outline-secondary eidli-date-preset" data-preset="custom">Custom Range</button>
+            </div>
+            <div class="row g-3 align-items-end">
+                <div class="col-sm-6 col-lg-3">
+                    <label class="form-label" for="eidli-hist-from-date">From</label>
+                    <div class="d-flex gap-2">
+                        <input type="date" class="form-control" id="eidli-hist-from-date" aria-label="From date">
+                        <input type="time" class="form-control" id="eidli-hist-from-time" value="00:00" style="max-width:105px;" aria-label="From time">
+                    </div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                    <label class="form-label" for="eidli-hist-to-date">To</label>
+                    <div class="d-flex gap-2">
+                        <input type="date" class="form-control" id="eidli-hist-to-date" aria-label="To date">
+                        <input type="time" class="form-control" id="eidli-hist-to-time" value="23:59" style="max-width:105px;" aria-label="To time">
+                    </div>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <button type="button" class="btn btn-success w-100" id="eidli-hist-apply">Apply</button>
+                </div>
+                <div class="col-6 col-lg-2">
+                    <button type="button" class="btn btn-outline-secondary w-100" id="eidli-hist-clear">Clear</button>
+                </div>
+            </div>
+            <div id="eidli-hist-range-error" class="eidli-section-error mt-2" style="display:none;" role="alert"></div>
+            <p class="eidli-today-note mb-0 mt-2">
+                Date alone covers the entire day — set a time only if you need a precise cutoff. Applies as a
+                server-side range across Events, Commands and Analytics —
+                stays active while switching tabs, until changed again.
+            </p>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs mb-3" id="eidli-hist-tabs" role="tablist">
+        <li class="nav-item" role="presentation"><button class="nav-link active" data-tab="events" type="button">Events</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-tab="commands" type="button">Commands</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-tab="analytics" type="button">Graph</button></li>
+    </ul>
+
+    <!-- Event log -->
+    <div class="eidli-hist-pane" data-pane="events">
+        <div class="card">
+            <div class="card-header">
+                <span class="eidli-panel-title">Event Log</span>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="eidli-events-refresh" aria-label="Refresh events"><i class="ri-refresh-line icon-sm"></i></button>
+            </div>
+            <div class="card-body">
+                <div id="eidli-events-body"><div class="eidli-section-loading">Loading…</div></div>
+                <div class="text-center mt-2"><button type="button" class="btn btn-sm btn-outline-secondary" id="eidli-events-more" style="display:none;">Load more</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Command history -->
+    <div class="eidli-hist-pane" data-pane="commands" style="display:none;">
+        <div class="card">
+            <div class="card-header">
+                <span class="eidli-panel-title">Command History</span>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="eidli-commands-refresh" aria-label="Refresh commands"><i class="ri-refresh-line icon-sm"></i></button>
+            </div>
+            <div class="card-body">
+                <div id="eidli-commands-body"><div class="eidli-section-loading">Loading…</div></div>
+                <div class="text-center mt-2"><button type="button" class="btn btn-sm btn-outline-secondary" id="eidli-commands-more" style="display:none;">Load more</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Machine Analytics -->
+    <div class="eidli-hist-pane" data-pane="analytics" style="display:none;">
+        <div class="card">
+            <div class="card-header flex-wrap gap-2">
+                <span class="eidli-panel-title" id="eidli-analytics-title">Live Temperature Trend</span>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="eidli-analytics-refresh" aria-label="Refresh analytics"><i class="ri-refresh-line icon-sm"></i></button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="eidli-analytics-summary" class="eidli-today-strip mb-2" style="display:none;"></div>
+                <div class="eidli-chart-wrap">
+                    <canvas id="eidli-analytics-chart"></canvas>
+                    <div id="eidli-analytics-chart-loading" class="eidli-chart-overlay" style="display:flex;">
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        <span id="eidli-analytics-chart-loading-text">Loading analytics…</span>
+                    </div>
+                </div>
+                <div id="eidli-analytics-chart-empty" class="eidli-section-empty" style="display:none;">No data available for the selected range.</div>
+                <div id="eidli-analytics-chart-error" class="eidli-section-error" style="display:none;">Unable to load analytics data.</div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
+<script>
+    window.EIDLI_CONFIG = {
+        configured: {{ eidli_configured|tojson }},
+        urls: {
+            machine: '{{ url_for("machines.idli_machine") }}',
+            status: '{{ url_for("machines.idli_status") }}',
+            events: '{{ url_for("machines.idli_events") }}',
+            commands: '{{ url_for("machines.idli_commands") }}',
+            temperatureLogs: '{{ url_for("machines.idli_temperature_logs") }}',
+            sessions: '{{ url_for("machines.idli_sessions") }}',
+            heatingCycles: '{{ url_for("machines.idli_heating_cycles") }}'
+        }
+    };
+</script>
+<script src="{{ url_for('static', filename='js/eidli/core.js') }}"></script>
+<script src="{{ url_for('static', filename='js/eidli/history.js') }}"></script>
+<script src="{{ url_for('static', filename='js/eidli/history-analytics.js') }}"></script>
+{% endblock %}

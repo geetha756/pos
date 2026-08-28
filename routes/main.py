@@ -111,7 +111,7 @@ def manifest():
 def service_worker():
     """Service worker served from the root so its scope covers the whole app."""
     js = """
-const CACHE = 'sns-cache-v11';
+const CACHE = 'sns-cache-v25';
 const OFFLINE_URL = '/static/offline.html';
 const PRECACHE = [OFFLINE_URL, '/static/css/bootstrap.min.css', '/static/css/dashboard.css', '/static/icons/icon-192.png'];
 // Order-taking screens (+ the app's own launch route, '/' — the installed
@@ -188,8 +188,20 @@ self.addEventListener('fetch', (e) => {
     );
     return;
   }
-  // Cache-first for static assets.
+  // Cache-first for static assets — EXCEPT the Electric Idli Machine
+  // dashboard's own JS/CSS and the Staff Add/Edit form script, all of which
+  // are actively developed and must always reflect whatever's actually
+  // deployed, not whatever got cached once. Those go network-first, only
+  // falling back to a cached copy if the network genuinely fails. Vendor
+  // libraries/icons/bootstrap css keep the original cache-first behavior —
+  // offline order-taking still works.
   if (url.pathname.startsWith('/static/')) {
+    const isLiveDashboardAsset = url.pathname.startsWith('/static/js/eidli/') || url.pathname === '/static/css/eidli-hmi.css' ||
+      url.pathname === '/static/js/staff-form.js';
+    if (isLiveDashboardAsset) {
+      e.respondWith(fetch(req).catch(() => caches.match(req)));
+      return;
+    }
     e.respondWith(
       caches.match(req).then((r) => r || fetch(req).then((resp) => {
         const copy = resp.clone();
@@ -332,11 +344,11 @@ def get_dashboard_stats(location_id=None):
         stats['today_revenue'] = float(result['total']) if result else 0.0
 
         # Total staff count
-        result = execute_query_one("SELECT COUNT(*) as count FROM staff WHERE (%s IS NULL OR location_id = %s)", (loc, loc))
+        result = execute_query_one("SELECT COUNT(*) as count FROM staff WHERE is_deleted = FALSE AND (%s IS NULL OR location_id = %s)", (loc, loc))
         stats['staff'] = result['count'] if result else 0
 
         # Active staff count
-        result = execute_query_one("SELECT COUNT(*) as count FROM staff WHERE is_active = TRUE AND (%s IS NULL OR location_id = %s)", (loc, loc))
+        result = execute_query_one("SELECT COUNT(*) as count FROM staff WHERE is_active = TRUE AND is_deleted = FALSE AND (%s IS NULL OR location_id = %s)", (loc, loc))
         stats['active_staff'] = result['count'] if result else 0
 
         # Department count
@@ -356,7 +368,7 @@ def get_dashboard_stats(location_id=None):
 
         # Payroll statistics
         # Total employees (from staff table)
-        result = execute_query_one("SELECT COUNT(*) as count FROM staff WHERE is_active = TRUE AND (%s IS NULL OR location_id = %s)", (loc, loc))
+        result = execute_query_one("SELECT COUNT(*) as count FROM staff WHERE is_active = TRUE AND is_deleted = FALSE AND (%s IS NULL OR location_id = %s)", (loc, loc))
         stats['total_employees'] = result['count'] if result else 0
 
         # Active timesheets (draft or submitted this week)

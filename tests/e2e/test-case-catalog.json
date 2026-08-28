@@ -1,0 +1,205 @@
+{
+  "TC-001": {
+    "category": "Positive",
+    "scenario": "Staff List loads with correct columns and default Active Staff tab",
+    "preconditions": "Logged in as an admin user. At least one Active staff member exists in the database.",
+    "expectedResult": "Table shows Employee ID, Name, Position, Department, Location, Status, Actions columns. Staff Status filter defaults to Active. Every visible row's Status badge reads Active. Visible row count equals the Active count shown in the Staff Status dropdown. View/Edit actions are present on each row.",
+    "remarks": "Read-only verification against the seeded roster."
+  },
+  "TC-002": {
+    "category": "Positive",
+    "scenario": "Active/Inactive Staff Status filter shows only matching rows",
+    "preconditions": "Logged in as admin. Roster has both Active and Inactive staff members.",
+    "expectedResult": "Selecting Inactive Staff shows only Inactive rows and hides every Active row. Switching back to Active Staff restores the Active-only list.",
+    "remarks": ""
+  },
+  "TC-013": {
+    "category": "Positive",
+    "scenario": "All Staff shows both Active and Inactive rows together",
+    "preconditions": "Logged in as admin. Roster has both Active and Inactive staff members.",
+    "expectedResult": "Selecting All Staff shows a row count equal to the Active count plus the Inactive count, with both Active and Inactive Status badges present among the visible rows. The All Staff dropdown label shows the combined total.",
+    "remarks": "Deactivate/Activate/Delete actions on a row remain governed by that row's own status, unaffected by the All Staff view."
+  },
+  "TC-003": {
+    "category": "Positive",
+    "scenario": "Search filters the visible rows by staff name",
+    "preconditions": "Logged in as admin. Staff List loaded on the Active tab.",
+    "expectedResult": "Typing a name shows only the matching row. A non-matching search hides every row. Clearing the search restores the full list.",
+    "remarks": ""
+  },
+  "TC-004": {
+    "category": "Positive",
+    "scenario": "Location filter shows only staff at the selected location",
+    "preconditions": "Logged in as admin. At least one location exists with assigned staff.",
+    "expectedResult": "Selecting a location shows only rows whose Location column matches. Selecting \"All Locations\" restores the full list.",
+    "remarks": ""
+  },
+  "TC-005": {
+    "category": "Positive",
+    "scenario": "View displays the correct staff details",
+    "preconditions": "Logged in as admin. A staff member with a known phone number exists.",
+    "expectedResult": "View page shows the correct name, Employee ID, phone as a clickable tel: link, and an Active status badge. \"Edit Staff Member\" action is present.",
+    "remarks": ""
+  },
+  "TC-014": {
+    "category": "Positive",
+    "scenario": "Staff List is ordered by Employee ID ascending, not insertion or name order",
+    "preconditions": "Logged in as admin. At least two staff members exist.",
+    "expectedResult": "On the All Staff view, the Employee ID column reads in strict ascending numeric order top to bottom (EMP01, EMP02, EMP03, ...), regardless of first/last name alphabetical order.",
+    "remarks": "Verifies the explicit ORDER BY s.employee_id ASC in routes/staff.py index() - never relies on Postgres's default row order."
+  },
+  "TC-015": {
+    "category": "Positive",
+    "scenario": "Search and Location filters combine (both must match, not either/or)",
+    "preconditions": "Logged in as admin. At least one location has assigned staff.",
+    "expectedResult": "With a Location selected, adding a non-matching Search term narrows the visible rows to zero (proving the filters AND together, not OR). Adding a Search term that matches a row within that location narrows to exactly that row. Clearing Search restores the Location-only count.",
+    "remarks": "Client-side filterTable() combines locationFilter and searchInput; this proves they compose correctly rather than one silently overriding the other."
+  },
+  "TC-006": {
+    "category": "Positive",
+    "scenario": "Add Staff Member succeeds with Last Name and Phone provided",
+    "preconditions": "Logged in as admin. On the Add Staff Member form.",
+    "expectedResult": "Form submits successfully with First Name, Last Name, Phone, and Position all filled. New record appears in the Active Staff list with a generated Employee ID. Last Name and Phone are stored correctly in the database (both are required fields, validated client- and server-side).",
+    "remarks": "Also creates the fixture staff member reused by TC-007 through TC-012 and NEG-003 through NEG-005."
+  },
+  "TC-007": {
+    "category": "Positive",
+    "scenario": "Edit updates and persists staff details",
+    "preconditions": "Logged in as admin. The TC-006 fixture staff member exists. Bank Account Number, IFSC Code, and Monthly Salary are required on Edit, so valid values are supplied for all three alongside the Notes change.",
+    "expectedResult": "Changing the Notes field (plus the now-required Bank Account Number, IFSC Code, and Monthly Salary) and saving redirects to the staff list. Re-opening Edit shows the new Notes value, confirming the change persisted server-side.",
+    "remarks": ""
+  },
+  "TC-008": {
+    "category": "Positive",
+    "scenario": "Phone validation enforces digits-only, 10-digit numbers",
+    "preconditions": "Logged in as admin. On the Edit Staff Member form for the TC-006 fixture.",
+    "expectedResult": "Letters mixed with digits are stripped live, only digits remain. More than 10 digits is capped at 10. Submitting an incomplete (non-10-digit) number is blocked and the field is flagged :invalid. A valid 10-digit number saves successfully, confirmed in the database.",
+    "remarks": "Finding: <form id=\"staffForm\"> is missing novalidate, so Bootstrap's custom invalid-feedback text never renders on a real submit attempt - the browser's native validation tooltip shows instead. Submission is still correctly blocked either way. Not fixed - application code was not modified."
+  },
+  "TC-009": {
+    "category": "Positive",
+    "scenario": "Deactivate performs a status change to Inactive Staff",
+    "preconditions": "Logged in as admin. The TC-006 fixture is Active.",
+    "expectedResult": "Confirming Deactivate in the modal removes the row from Active Staff; it reappears under Inactive Staff with an Activate action. Database is_active flips to false.",
+    "remarks": ""
+  },
+  "TC-010": {
+    "category": "Positive",
+    "scenario": "Activate performs a status change back to Active Staff",
+    "preconditions": "Logged in as admin. The TC-006 fixture is Inactive (following TC-009).",
+    "expectedResult": "Clicking Activate moves the record back to Active Staff in both the UI and the database (is_active = true).",
+    "remarks": ""
+  },
+  "TC-011": {
+    "category": "Positive",
+    "scenario": "Deactivate is a soft delete - record remains in the database",
+    "preconditions": "Logged in as admin. The TC-006 fixture is Active (following TC-010).",
+    "expectedResult": "After deactivating, a direct database query confirms the row still exists with the same Employee ID, only is_active flipped to false - not removed via SQL DELETE. Still reachable under Inactive Staff in the UI.",
+    "remarks": "Proves soft-delete semantics - the core requirement under test."
+  },
+  "TC-012": {
+    "category": "Positive",
+    "scenario": "Delete is a soft delete - hidden from both tabs, record remains in the database",
+    "preconditions": "Logged in as admin. The TC-006 fixture is Inactive (following TC-011).",
+    "expectedResult": "Confirming Delete removes the row from both Active Staff and Inactive Staff. A direct database query confirms the row still exists with is_deleted = true and is_active = false, not removed via SQL DELETE. Direct navigation to its Edit/View URL afterward shows \"Staff member not found\".",
+    "remarks": "Proves Delete is a distinct, non-destructive soft-delete flag (is_deleted) separate from Deactivate's is_active flag."
+  },
+  "NEG-001": {
+    "category": "Negative",
+    "scenario": "Add Staff Member is blocked when required First Name is empty",
+    "preconditions": "Logged in as admin. On the Add Staff Member form.",
+    "expectedResult": "Leaving First Name empty and submitting does not navigate away from the Add form and does not create a record; the First Name field is flagged :invalid by the browser's required-field validation.",
+    "remarks": "Client-side HTML5 required-attribute validation."
+  },
+  "NEG-002": {
+    "category": "Negative",
+    "scenario": "Add Staff Member is blocked when required Position is not selected",
+    "preconditions": "Logged in as admin. On the Add Staff Member form, First Name filled.",
+    "expectedResult": "Leaving Position on \"Select Position\" and submitting does not navigate away and does not create a record; the Position field is flagged :invalid.",
+    "remarks": "Client-side HTML5 required-attribute validation."
+  },
+  "NEG-003": {
+    "category": "Negative",
+    "scenario": "Invalid Bank Account Number is rejected server-side even if client validation is bypassed",
+    "preconditions": "Logged in as admin. Editing the manager fixture staff member (created in this file's Setup step). Bank Account Number, IFSC Code, and Monthly Salary are required on Edit; valid values are given for IFSC Code and Monthly Salary so only Bank Account Number is under test.",
+    "expectedResult": "With the field's pattern attribute removed (simulating a client bypass) and an invalid value (e.g. \"AB12\") submitted, the server re-renders the Edit form with the error \"Bank Account Number must be 5-20 digits.\" and does not save the value.",
+    "remarks": "Proves server-side defense-in-depth (_validate_bank_fields in routes/staff.py), not just client-side HTML5 pattern validation."
+  },
+  "NEG-004": {
+    "category": "Negative",
+    "scenario": "Invalid IFSC Code is rejected server-side even if client validation is bypassed",
+    "preconditions": "Logged in as admin. Editing the manager fixture staff member (created in this file's Setup step). Bank Account Number, IFSC Code, and Monthly Salary are required on Edit; valid values are given for Bank Account Number and Monthly Salary so only IFSC Code is under test.",
+    "expectedResult": "With the field's pattern attribute removed and an invalid value (e.g. \"12345\") submitted, the server re-renders the Edit form with the error \"IFSC Code must be in a valid format (e.g. SBIN0005814).\" and does not save the value.",
+    "remarks": "Proves server-side defense-in-depth, not just client-side HTML5 pattern validation."
+  },
+  "NEG-005": {
+    "category": "Negative",
+    "scenario": "Negative Monthly Salary is rejected server-side even if client validation is bypassed",
+    "preconditions": "Logged in as admin. Editing the manager fixture staff member (created in this file's Setup step). Bank Account Number, IFSC Code, and Monthly Salary are required on Edit; valid values are given for Bank Account Number and IFSC Code so only Monthly Salary is under test.",
+    "expectedResult": "With the field's min attribute removed and a negative value (-500) submitted, the server re-renders the Edit form with the error \"Monthly Salary cannot be negative.\" and does not save the value.",
+    "remarks": "Proves server-side defense-in-depth, not just the client-side min=\"0\" constraint."
+  },
+  "NEG-011": {
+    "category": "Negative",
+    "scenario": "Edit Staff Member is blocked when Bank Account Number, IFSC Code, or Monthly Salary is left blank",
+    "preconditions": "Logged in as admin. Editing a staff member whose Bank Account Number, IFSC Code, and Monthly Salary are unset.",
+    "expectedResult": "Leaving any of the three blank and submitting does not navigate away from the Edit form; the blank field is flagged :invalid by the browser's required-field validation.",
+    "remarks": "Client-side HTML5 required-attribute validation, backed by server-side validation in routes/staff.py (_validate_bank_fields required=True)."
+  },
+  "NEG-006": {
+    "category": "Negative",
+    "scenario": "Deactivating a staff member who has subordinates succeeds and reassigns them",
+    "preconditions": "Logged in as admin. A second fixture staff member exists and is linked as a subordinate of the first (manager_id set directly in the database - Add/Edit Staff Member has no Manager field in the UI to set this through).",
+    "expectedResult": "Clicking Deactivate and confirming succeeds with \"Staff member deactivated successfully!\"; the manager's row moves to Inactive Staff (database is_active = false). The subordinate's manager_id is automatically reassigned to the manager's own manager (null here) rather than left pointing at a deactivated manager.",
+    "remarks": "Business rule enforced in routes/staff.py's deactivate() route - having subordinates never blocks the action."
+  },
+  "NEG-012": {
+    "category": "Negative",
+    "scenario": "Viewing a non-existent staff ID redirects with \"not found\"",
+    "preconditions": "Logged in as admin. A syntactically valid UUID that does not correspond to any staff row.",
+    "expectedResult": "Navigating to /staff/view/<id> redirects to the staff list with a \"Staff member not found\" error, instead of a server error or blank page.",
+    "remarks": "Verifies the not-found guard in routes/staff.py view() for an id that parses fine but matches no row."
+  },
+  "NEG-013": {
+    "category": "Negative",
+    "scenario": "Editing a non-existent staff ID redirects with \"not found\"",
+    "preconditions": "Logged in as admin. A syntactically valid UUID that does not correspond to any staff row.",
+    "expectedResult": "Navigating to /staff/edit/<id> redirects to the staff list with a \"Staff member not found\" error, instead of a server error or blank page.",
+    "remarks": "Verifies the not-found guard in routes/staff.py edit() GET - the same guard that also treats a soft-deleted id as not found (see TC-012)."
+  },
+  "NEG-007": {
+    "category": "Negative",
+    "scenario": "Unauthenticated access to Staff Management redirects to login",
+    "preconditions": "No session cookie (fresh, unauthenticated browser context).",
+    "expectedResult": "Navigating directly to /staff/ redirects to the login page instead of showing the staff list.",
+    "remarks": "Verifies the login_required guard on the staff blueprint. Note: the test context is created with storageState explicitly set to undefined - browser.newContext() with no options at all still inherits the project-level use.storageState (the admin session) from playwright.config.js, which would otherwise defeat this test entirely."
+  },
+  "NEG-014": {
+    "category": "Negative",
+    "scenario": "Unauthenticated access to Add/View/Edit staff routes also redirects to login",
+    "preconditions": "No session cookie (fresh, unauthenticated browser context).",
+    "expectedResult": "Navigating directly to /staff/add, /staff/view/<id>, and /staff/edit/<id> each redirect to the login page rather than showing the form.",
+    "remarks": "Extends NEG-007's coverage beyond the list page - login_required guards every staff route, not just the index."
+  },
+  "NEG-008": {
+    "category": "Negative",
+    "scenario": "Add Staff Member is blocked when required Last Name is empty",
+    "preconditions": "Logged in as admin. On the Add Staff Member form, First Name/Phone/Position filled.",
+    "expectedResult": "Leaving Last Name empty and submitting does not navigate away from the Add form and does not create a record; the Last Name field is flagged :invalid by the browser's required-field validation.",
+    "remarks": "Client-side HTML5 required-attribute validation, backed by server-side validation in routes/staff.py."
+  },
+  "NEG-009": {
+    "category": "Negative",
+    "scenario": "Add Staff Member is blocked when required Phone is empty",
+    "preconditions": "Logged in as admin. On the Add Staff Member form, First Name/Last Name/Position filled.",
+    "expectedResult": "Leaving Phone empty and submitting does not navigate away from the Add form and does not create a record; the Phone field is flagged :invalid by the browser's required-field validation.",
+    "remarks": "Client-side HTML5 required-attribute validation, backed by server-side validation in routes/staff.py."
+  },
+  "NEG-010": {
+    "category": "Negative",
+    "scenario": "Deleting a staff member who has subordinates soft-deletes them and reassigns the subordinate",
+    "preconditions": "Logged in as admin. A dedicated manager/subordinate fixture pair is created and linked within this test.",
+    "expectedResult": "Clicking Delete and confirming succeeds with \"Staff member deleted successfully!\". The manager's row disappears from the staff list; database shows is_deleted = true and is_active = false (row not removed). The subordinate's manager_id is automatically reassigned rather than left pointing at a deleted manager.",
+    "remarks": "Business rule enforced in routes/staff.py's delete() route - mirrors deactivate()'s subordinate-reassignment behavior."
+  }
+}

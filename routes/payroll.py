@@ -62,7 +62,7 @@ def get_payroll_stats():
 
     try:
         # Total active employees
-        result = execute_query_one("SELECT COUNT(*) as count FROM staff WHERE is_active = TRUE")
+        result = execute_query_one("SELECT COUNT(*) as count FROM staff WHERE is_active = TRUE AND is_deleted = FALSE")
         stats['total_employees'] = result['count'] if result else 0
 
         # Active timesheets this week
@@ -153,7 +153,7 @@ def timesheets():
         timesheets_data = execute_query(query, tuple(params), fetch=True)
 
         # Get staff list for filter
-        staff_list = execute_query("SELECT id, first_name || ' ' || last_name as name FROM staff WHERE is_active = TRUE ORDER BY last_name, first_name", fetch=True)
+        staff_list = execute_query("SELECT id, first_name || ' ' || last_name as name FROM staff WHERE is_active = TRUE AND is_deleted = FALSE ORDER BY last_name, first_name", fetch=True)
 
         return render_template('payroll/timesheets/index.html',
                              timesheets=timesheets_data or [],
@@ -590,7 +590,7 @@ def leave():
             FROM leave_balances lb
             JOIN staff s ON lb.staff_id = s.id
             JOIN leave_types lt ON lb.leave_type_id = lt.id
-            WHERE s.is_active = TRUE AND lt.is_active = TRUE
+            WHERE s.is_active = TRUE AND s.is_deleted = FALSE AND lt.is_active = TRUE
             ORDER BY s.last_name, s.first_name, lt.name
         """, fetch=True)
 
@@ -667,7 +667,7 @@ def leave_request():
     # GET request - show form
     try:
         # Get staff list
-        staff = execute_query("SELECT id, first_name || ' ' || last_name as name FROM staff WHERE is_active = TRUE ORDER BY last_name, first_name", fetch=True)
+        staff = execute_query("SELECT id, first_name || ' ' || last_name as name FROM staff WHERE is_active = TRUE AND is_deleted = FALSE ORDER BY last_name, first_name", fetch=True)
 
         # Get leave types
         leave_types = execute_query("SELECT id, name, description FROM leave_types WHERE is_active = TRUE ORDER BY name", fetch=True)
@@ -739,7 +739,7 @@ def leave_history(staff_id):
             FROM staff s
             LEFT JOIN departments d ON s.department_id = d.id
             LEFT JOIN locations l ON s.location_id = l.id
-            WHERE s.id = %s AND s.is_active = TRUE
+            WHERE s.id = %s AND s.is_active = TRUE AND s.is_deleted = FALSE
         """, (staff_id,))
 
         if not staff_info:
@@ -1098,7 +1098,7 @@ def leave_balances():
             FROM staff s
             LEFT JOIN departments d ON s.department_id = d.id
             LEFT JOIN leave_balances lb ON s.id = lb.staff_id
-            WHERE s.is_active = TRUE
+            WHERE s.is_active = TRUE AND s.is_deleted = FALSE
             GROUP BY s.id, s.first_name, s.last_name, s.employee_id, s.email, s.department_id, d.name
             ORDER BY s.first_name, s.last_name
         """, fetch=True)
@@ -1120,7 +1120,7 @@ def edit_leave_balances_form(staff_id):
             SELECT s.*, d.name as department_name
             FROM staff s
             LEFT JOIN departments d ON s.department_id = d.id
-            WHERE s.id = %s AND s.is_active = TRUE
+            WHERE s.id = %s AND s.is_active = TRUE AND s.is_deleted = FALSE
         """, (staff_id,))
 
         if not staff:
@@ -1160,7 +1160,7 @@ def update_leave_balance(staff_id):
     """Update leave balance for a specific employee"""
     try:
         # Verify staff exists
-        staff = execute_query_one("SELECT * FROM staff WHERE id = %s AND is_active = TRUE", (staff_id,))
+        staff = execute_query_one("SELECT * FROM staff WHERE id = %s AND is_active = TRUE AND is_deleted = FALSE", (staff_id,))
         if not staff:
             flash('Employee not found', 'error')
             return redirect(url_for('payroll.leave_balances'))
@@ -1219,7 +1219,7 @@ def recalculate_leave_balances():
     """Recalculate all leave balances based on approved leave requests"""
     try:
         # Get all active staff
-        staff_list = execute_query("SELECT id FROM staff WHERE is_active = TRUE", fetch=True)
+        staff_list = execute_query("SELECT id FROM staff WHERE is_active = TRUE AND is_deleted = FALSE", fetch=True)
 
         if not staff_list:
             flash('No active employees found', 'warning')
@@ -1676,7 +1676,7 @@ def _run_payroll_processing(cycle_id):
             SELECT s.id, s.first_name, s.last_name, s.employee_id,
                    COALESCE(s.hourly_rate, 15.00) as hourly_rate
             FROM staff s
-            WHERE s.is_active = TRUE
+            WHERE s.is_active = TRUE AND s.is_deleted = FALSE
             ORDER BY s.first_name, s.last_name
         """, fetch=True)
 

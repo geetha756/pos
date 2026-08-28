@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Electric Idli Machine — Settings{% endblock %}
+
+{% block extra_head %}
+<link href="{{ url_for('static', filename='css/eidli-hmi.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="eidli-app eidli-app-fill">
+    {% include "machines/_idli_nav.html" with context %}
+
+    <div class="card mb-3">
+        <div class="card-header"><span class="eidli-panel-title">Temperature Control</span></div>
+        <div class="card-body">
+            <div id="eidli-settings-body"><div class="eidli-section-loading">Loading settings…</div></div>
+        </div>
+    </div>
+
+    <div class="card eidli-sync-card">
+        <div class="card-header"><span class="eidli-panel-title">Sync to Machine</span></div>
+        <div class="card-body">
+            <p class="text-muted small mb-2">Push the currently saved settings down to the machine over MQTT — use this if the machine's own configuration may have drifted from what's saved here.</p>
+            <button type="button" class="btn btn-outline-secondary" id="eidli-settings-sync-btn" disabled>
+                <i class="ri-upload-cloud-2-line icon-sm me-1"></i>Sync Settings to Machine
+            </button>
+            <div id="eidli-sync-status" class="eidli-cmd-status"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    window.EIDLI_CONFIG = {
+        configured: {{ eidli_configured|tojson }},
+        urls: {
+            machine: '{{ url_for("machines.idli_machine") }}',
+            status: '{{ url_for("machines.idli_status") }}',
+            settings: '{{ url_for("machines.idli_get_settings") }}',
+            settingsSync: '{{ url_for("machines.idli_settings_sync") }}',
+            commands: '{{ url_for("machines.idli_commands") }}'
+        }
+    };
+</script>
+<script src="{{ url_for('static', filename='js/eidli/core.js') }}"></script>
+<script src="{{ url_for('static', filename='js/eidli/settings.js') }}"></script>
+{% endblock %}

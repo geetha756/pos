@@ -1,10 +1,27 @@
 from flask import Flask
 import os
+import logging
 from dotenv import load_dotenv
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Load environment variables from dev.env file
 load_dotenv('.env')
+
+# Chat latency milestones (routes/chat.py, logger 'pos.chat.timing') are
+# logged at INFO, which prints nothing by default — only the diagnostics
+# logger ('pos.chat.diagnostics', WARNING/ERROR) is visible out of the box.
+# Set POS_CHAT_TIMING=1 in .env to also see the per-request timing
+# breakdown (request received / upstream headers / first token / stream
+# complete) in the terminal the app is running in. Off by default so a
+# normal run isn't noisier than it needs to be.
+if os.getenv('POS_CHAT_TIMING', '').strip() == '1':
+    _chat_log_handler = logging.StreamHandler()
+    _chat_log_handler.setFormatter(logging.Formatter('[%(name)s] %(message)s'))
+    for _logger_name in ('pos.chat.timing', 'pos.chat.diagnostics'):
+        _logger = logging.getLogger(_logger_name)
+        _logger.setLevel(logging.INFO)
+        _logger.addHandler(_chat_log_handler)
+        _logger.propagate = False
 
 def create_app():
     """Create and configure the Flask application"""
@@ -66,7 +83,8 @@ def create_app():
     from routes.payroll import payroll_bp
     from routes.inventory import inventory_bp
     from routes.users import users_bp
-    from routes.machines import machines_bp, init_machines_schema
+    from routes.machines import machines_bp, init_machines_schema, EIDLI_MACHINE_ID
+    from routes.chat import chat_bp
 
     # Role-based access control: lock management sections behind their module's
     # view permission. Must be attached before the blueprints are registered.
@@ -100,9 +118,27 @@ def create_app():
     app.register_blueprint(inventory_bp, url_prefix='/inventory')
     app.register_blueprint(users_bp, url_prefix='/users')
     app.register_blueprint(machines_bp, url_prefix='/machines')
+    app.register_blueprint(chat_bp, url_prefix='/chat')
 
     with app.app_context():
         init_machines_schema()
+
+    # Background /status poller (see eidli_client.start_status_poller) — the
+    # Electric Idli Machine's /status is measurably slower and far more
+    # variable than every other endpoint on that service (400ms-1000ms vs.
+    # consistently <300ms elsewhere), consistent with a live device
+    # round-trip rather than a database read. This keeps a fresh cached
+    # result the /idli/api/status route can serve instantly instead of the
+    # browser waiting on that round-trip on every single poll.
+    #
+    # Guarded so it starts exactly once per real serving process: under the
+    # debug reloader, create_app() runs once in the parent watcher process
+    # (which never actually serves a request) and once in the forked child
+    # — WERKZEUG_RUN_MAIN distinguishes them. Outside debug mode there's no
+    # reloader/no parent process, so this always starts.
+    if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        import eidli_client
+        eidli_client.start_status_poller(EIDLI_MACHINE_ID)
 
     # Make has_perm()/current_role available in templates (nav gating)
     register_template_helpers(app)

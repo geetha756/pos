@@ -4,15 +4,125 @@
 
 {% block extra_head %}
 <style>
-    .machine-card { border: none; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.08); transition: box-shadow .2s ease; }
-    .machine-card:hover { box-shadow: 0 6px 18px rgba(0,0,0,.14); }
+    .machine-card {
+        --sns-danger: #c53030;
+        --sns-danger-dark: #9b2c2c;
+        max-width: 280px;
+        width: 100%;
+        border: 1px solid var(--sns-border);
+        border-radius: 14px;
+        background: var(--sns-surface);
+        box-shadow: 0 2px 10px rgba(0,0,0,.06);
+        transition: box-shadow .2s ease;
+    }
+    .machine-card:hover { box-shadow: 0 6px 18px rgba(0,0,0,.10); }
+    .machine-card .card-body { padding: 16px 14px; }
+
     .machine-icon-circle {
-        width: 64px; height: 64px; border-radius: 50%;
+        width: 48px; height: 48px; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        font-size: 30px; color: #fff;
-        background: radial-gradient(circle at 30% 30%, #34d399, #059669);
-        box-shadow: inset 0 -4px 8px rgba(0,0,0,.15), 0 4px 10px rgba(5,150,105,.35);
-        margin-bottom: 1rem;
+        font-size: 22px; color: #fff;
+        background: radial-gradient(circle at 30% 30%, var(--sns-primary), var(--sns-primary-dark));
+        box-shadow: inset 0 -4px 8px rgba(0,0,0,.15), 0 4px 10px rgba(21,122,94,.35);
+        margin: 0 auto 10px;
+    }
+
+    .machine-name {
+        font-size: 16px;
+        font-weight: 700;
+        color: var(--sns-ink);
+        margin: 0 0 10px;
+    }
+
+    /* Temperature - a single large digital readout, no gauge. */
+    .temp-digital-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 2px 0 10px;
+    }
+    .dial-label {
+        font-size: 10.5px;
+        font-weight: 600;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: var(--sns-muted);
+        margin-bottom: 4px;
+    }
+    .temp-digital-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--sns-ink);
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -.01em;
+    }
+
+    /* Machine status - a standalone pill below the dial, not squeezed
+       beside it, so it reads as its own piece of information. */
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        margin: 2px auto 6px;
+        padding: 5px 12px;
+        border-radius: 999px;
+        background: var(--sns-bg);
+        transition: background-color .2s ease;
+    }
+    .status-pill.machine-online { background: rgba(21,122,94,.10); }
+    .status-pill.machine-offline { background: rgba(197,48,48,.10); }
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--sns-muted);
+        box-shadow: 0 0 0 3px rgba(91,100,92,.10);
+        transition: background-color .2s ease, box-shadow .2s ease;
+    }
+    .status-dot.machine-online {
+        background: var(--sns-primary);
+        box-shadow: 0 0 0 3px rgba(21,122,94,.16);
+    }
+    .status-dot.machine-offline {
+        background: var(--sns-danger);
+        box-shadow: 0 0 0 3px rgba(197,48,48,.16);
+    }
+    .status-text {
+        font-size: 13px;
+        font-weight: 700;
+    }
+    .status-text.machine-online { color: var(--sns-primary-dark); }
+    .status-text.machine-offline { color: var(--sns-danger-dark); }
+
+    .machine-uptime-note {
+        margin: 0 auto 14px;
+        font-size: 11px;
+        color: var(--sns-muted);
+        line-height: 1.5;
+    }
+
+    @media (max-width: 600px) {
+        .temp-digital-value { font-size: 24px; }
+    }
+
+    .machine-view-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 40px;
+        background: var(--sns-primary);
+        color: #fff;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 14px;
+        border: none;
+        transition: background-color .2s ease;
+    }
+    .machine-view-btn:hover,
+    .machine-view-btn:focus {
+        background: var(--sns-primary-dark);
+        color: #fff;
     }
 </style>
 {% endblock %}
@@ -23,17 +133,188 @@
 </div>
 
 <div class="row">
-    <div class="col-sm-6 col-lg-4 mb-3">
-        <div class="card machine-card h-100">
-            <div class="card-body text-center py-4">
-                <div class="machine-icon-circle mx-auto"><i class="ri-drop-line"></i></div>
-                <h5 class="card-title mb-1">Idly Machine</h5>
-                <p class="text-muted small mb-3">Live temperature, pressure &amp; production monitoring</p>
-                <a href="{{ idly_dashboard_url }}" target="_blank" rel="noopener" class="btn btn-success w-100">
-                    <i class="ri-external-link-line icon me-1"></i>Open Dashboard
+    <div class="col-12">
+        <div class="card machine-card">
+            <div class="card-body text-center">
+                <div class="machine-icon-circle"><i class="ri-drop-line"></i></div>
+                <h2 class="machine-name">Electric Idli Machine</h2>
+
+                <div class="temp-digital-wrap">
+                    <div class="dial-label">Temperature</div>
+                    <div class="temp-digital-value" id="machine-temp-value">&mdash;</div>
+                </div>
+
+                <div>
+                    <div class="status-pill machine-offline" id="machine-online-pill">
+                        <span class="status-dot" id="machine-online-dot"></span>
+                        <span class="status-text machine-offline" id="machine-online-value">&mdash;</span>
+                    </div>
+                    <div class="machine-uptime-note" id="machine-uptime-note"></div>
+                </div>
+
+                <a href="{{ url_for('machines.idli_detail') }}" class="btn machine-view-btn">
+                    <i class="ri-cpu-line icon me-2"></i>View Machine
                 </a>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    window.EIDLI_CONFIG = {
+        configured: {{ eidli_configured|tojson }},
+        urls: {
+            machine: '{{ url_for("machines.idli_machine") }}',
+            status: '{{ url_for("machines.idli_status") }}',
+            temperatureLogs: '{{ url_for("machines.idli_temperature_logs") }}',
+            events: '{{ url_for("machines.idli_events") }}'
+        }
+    };
+</script>
+<script src="{{ url_for('static', filename='js/eidli/core.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var tempEl = document.getElementById('machine-temp-value');
+    var onlineEl = document.getElementById('machine-online-value');
+    var dotEl = document.getElementById('machine-online-dot');
+    var pillEl = document.getElementById('machine-online-pill');
+
+    if (!window.Eidli || !Eidli.CONFIGURED) {
+        onlineEl.textContent = 'Not connected';
+        onlineEl.classList.add('machine-offline');
+        pillEl.classList.add('machine-offline');
+        return;
+    }
+
+    // Temperature is only meaningful while the machine itself is reachable
+    // — a heater being off (idle between cycles, or simply at setpoint) is
+    // normal operation and the last reading is still the current one, but
+    // an OFFLINE machine means telemetry has stopped arriving altogether,
+    // so the reading on screen can no longer be trusted as current. Shown
+    // as '—' in that case, same as the no-data state.
+    var machineIsOnline = false;
+    var lastTemp = null;
+
+    function renderTempValue() {
+        tempEl.textContent = (machineIsOnline && lastTemp !== null) ? Number(lastTemp).toFixed(1) + '°C' : '—';
+    }
+
+    function renderOnlineStatus(status) {
+        var isOnline = !!(status && status.is_online);
+        var stateChanged = isOnline !== machineIsOnline;
+        onlineEl.classList.remove('machine-online', 'machine-offline');
+        dotEl.classList.remove('machine-online');
+        pillEl.classList.remove('machine-online', 'machine-offline');
+        if (isOnline) {
+            onlineEl.textContent = 'Machine ONLINE';
+            onlineEl.classList.add('machine-online');
+            dotEl.classList.add('machine-online');
+            pillEl.classList.add('machine-online');
+        } else {
+            onlineEl.textContent = 'Machine OFFLINE';
+            onlineEl.classList.add('machine-offline');
+            pillEl.classList.add('machine-offline');
+        }
+        machineIsOnline = isOnline;
+        renderTempValue();
+        renderUptimeNote();
+        // Re-fetch the ON/OFF event immediately on a live state flip (not
+        // just the slow 30s poll below), so the newly-relevant timestamp
+        // (e.g. the OFF event that JUST happened) shows up right away
+        // instead of up to 30s late.
+        if (stateChanged) refreshUptimeNote();
+    }
+
+    // Temperature is deliberately NOT read from /status here — see the
+    // Electric Idli Machine dashboard's own live-temperature poll
+    // (static/js/eidli/dashboard.js) for the full rationale: /status's
+    // current_temperature runs measurably staler than the newest row
+    // already available from /temperature-logs. This card polls that same
+    // authoritative endpoint directly so the number shown here always
+    // matches the Dashboard page.
+    var lastTempMs = null;
+    var tempFetchInFlight = false;
+    function refreshTemp() {
+        if (tempFetchInFlight) return;
+        tempFetchInFlight = true;
+        Eidli.apiFetch(Eidli.URLS.temperatureLogs + '?limit=1&offset=0', { priority: 'high' }).then(function (res) {
+            tempFetchInFlight = false;
+            if (!res.ok || !res.body.success) return;
+            var items = (res.body.data && res.body.data.items) || [];
+            if (!items.length) return;
+            var latest = items[0];
+            var ms = new Date(latest.recorded_at).getTime();
+            if (isNaN(ms) || (lastTempMs !== null && ms <= lastTempMs)) return;
+            lastTempMs = ms;
+            lastTemp = latest.temperature;
+            renderTempValue();
+        }).catch(function () { tempFetchInFlight = false; });
+    }
+
+    // Reuses the shared 3s status poll (pauses when the tab isn't visible)
+    // for online/offline state - same data source, same live-update cadence
+    // as the full Dashboard page, no separate polling loop for that part.
+    Eidli.onStatus(renderOnlineStatus);
+    Eidli.startHeader();
+
+    // Machine ON / OFF time: the backend logs a dedicated event each time
+    // connectivity is lost (machine_offline) or telemetry resumes after a
+    // gap (machine_restarted) — see routes/machines.py's idli_events, which
+    // forwards event_type so this can ask for exactly the latest one of
+    // each kind in a single lightweight request apiece, instead of paging
+    // through the much higher-volume temperature/heater event stream to
+    // find them. These change rarely (connectivity events, not the ~1/s
+    // telemetry), so a slow poll is enough - no need for the same 2s
+    // cadence as the live temperature/heater state above. Only the
+    // timestamp matching the CURRENT online/offline state is ever shown -
+    // never both at once - see renderUptimeNote().
+    var uptimeNoteEl = document.getElementById('machine-uptime-note');
+    var lastOnTime = null, lastOffTime = null;
+    // Date + time + seconds (e.g. "24 Aug 2026, 12:14:32 pm") so the exact
+    // moment the backend recorded this ON/OFF event is unambiguous, not
+    // just an hour:minute that could be from today or several days ago.
+    function fmtHM(iso) {
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) return null;
+        var datePart = d.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' });
+        var timePart = d.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+        return datePart + ', ' + timePart;
+    }
+    function latestEventTime(eventType) {
+        return Eidli.apiFetch(Eidli.URLS.events + '?limit=1&event_type=' + eventType).then(function (res) {
+            if (!res.ok || !res.body.success) return null;
+            var items = (res.body.data && res.body.data.items) || [];
+            return items.length ? fmtHM(items[0].created_at) : null;
+        }).catch(function () { return null; });
+    }
+    // Real backend event timestamps only - never hardcoded, never
+    // approximated from telemetry. '--' is shown (not a blank/broken card)
+    // when that event genuinely hasn't happened yet, per requirement #6.
+    function renderUptimeNote() {
+        uptimeNoteEl.textContent = machineIsOnline
+            ? 'Machine ON at ' + (lastOnTime || '--')
+            : 'Machine OFF at ' + (lastOffTime || '--');
+    }
+    function refreshUptimeNote() {
+        Promise.all([latestEventTime('machine_restarted'), latestEventTime('machine_offline')]).then(function (results) {
+            lastOnTime = results[0];
+            lastOffTime = results[1];
+            renderUptimeNote();
+        });
+    }
+    refreshUptimeNote();
+    setInterval(function () {
+        if (document.visibilityState !== 'visible') return;
+        refreshUptimeNote();
+    }, 30000);
+
+    refreshTemp();
+    setInterval(function () {
+        if (document.visibilityState !== 'visible') return;
+        refreshTemp();
+    }, 2000);
+});
+</script>
 {% endblock %}

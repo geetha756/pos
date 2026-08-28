@@ -69,6 +69,8 @@
     </div>
 </div>
 
+{% include 'chat/_agent_banner.html' %}
+
 {% if request.args.get('placed') %}
 <div class="alert alert-success alert-dismissible fade show" role="alert">
     <i class="ri-check-line icon me-1"></i>Order <strong>{{ request.args.get('placed') }}</strong> placed &amp; bill printed. Ready for the next order.
